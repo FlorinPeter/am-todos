@@ -26,10 +26,12 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   const [isEditMode, setIsEditMode] = useState(false);
   const [editContent, setEditContent] = useState(content);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [viewContent, setViewContent] = useState(content); // Track content for view mode
 
-  // Update editContent when content prop changes
+  // Update both editContent and viewContent when content prop changes
   React.useEffect(() => {
     setEditContent(content);
+    setViewContent(content);
     setHasUnsavedChanges(false);
   }, [content]);
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,29 +49,47 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
 
   const handleChatMessage = async (
     message: string, 
-    currentContent: string, 
-    chatHistory: ChatMessage[]
+    currentContent: string
   ): Promise<string> => {
-    const updatedContent = await processChatMessage(message, currentContent, chatHistory);
+    // Always work with the latest frontend content, no persistent chat history
+    const updatedContent = await processChatMessage(message, currentContent, []);
     return updatedContent;
   };
 
-  const handleContentUpdate = (newContent: string, newChatHistory: ChatMessage[]) => {
-    onMarkdownChange(newContent);
-    onChatHistoryChange(newChatHistory);
+  const handleContentUpdate = (newContent: string) => {
+    if (isEditMode) {
+      // In edit mode, update the edit content without saving
+      setEditContent(newContent);
+      setHasUnsavedChanges(newContent !== content);
+    } else {
+      // In view mode, update the view content without saving
+      setViewContent(newContent);
+      setHasUnsavedChanges(newContent !== content);
+    }
+    // No chat history saving - AI chat is now stateless
   };
 
   const handleEditModeToggle = () => {
-    if (isEditMode && hasUnsavedChanges) {
-      if (window.confirm('You have unsaved changes. Are you sure you want to switch to view mode?')) {
-        setIsEditMode(false);
-        setEditContent(content);
-        setHasUnsavedChanges(false);
+    if (hasUnsavedChanges) {
+      if (window.confirm('You have unsaved changes. Are you sure you want to switch modes?')) {
+        if (isEditMode) {
+          // Switching from edit to view - sync viewContent with editContent
+          setViewContent(editContent);
+          setIsEditMode(false);
+        } else {
+          // Switching from view to edit - sync editContent with viewContent
+          setEditContent(viewContent);
+          setIsEditMode(true);
+        }
       }
     } else {
       setIsEditMode(!isEditMode);
       if (!isEditMode) {
-        setEditContent(content);
+        // Switching to edit mode - sync editContent with viewContent
+        setEditContent(viewContent);
+      } else {
+        // Switching to view mode - sync viewContent with editContent
+        setViewContent(editContent);
       }
     }
   };
@@ -79,9 +99,15 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
     setHasUnsavedChanges(e.target.value !== content);
   };
 
+  // Update unsaved changes detection when viewContent changes
+  React.useEffect(() => {
+    setHasUnsavedChanges(viewContent !== content || editContent !== content);
+  }, [viewContent, editContent, content]);
+
   const handleSave = () => {
-    console.log('MarkdownViewer: Saving content...', editContent.substring(0, 100));
-    onMarkdownChange(editContent);
+    const contentToSave = isEditMode ? editContent : viewContent;
+    console.log('MarkdownViewer: Saving content...', contentToSave.substring(0, 100));
+    onMarkdownChange(contentToSave);
     setHasUnsavedChanges(false);
     setIsEditMode(false);
   };
@@ -90,6 +116,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
     if (hasUnsavedChanges) {
       if (window.confirm('You have unsaved changes. Are you sure you want to cancel?')) {
         setEditContent(content);
+        setViewContent(content);
         setHasUnsavedChanges(false);
         setIsEditMode(false);
       }
@@ -118,7 +145,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
           )}
         </div>
         
-        {isEditMode && (
+        {(isEditMode || hasUnsavedChanges) && (
           <div className="flex items-center space-x-2">
             <button
               onClick={handleCancel}
@@ -164,21 +191,25 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                 },
               }}
             >
-              {content}
+              {viewContent}
             </ReactMarkdown>
           </div>
         )}
       </div>
       
-      {/* AI Chat - only show in view mode */}
-      {!isEditMode && (
+      {/* AI Chat - available in both modes, uses appropriate content */}
+      <div className="relative">
+        {hasUnsavedChanges && (
+          <div className="bg-blue-900 bg-opacity-50 text-blue-200 text-sm p-2 border-t border-blue-700">
+            💡 AI changes will be applied to your draft. Use the Save button above to commit changes.
+          </div>
+        )}
         <AIChat
-          currentContent={content}
-          chatHistory={chatHistory}
+          currentContent={isEditMode ? editContent : viewContent}
           onContentUpdate={handleContentUpdate}
           onChatMessage={handleChatMessage}
         />
-      )}
+      </div>
     </div>
   );
 };
