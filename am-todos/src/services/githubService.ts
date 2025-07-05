@@ -143,3 +143,21 @@ export const getFileContent = async (token: string, owner: string, repo: string,
 
   return response.text();
 };
+
+export const getFileMetadata = async (token: string, owner: string, repo: string, path: string) => {
+  const url = getApiUrl(`/repos/${owner}/${repo}/contents/${path}`);
+  const headers = { Authorization: `token ${token}` };
+  const response = await fetch(url, { headers });
+
+  if (!response.ok) {
+    throw new Error(`GitHub API error: ${response.statusText}`);
+  }
+
+  const metadata = await response.json();
+  return {
+    sha: metadata.sha,
+    content: atob(metadata.content),
+    path: metadata.path,
+    name: metadata.name
+  };
+};
