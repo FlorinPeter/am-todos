@@ -142,6 +142,24 @@ chatHistory:
 - User-friendly error messages in UI
 - Graceful fallbacks for storage and API failures
 
+## Current Status (Latest Updates)
+
+The archive functionality has been fully implemented and debugged:
+
+### Recent Archive Fixes (Current Session)
+1. **Tab Count Display**: Fixed App.tsx lines 661 and 671 to use `allTodos.filter()` instead of `todos.filter()` for accurate tab counts
+2. **Sidebar Archive Display**: Fixed TodoSidebar.tsx line 62 to remove duplicate `isArchived` filter that was preventing archived tasks from appearing
+3. **Complete Archive Workflow**: Archive/unarchive operations now work correctly with proper task counts and sidebar display
+4. **Server Logs**: Confirmed backend is properly fetching both active and archived todos from GitHub API
+
+### Current Functionality Status
+- ✅ **Active/Archive Tab Switching**: Works correctly with accurate counts
+- ✅ **Archive/Unarchive Tasks**: Full bidirectional movement between active and archive
+- ✅ **Sidebar Display**: Shows appropriate tasks based on selected view mode
+- ✅ **Task Counts**: Real-time accurate counts for both active and archived tasks
+- ✅ **Data Persistence**: All operations properly sync with GitHub repository
+- ✅ **Mobile Responsiveness**: Archive functionality works on mobile devices
+
 ## Key Workflows
 
 ### Creating a New Todo
@@ -228,6 +246,8 @@ chatHistory:
 - **Regex bug**: Fixed checkbox pattern matching in MarkdownViewer
 - **State management**: Improved refresh logic and dependency handling
 - **Mobile layout**: Fixed sidebar height and responsive breakpoints
+- **Archive tab counts**: Fixed incorrect tab counts showing 0 by using allTodos instead of filtered todos array
+- **Archive sidebar display**: Fixed archived tasks not appearing in sidebar by removing duplicate isArchived filter in TodoSidebar component
 
 ### Development Workflow
 - **Git integration**: Modern `main` branch instead of `master`
@@ -235,3 +255,4 @@ chatHistory:
 - **Documentation**: Updated CLAUDE.md with complete implementation details
 - **Commit history**: Professional conventional commits with Claude attribution
 - **Testing infrastructure**: Created comprehensive GitHub API integration tests
+- **Restart script**: Use `./restart.sh` to restart both backend and frontend servers
