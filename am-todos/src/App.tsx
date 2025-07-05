@@ -25,6 +25,8 @@ function App() {
   const [creationStep, setCreationStep] = useState('');
   const [isDeletingTask, setIsDeletingTask] = useState(false);
   const [deletionStep, setDeletionStep] = useState('');
+  const [isSavingTask, setIsSavingTask] = useState(false);
+  const [saveStep, setSaveStep] = useState('');
 
   const fetchTodos = useCallback(async () => {
     console.log('Fetching todos...', settings ? 'Settings available' : 'No settings');
@@ -231,27 +233,52 @@ function App() {
 
   const handleTodoUpdate = async (id: string, newContent: string, newChatHistory?: any[]) => {
     if (!settings) return;
+    
     try {
+      setIsSavingTask(true);
+      setSaveStep('🔍 Preparing to save...');
+      console.log('App: handleTodoUpdate called with id:', id, 'content length:', newContent.length);
+      
       const todoToUpdate = todos.find(todo => todo.id === id);
       if (!todoToUpdate) {
         console.error("Todo not found for update:", id);
         return;
       }
 
+      setSaveStep('📝 Preparing content...');
       const updatedFrontmatter = {
         ...todoToUpdate.frontmatter,
         ...(newChatHistory && { chatHistory: newChatHistory })
       };
       const fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, newContent);
+      console.log('App: Full content prepared, generating commit message...');
 
-      // Generate Commit Message for update
+      setSaveStep('🤖 Generating commit message...');
       const commitMessage = await generateCommitMessage(`fix: Update todo "${todoToUpdate.title}"`);
+      console.log('App: Commit message generated:', commitMessage);
 
+      setSaveStep('💾 Saving to GitHub...');
+      console.log('App: Calling createOrUpdateTodo...');
       await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, todoToUpdate.sha);
-      fetchTodos(); // Re-fetch to get updated SHA and content
+      console.log('App: Todo updated successfully, fetching todos...');
+      
+      setSaveStep('🔄 Refreshing task list...');
+      await fetchTodos(); // Re-fetch to get updated SHA and content
+      
+      setSaveStep('✅ Save completed!');
+      setTimeout(() => {
+        setIsSavingTask(false);
+        setSaveStep('');
+      }, 1000);
+      
     } catch (error) {
       console.error("Error updating todo:", error);
-      // Handle error
+      setSaveStep('❌ Save failed!');
+      setTimeout(() => {
+        setIsSavingTask(false);
+        setSaveStep('');
+        alert(`Failed to save changes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }, 1000);
     }
   };
 
@@ -460,6 +487,7 @@ function App() {
     }
   };
 
+
   const getProgressWidth = () => {
     if (!creationStep) return '0%';
     if (creationStep.includes('Generating task plan')) return '20%';
@@ -485,6 +513,18 @@ function App() {
     if (deletionStep.includes('Directory empty')) return '95%';
     if (deletionStep.includes('Verification timeout')) return '90%';
     return '100%';
+  };
+
+  const getSaveProgressWidth = () => {
+    if (!saveStep) return '0%';
+    if (saveStep.includes('Preparing to save')) return '10%';
+    if (saveStep.includes('Preparing content')) return '25%';
+    if (saveStep.includes('Generating commit message')) return '50%';
+    if (saveStep.includes('Saving to GitHub')) return '75%';
+    if (saveStep.includes('Refreshing task list')) return '90%';
+    if (saveStep.includes('Save completed')) return '100%';
+    if (saveStep.includes('Save failed')) return '100%';
+    return '0%';
   };
 
   const selectedTodo = todos.find(todo => todo.id === selectedTodoId) || null;
@@ -606,6 +646,23 @@ function App() {
             <div className="mt-4 bg-gray-700 rounded-full h-2">
               <div className="bg-red-500 h-2 rounded-full transition-all duration-500" 
                    style={{ width: getDeletionProgressWidth() }}></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save Loading Overlay */}
+      {isSavingTask && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-sm w-full mx-4 text-center">
+            <div className="mb-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2">Saving Task...</h3>
+            <p className="text-gray-300 text-sm">{saveStep}</p>
+            <div className="mt-4 bg-gray-700 rounded-full h-2">
+              <div className="bg-green-500 h-2 rounded-full transition-all duration-500" 
+                   style={{ width: getSaveProgressWidth() }}></div>
             </div>
           </div>
         </div>
