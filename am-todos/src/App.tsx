@@ -81,13 +81,30 @@ function App() {
     } catch (error) {
       console.error("Error fetching todos:", error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      // Only show alert if it's not a simple empty directory issue
-      if (!errorMessage.includes('404') && !errorMessage.includes('not found')) {
-        alert(`Failed to fetch tasks: ${errorMessage}`);
-      } else {
-        console.log('Directory not found, treating as empty todos list');
+      console.log('Full error details:', { error, errorMessage });
+      
+      // Handle all expected empty directory scenarios silently
+      const isEmptyDirectoryError = errorMessage.includes('404') || 
+                                   errorMessage.includes('not found') ||
+                                   errorMessage.includes('empty') ||
+                                   errorMessage.includes('No such file or directory') ||
+                                   (error instanceof Error && error.name === 'NotFoundError');
+      
+      if (isEmptyDirectoryError) {
+        console.log('Empty directory or missing file, treating as empty todos list');
         setTodos([]);
         setSelectedTodoId(null);
+      } else {
+        // Log but don't show alert on page reload to avoid user disruption
+        console.error('Non-empty-directory error during fetch:', errorMessage);
+        // Still set empty state to prevent UI from breaking
+        setTodos([]);
+        setSelectedTodoId(null);
+        
+        // Only show alert if this seems like a genuine API/auth issue
+        if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.includes('rate limit')) {
+          alert(`Failed to fetch tasks: ${errorMessage}`);
+        }
       }
     }
   }, [settings]);
@@ -162,66 +179,17 @@ function App() {
       await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, filename, fullContent, commitMessage);
       console.log('File created successfully on GitHub');
 
-      // 5. Sync State with retry logic
+      // 5. Simple refresh - the file is already created!
       setCreationStep('🔄 Refreshing task list...');
-      console.log('Fetching updated todos...');
+      console.log('Refreshing todos list...');
       
-      // Retry logic to handle GitHub API delays
-      let retryCount = 0;
-      const maxRetries = 8;
-      const retryDelay = 5000; // 5 seconds
+      await fetchTodos();
       
-      const fetchWithRetry = async (): Promise<void> => {
-        try {
-          const githubFiles = await getTodos(settings.pat, settings.owner, settings.repo);
-          console.log(`Retry ${retryCount + 1} - Found ${githubFiles.length} files`);
-          
-          // Check if the new todo file exists in the response
-          const newTodoExists = githubFiles.some(file => 
-            file.path === filename || file.name === filename.split('/').pop()
-          );
-          
-          if (!newTodoExists && retryCount < maxRetries) {
-            retryCount++;
-            console.log(`Retry ${retryCount}/${maxRetries} - Todo not found yet, retrying in ${retryDelay}ms...`);
-            setCreationStep(`🔄 Waiting for GitHub (${retryCount}/${maxRetries})...`);
-            setTimeout(fetchWithRetry, retryDelay);
-          } else if (newTodoExists) {
-            console.log('Todo found! Refreshing full todo list...');
-            setCreationStep('✅ Task found, refreshing list...');
-            await fetchTodos();
-            
-            // Wait a bit more to ensure the UI updates
-            setTimeout(() => {
-              setIsCreatingTask(false);
-              setCreationStep('');
-            }, 500);
-          } else {
-            console.log('Max retries reached, refreshing anyway...');
-            setCreationStep('⚠️ Taking longer than expected...');
-            await fetchTodos();
-            setTimeout(() => {
-              setIsCreatingTask(false);
-              setCreationStep('');
-            }, 500);
-          }
-        } catch (error) {
-          console.error('Error in retry logic:', error);
-          if (retryCount < maxRetries) {
-            retryCount++;
-            setCreationStep(`❌ Error, retrying (${retryCount}/${maxRetries})...`);
-            setTimeout(fetchWithRetry, retryDelay);
-          } else {
-            console.log('Max retries reached due to errors, stopping...');
-            await fetchTodos();
-            setIsCreatingTask(false);
-            setCreationStep('');
-          }
-        }
-      };
-      
-      // Initial fetch with delay
-      setTimeout(fetchWithRetry, 1000);
+      setCreationStep('✅ Task created successfully!');
+      setTimeout(() => {
+        setIsCreatingTask(false);
+        setCreationStep('');
+      }, 1000);
     } catch (error) {
       console.error("Error creating new todo:", error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -333,20 +301,58 @@ function App() {
   const handlePriorityUpdate = async (id: string, newPriority: number) => {
     if (!settings) return;
     try {
+      setIsSavingTask(true);
+      setSaveStep('🏷️ Updating priority...');
+      
       const todoToUpdate = todos.find(todo => todo.id === id);
-      if (!todoToUpdate) return;
+      if (!todoToUpdate) {
+        setIsSavingTask(false);
+        setSaveStep('');
+        return;
+      }
 
+      setSaveStep('🔄 Getting latest file version...');
+      // Get the latest SHA to avoid conflicts (same pattern as handleTodoUpdate)
+      let latestSha = todoToUpdate.sha;
+      try {
+        const latestMetadata = await getFileMetadata(settings.pat, settings.owner, settings.repo, todoToUpdate.path);
+        latestSha = latestMetadata.sha;
+        console.log('Priority update: Latest SHA retrieved:', latestSha);
+      } catch (shaError) {
+        console.log('Priority update: Could not fetch latest SHA, using existing:', latestSha);
+      }
+
+      setSaveStep('📝 Preparing content...');
       const updatedFrontmatter = {
         ...todoToUpdate.frontmatter,
         priority: newPriority
       };
       const fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, todoToUpdate.content);
-      const commitMessage = await generateCommitMessage(`feat: Update priority of "${todoToUpdate.title}" to P${newPriority}`);
+      
+      // Simple clear commit message without AI generation
+      const priorityLabels = { 1: 'P1', 2: 'P2', 3: 'P3', 4: 'P4', 5: 'P5' };
+      const commitMessage = `feat: Update priority to ${priorityLabels[newPriority as keyof typeof priorityLabels]} for "${todoToUpdate.title}"`;
 
-      await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, todoToUpdate.sha);
-      fetchTodos();
+      setSaveStep('💾 Saving to GitHub...');
+      await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, latestSha);
+      
+      setSaveStep('🔄 Refreshing...');
+      await fetchTodos();
+      
+      setSaveStep('✅ Priority updated!');
+      setTimeout(() => {
+        setIsSavingTask(false);
+        setSaveStep('');
+      }, 1000);
+      
     } catch (error) {
       console.error("Error updating priority:", error);
+      setSaveStep('❌ Priority update failed!');
+      setTimeout(() => {
+        setIsSavingTask(false);
+        setSaveStep('');
+        alert(`Failed to update priority: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }, 1000);
     }
   };
 
@@ -391,13 +397,21 @@ function App() {
       }
 
       setIsDeletingTask(true);
-      setDeletionStep('🤖 Generating commit message...');
+      setDeletionStep('🔄 Getting latest file info...');
       console.log('Deleting todo:', todoToDelete.path);
 
-      // Generate AI commit message for deletion
-      const commitMessage = await generateCommitMessage(`feat: Delete task "${todoToDelete.title}"`);
+      // Get latest SHA to avoid conflicts
+      let latestSha = todoToDelete.sha;
+      try {
+        const latestMetadata = await getFileMetadata(settings.pat, settings.owner, settings.repo, todoToDelete.path);
+        latestSha = latestMetadata.sha;
+        console.log('Delete: Latest SHA retrieved:', latestSha);
+      } catch (shaError) {
+        console.log('Delete: Could not fetch latest SHA, using existing:', latestSha);
+      }
 
       setDeletionStep('🗑️ Deleting from GitHub...');
+      
       // GitHub API call to delete file
       const response = await fetch(`https://api.github.com/repos/${settings.owner}/${settings.repo}/contents/${todoToDelete.path}`, {
         method: 'DELETE',
@@ -406,8 +420,8 @@ function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: commitMessage,
-          sha: todoToDelete.sha,
+          message: `Delete ${todoToDelete.title}`,
+          sha: latestSha,
         }),
       });
 
@@ -416,7 +430,12 @@ function App() {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Delete response error:', errorText);
-        throw new Error(`Failed to delete todo: ${response.statusText}`);
+        console.error('Delete request details:', {
+          path: todoToDelete.path,
+          sha: latestSha,
+          status: response.status
+        });
+        throw new Error(`Delete failed: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       console.log('Todo deleted successfully');
@@ -428,104 +447,30 @@ function App() {
 
       setDeletionStep('🔄 Refreshing task list...');
       
-      // Check if this is the last todo - if so, we can skip verification
-      const remainingTodos = todos.filter(todo => todo.id !== id);
-      const isLastTodo = remainingTodos.length === 0;
-      
-      if (isLastTodo) {
-        console.log('This is the last todo - skipping verification and directly updating state');
-        setDeletionStep('✅ Last task deleted, clearing list...');
-        setTodos([]);
-        setSelectedTodoId(null);
-        setTimeout(() => {
-          setIsDeletingTask(false);
-          setDeletionStep('');
-        }, 1000);
-        return;
-      }
-      
-      // Retry logic to handle GitHub API delays for deletion
-      const maxRetries = 8;
-      const retryDelay = 3000; // 3 seconds
-      let retryCount = 0;
-      
-      const verifyDeletion = async (): Promise<void> => {
+      // Simple reliable approach: wait for GitHub processing, then refresh
+      setTimeout(async () => {
         try {
-          const githubFiles = await getTodos(settings.pat, settings.owner, settings.repo);
-          console.log(`Delete verification ${retryCount + 1} - Found ${githubFiles.length} files`);
-          console.log(`Files in directory:`, githubFiles.map(f => f.name));
-          console.log(`Looking for deleted file: ${todoToDelete.path}`);
+          setDeletionStep('✅ Deletion completed, refreshing...');
+          await fetchTodos();
           
-          // Check if the deleted todo file still exists in the response
-          const deletedTodoStillExists = githubFiles.some(file => 
-            file.path === todoToDelete.path
-          );
-          
-          // Deletion is successful if:
-          // 1. File is not found in the list (normal case)
-          // 2. Directory is empty (githubFiles.length === 0) - this covers the "last file" scenario
-          const deletionSuccessful = !deletedTodoStillExists;
-          
-          if (!deletionSuccessful && retryCount < maxRetries) {
-            retryCount++;
-            console.log(`Delete verification ${retryCount}/${maxRetries} - Todo still exists, retrying in ${retryDelay}ms...`);
-            setDeletionStep(`🔄 Verifying deletion (${retryCount}/${maxRetries})...`);
-            setTimeout(verifyDeletion, retryDelay);
-          } else {
-            // Deletion successful or max retries reached
-            if (deletionSuccessful) {
-              console.log('Deletion verified! File no longer found in directory listing.');
-              setDeletionStep('✅ Deletion confirmed, refreshing list...');
-            } else {
-              console.log('Max retries reached, assuming deletion succeeded...');
-              setDeletionStep('⚠️ Verification timeout, but deletion likely succeeded...');
-            }
-            
-            try {
-              await fetchTodos();
-            } catch (fetchError) {
-              console.log('Fetch error after deletion verification, assuming empty directory');
-              setTodos([]);
-              setSelectedTodoId(null);
-            }
-            
-            setTimeout(() => {
-              setIsDeletingTask(false);
-              setDeletionStep('');
-            }, 500);
-          }
-        } catch (error) {
-          console.error('Error in delete verification:', error);
-          // If there's an error (like 404 for empty directory), deletion was successful
-          console.log('Verification error (likely empty directory), deletion was successful...');
-          setDeletionStep('✅ Directory empty, deletion successful...');
-          
-          // Handle empty directory case - directly update state
-          const errorMessage = error instanceof Error ? error.message : '';
-          if (errorMessage.includes('404') || errorMessage.includes('not found')) {
-            console.log('Empty directory detected, clearing todos');
-            setTodos([]);
-            setSelectedTodoId(null);
-          } else {
-            // For other errors, try to fetch normally but catch errors
-            try {
-              await fetchTodos();
-            } catch (fetchError) {
-              console.log('Fetch error after deletion, assuming empty directory');
-              setTodos([]);
-              setSelectedTodoId(null);
-            }
-          }
-          
+          setDeletionStep('✅ Task list updated!');
           setTimeout(() => {
             setIsDeletingTask(false);
             setDeletionStep('');
-          }, 500);
+          }, 1000);
+        } catch (error) {
+          console.log('Fetch error after deletion - likely empty directory:', error);
+          // If fetch fails, it's probably because directory is empty
+          setTodos([]);
+          setSelectedTodoId(null);
+          
+          setDeletionStep('✅ Directory cleared!');
+          setTimeout(() => {
+            setIsDeletingTask(false);
+            setDeletionStep('');
+          }, 1000);
         }
-      };
-      
-      // Start verification with delay
-      setTimeout(verifyDeletion, 1000);
+      }, 2000); // Wait 2 seconds for GitHub to process deletion
     } catch (error) {
       console.error("Error deleting todo:", error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -553,24 +498,30 @@ function App() {
 
   const getDeletionProgressWidth = () => {
     if (!deletionStep) return '0%';
-    if (deletionStep.includes('Generating commit message')) return '25%';
+    // Actual deletion steps in chronological order
+    if (deletionStep.includes('Getting latest file info')) return '20%';
     if (deletionStep.includes('Deleting from GitHub')) return '50%';
     if (deletionStep.includes('Refreshing task list')) return '70%';
-    if (deletionStep.includes('Verifying deletion')) return '80%';
-    if (deletionStep.includes('Deletion confirmed')) return '95%';
-    if (deletionStep.includes('Directory empty')) return '95%';
-    if (deletionStep.includes('Verification timeout')) return '90%';
+    if (deletionStep.includes('Deletion completed')) return '90%';
+    if (deletionStep.includes('Task list updated')) return '100%';
+    if (deletionStep.includes('Directory cleared')) return '100%';
     return '100%';
   };
 
   const getSaveProgressWidth = () => {
     if (!saveStep) return '0%';
-    if (saveStep.includes('Preparing to save')) return '10%';
-    if (saveStep.includes('Preparing content')) return '20%';
-    if (saveStep.includes('Generating commit message')) return '40%';
-    if (saveStep.includes('Getting latest file version')) return '60%';
+    // Priority update steps - in chronological order
+    if (saveStep.includes('Updating priority')) return '20%';
+    if (saveStep.includes('Getting latest file version')) return '40%';
+    if (saveStep.includes('Preparing content')) return '60%';
     if (saveStep.includes('Saving to GitHub')) return '80%';
-    if (saveStep.includes('Refreshing task list')) return '95%';
+    if (saveStep.includes('Refreshing')) return '90%';
+    if (saveStep.includes('Priority updated')) return '100%';
+    if (saveStep.includes('Priority update failed')) return '100%';
+    // Regular save steps
+    if (saveStep.includes('Preparing to save')) return '20%';
+    if (saveStep.includes('Generating commit message')) return '40%';
+    if (saveStep.includes('Refreshing task list')) return '90%';
     if (saveStep.includes('Save completed')) return '100%';
     if (saveStep.includes('Save failed')) return '100%';
     return '0%';
