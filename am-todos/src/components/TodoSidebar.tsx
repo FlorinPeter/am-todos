@@ -58,8 +58,8 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
   onNewTodo 
 }) => {
   // Sort todos by priority (1 = highest, 5 = lowest)
+  // Note: No need to filter by isArchived here since App.tsx already filters based on viewMode
   const sortedTodos = [...todos]
-    .filter(todo => !todo.frontmatter?.isArchived)
     .sort((a, b) => {
       const priorityA = a.frontmatter?.priority || 3;
       const priorityB = b.frontmatter?.priority || 3;

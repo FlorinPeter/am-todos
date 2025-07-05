@@ -4,7 +4,7 @@ import TodoSidebar from './components/TodoSidebar';
 import TodoEditor from './components/TodoEditor';
 import GitHubSettings from './components/GitHubSettings';
 import { loadSettings } from './utils/localStorage';
-import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureTodosDirectory } from './services/githubService';
+import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureTodosDirectory, moveTaskToArchive, moveTaskFromArchive } from './services/githubService';
 import { generateInitialPlan, generateCommitMessage } from './services/aiService';
 import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, TodoFrontmatter } from './utils/markdown';
 
@@ -27,6 +27,8 @@ function App() {
   const [deletionStep, setDeletionStep] = useState('');
   const [isSavingTask, setIsSavingTask] = useState(false);
   const [saveStep, setSaveStep] = useState('');
+  const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
+  const [allTodos, setAllTodos] = useState<any[]>([]);
 
   const fetchTodos = useCallback(async () => {
     console.log('Fetching todos...', settings ? 'Settings available' : 'No settings');
@@ -38,19 +40,29 @@ function App() {
     try {
       console.log(`Fetching from: ${settings.owner}/${settings.repo}`);
       console.log('Current timestamp:', new Date().toISOString());
-      const githubFiles = await getTodos(settings.pat, settings.owner, settings.repo);
-      console.log('GitHub files retrieved:', githubFiles.length, 'files');
-      console.log('File names:', githubFiles.map(f => f.name));
       
-      if (githubFiles.length === 0) {
-        console.log('No todo files found, setting empty todos array');
+      // Fetch both active and archived todos
+      const [activeFiles, archivedFiles] = await Promise.all([
+        getTodos(settings.pat, settings.owner, settings.repo, false),
+        getTodos(settings.pat, settings.owner, settings.repo, true)
+      ]);
+      
+      console.log('Active files retrieved:', activeFiles.length, 'files');
+      console.log('Archived files retrieved:', archivedFiles.length, 'files');
+      
+      const allFiles = [...activeFiles, ...archivedFiles];
+      console.log('Total files:', allFiles.length);
+      
+      if (allFiles.length === 0) {
+        console.log('No todo files found, setting empty arrays');
+        setAllTodos([]);
         setTodos([]);
         setSelectedTodoId(null);
         return;
       }
       
       const fetchedTodos = await Promise.all(
-        githubFiles.map(async (file: any) => {
+        allFiles.map(async (file: any) => {
           console.log('Processing file:', file.name, 'path:', file.path);
           const content = await getFileContent(settings.pat, settings.owner, settings.repo, file.path);
           console.log('File content length:', content.length);
@@ -68,15 +80,23 @@ function App() {
           return todo;
         })
       );
-      console.log('Todos processed:', fetchedTodos.length);
-      console.log('Final todos array:', fetchedTodos.map(t => ({ id: t.id, title: t.title, path: t.path })));
-      setTodos(fetchedTodos);
+      console.log('All todos processed:', fetchedTodos.length);
+      console.log('Final todos array:', fetchedTodos.map((t: any) => ({ id: t.id, title: t.title, path: t.path })));
+      
+      // Store all todos and filter based on current view mode
+      setAllTodos(fetchedTodos);
+      const filteredTodos = viewMode === 'archived' 
+        ? fetchedTodos.filter((todo: any) => todo.path.includes('/archive/'))
+        : fetchedTodos.filter((todo: any) => !todo.path.includes('/archive/'));
+      
+      console.log(`Filtered todos for ${viewMode} view:`, filteredTodos.length);
+      setTodos(filteredTodos);
       
       // Auto-select first todo if none selected or if the previously selected todo no longer exists
       setSelectedTodoId(currentSelectedId => {
-        const currentTodoExists = fetchedTodos.some(todo => todo.id === currentSelectedId);
-        if (fetchedTodos.length > 0 && (!currentSelectedId || !currentTodoExists)) {
-          const firstTodo = fetchedTodos[0];
+        const currentTodoExists = filteredTodos.some((todo: any) => todo.id === currentSelectedId);
+        if (filteredTodos.length > 0 && (!currentSelectedId || !currentTodoExists)) {
+          const firstTodo = filteredTodos[0];
           console.log('Auto-selected todo:', firstTodo.title);
           return firstTodo.id;
         } else if (fetchedTodos.length === 0) {
@@ -115,7 +135,7 @@ function App() {
         }
       }
     }
-  }, [settings]);
+  }, [settings, viewMode]);
 
   useEffect(() => {
     fetchTodos();
@@ -369,21 +389,61 @@ function App() {
   const handleArchiveToggle = async (id: string) => {
     if (!settings) return;
     try {
+      setIsSavingTask(true);
+      setSaveStep('📦 Processing archive...');
+      
       const todoToUpdate = todos.find(todo => todo.id === id);
-      if (!todoToUpdate) return;
+      if (!todoToUpdate) {
+        setIsSavingTask(false);
+        setSaveStep('');
+        return;
+      }
 
-      const newArchivedState = !todoToUpdate.frontmatter?.isArchived;
+      const isCurrentlyArchived = todoToUpdate.path.includes('/archive/');
+      const action = isCurrentlyArchived ? 'Unarchive' : 'Archive';
+      
+      setSaveStep(`📦 ${action}ing task...`);
+      
+      // Update frontmatter
       const updatedFrontmatter = {
         ...todoToUpdate.frontmatter,
-        isArchived: newArchivedState
+        isArchived: !isCurrentlyArchived
       };
       const fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, todoToUpdate.content);
-      const commitMessage = await generateCommitMessage(`feat: ${newArchivedState ? 'Archive' : 'Unarchive'} "${todoToUpdate.title}"`);
+      const commitMessage = `feat: ${action} "${todoToUpdate.title}"`;
 
-      await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, todoToUpdate.sha);
-      fetchTodos();
+      if (isCurrentlyArchived) {
+        // Move from archive to active todos
+        await moveTaskFromArchive(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage);
+      } else {
+        // Move from active todos to archive
+        await moveTaskToArchive(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage);
+      }
+
+      setSaveStep('🔄 Refreshing...');
+      await fetchTodos();
+      
+      // Clear selection if we archived the currently selected task and we're in active view
+      if (!isCurrentlyArchived && viewMode === 'active' && selectedTodoId === id) {
+        setSelectedTodoId(null);
+      }
+      
+      setSaveStep(`✅ ${action}d successfully!`);
+      setTimeout(() => {
+        setIsSavingTask(false);
+        setSaveStep('');
+      }, 1000);
+      
     } catch (error) {
       console.error("Error toggling archive:", error);
+      const currentTodo = todos.find(todo => todo.id === id);
+      const isArchived = currentTodo?.path.includes('/archive/') || false;
+      setSaveStep('❌ Archive operation failed!');
+      setTimeout(() => {
+        setIsSavingTask(false);
+        setSaveStep('');
+        alert(`Failed to ${isArchived ? 'unarchive' : 'archive'} task: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }, 1000);
     }
   };
 
@@ -550,37 +610,65 @@ function App() {
   return (
     <div className="bg-gray-900 min-h-screen text-white flex flex-col">
       {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            {/* Mobile hamburger menu */}
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="md:hidden mr-3 p-2 text-gray-400 hover:text-white"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold">Agentic Markdown Todos</h1>
-              <p className="text-gray-400 text-xs md:text-sm hidden sm:block">Your tasks, your repo, your AI assistant.</p>
+      <header className="bg-gray-800 border-b border-gray-700">
+        <div className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              {/* Mobile hamburger menu */}
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="md:hidden mr-3 p-2 text-gray-400 hover:text-white"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold">Agentic Markdown Todos</h1>
+                <p className="text-gray-400 text-xs md:text-sm hidden sm:block">Your tasks, your repo, your AI assistant.</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => fetchTodos()}
+                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors text-sm"
+              >
+                <span className="hidden sm:inline">🔄 Refresh</span>
+                <span className="sm:hidden">🔄</span>
+              </button>
+              <button
+                onClick={() => setShowNewTodoInput(true)}
+                className="px-3 py-2 md:px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors text-sm"
+              >
+                <span className="hidden sm:inline">+ New Task</span>
+                <span className="sm:hidden">+</span>
+              </button>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
+        </div>
+        
+        {/* Archive/Active Tabs */}
+        <div className="px-4 pb-3">
+          <div className="flex border-b border-gray-600">
             <button
-              onClick={() => fetchTodos()}
-              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors text-sm"
+              onClick={() => setViewMode('active')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                viewMode === 'active'
+                  ? 'text-blue-400 border-b-2 border-blue-400'
+                  : 'text-gray-400 hover:text-gray-200'
+              }`}
             >
-              <span className="hidden sm:inline">🔄 Refresh</span>
-              <span className="sm:hidden">🔄</span>
+              📋 Active Tasks ({allTodos.filter(t => !t.path.includes('/archive/')).length})
             </button>
             <button
-              onClick={() => setShowNewTodoInput(true)}
-              className="px-3 py-2 md:px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors text-sm"
+              onClick={() => setViewMode('archived')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                viewMode === 'archived'
+                  ? 'text-blue-400 border-b-2 border-blue-400'
+                  : 'text-gray-400 hover:text-gray-200'
+              }`}
             >
-              <span className="hidden sm:inline">+ New Task</span>
-              <span className="sm:hidden">+</span>
+              📦 Archived ({allTodos.filter(t => t.path.includes('/archive/')).length})
             </button>
           </div>
         </div>
