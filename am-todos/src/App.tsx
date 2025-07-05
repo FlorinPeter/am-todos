@@ -23,6 +23,8 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [creationStep, setCreationStep] = useState('');
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
+  const [deletionStep, setDeletionStep] = useState('');
 
   const fetchTodos = useCallback(async () => {
     console.log('Fetching todos...', settings ? 'Settings available' : 'No settings');
@@ -35,6 +37,13 @@ function App() {
       console.log(`Fetching from: ${settings.owner}/${settings.repo}`);
       const githubFiles = await getTodos(settings.pat, settings.owner, settings.repo);
       console.log('GitHub files retrieved:', githubFiles.length, 'files');
+      
+      if (githubFiles.length === 0) {
+        console.log('No todo files found, setting empty todos array');
+        setTodos([]);
+        setSelectedTodoId(null);
+        return;
+      }
       
       const fetchedTodos = await Promise.all(
         githubFiles.map(async (file: any) => {
@@ -54,16 +63,30 @@ function App() {
       setTodos(fetchedTodos);
       
       // Auto-select first todo if none selected or if the previously selected todo no longer exists
-      const currentTodoExists = fetchedTodos.some(todo => todo.id === selectedTodoId);
-      if (fetchedTodos.length > 0 && (!selectedTodoId || !currentTodoExists)) {
-        const firstTodo = fetchedTodos[0];
-        setSelectedTodoId(firstTodo.id);
-        console.log('Auto-selected todo:', firstTodo.title);
-      }
+      setSelectedTodoId(currentSelectedId => {
+        const currentTodoExists = fetchedTodos.some(todo => todo.id === currentSelectedId);
+        if (fetchedTodos.length > 0 && (!currentSelectedId || !currentTodoExists)) {
+          const firstTodo = fetchedTodos[0];
+          console.log('Auto-selected todo:', firstTodo.title);
+          return firstTodo.id;
+        } else if (fetchedTodos.length === 0) {
+          // No todos left, clear selection
+          console.log('No todos found, cleared selection');
+          return null;
+        }
+        return currentSelectedId;
+      });
     } catch (error) {
       console.error("Error fetching todos:", error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      alert(`Failed to fetch tasks: ${errorMessage}`);
+      // Only show alert if it's not a simple empty directory issue
+      if (!errorMessage.includes('404') && !errorMessage.includes('not found')) {
+        alert(`Failed to fetch tasks: ${errorMessage}`);
+      } else {
+        console.log('Directory not found, treating as empty todos list');
+        setTodos([]);
+        setSelectedTodoId(null);
+      }
     }
   }, [settings]);
 
@@ -137,20 +160,66 @@ function App() {
       await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, filename, fullContent, commitMessage);
       console.log('File created successfully on GitHub');
 
-      // 5. Sync State
+      // 5. Sync State with retry logic
       setCreationStep('🔄 Refreshing task list...');
       console.log('Fetching updated todos...');
-      await fetchTodos();
       
-      // Small delay to ensure GitHub API has processed the file
-      setTimeout(async () => {
-        console.log('Performing additional refresh...');
-        await fetchTodos();
-        setIsCreatingTask(false);
-        setCreationStep('');
-      }, 1000);
+      // Retry logic to handle GitHub API delays
+      let retryCount = 0;
+      const maxRetries = 8;
+      const retryDelay = 3000; // 3 seconds
       
-      console.log('Todo creation process completed');
+      const fetchWithRetry = async (): Promise<void> => {
+        try {
+          const githubFiles = await getTodos(settings.pat, settings.owner, settings.repo);
+          console.log(`Retry ${retryCount + 1} - Found ${githubFiles.length} files`);
+          
+          // Check if the new todo file exists in the response
+          const newTodoExists = githubFiles.some(file => 
+            file.path === filename || file.name === filename.split('/').pop()
+          );
+          
+          if (!newTodoExists && retryCount < maxRetries) {
+            retryCount++;
+            console.log(`Retry ${retryCount}/${maxRetries} - Todo not found yet, retrying in ${retryDelay}ms...`);
+            setCreationStep(`🔄 Waiting for GitHub (${retryCount}/${maxRetries})...`);
+            setTimeout(fetchWithRetry, retryDelay);
+          } else if (newTodoExists) {
+            console.log('Todo found! Refreshing full todo list...');
+            setCreationStep('✅ Task found, refreshing list...');
+            await fetchTodos();
+            
+            // Wait a bit more to ensure the UI updates
+            setTimeout(() => {
+              setIsCreatingTask(false);
+              setCreationStep('');
+            }, 500);
+          } else {
+            console.log('Max retries reached, refreshing anyway...');
+            setCreationStep('⚠️ Taking longer than expected...');
+            await fetchTodos();
+            setTimeout(() => {
+              setIsCreatingTask(false);
+              setCreationStep('');
+            }, 500);
+          }
+        } catch (error) {
+          console.error('Error in retry logic:', error);
+          if (retryCount < maxRetries) {
+            retryCount++;
+            setCreationStep(`❌ Error, retrying (${retryCount}/${maxRetries})...`);
+            setTimeout(fetchWithRetry, retryDelay);
+          } else {
+            console.log('Max retries reached due to errors, stopping...');
+            await fetchTodos();
+            setIsCreatingTask(false);
+            setCreationStep('');
+          }
+        }
+      };
+      
+      // Initial fetch with delay
+      setTimeout(fetchWithRetry, 1000);
     } catch (error) {
       console.error("Error creating new todo:", error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -246,8 +315,14 @@ function App() {
         return;
       }
 
+      setIsDeletingTask(true);
+      setDeletionStep('🤖 Generating commit message...');
       console.log('Deleting todo:', todoToDelete.path);
 
+      // Generate AI commit message for deletion
+      const commitMessage = await generateCommitMessage(`feat: Delete task "${todoToDelete.title}"`);
+
+      setDeletionStep('🗑️ Deleting from GitHub...');
       // GitHub API call to delete file
       const response = await fetch(`https://api.github.com/repos/${settings.owner}/${settings.repo}/contents/${todoToDelete.path}`, {
         method: 'DELETE',
@@ -256,7 +331,7 @@ function App() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: `feat: Delete task "${todoToDelete.title}"`,
+          message: commitMessage,
           sha: todoToDelete.sha,
         }),
       });
@@ -276,11 +351,94 @@ function App() {
         setSelectedTodoId(null);
       }
 
-      await fetchTodos();
+      setDeletionStep('🔄 Refreshing task list...');
+      // Retry logic to handle GitHub API delays for deletion
+      const maxRetries = 8;
+      const retryDelay = 3000; // 3 seconds
+      let retryCount = 0;
+      
+      const verifyDeletion = async (): Promise<void> => {
+        try {
+          const githubFiles = await getTodos(settings.pat, settings.owner, settings.repo);
+          console.log(`Delete verification ${retryCount + 1} - Found ${githubFiles.length} files`);
+          
+          // Check if the deleted todo file still exists in the response
+          const deletedTodoStillExists = githubFiles.some(file => 
+            file.path === todoToDelete.path
+          );
+          
+          if (deletedTodoStillExists && retryCount < maxRetries) {
+            retryCount++;
+            console.log(`Delete verification ${retryCount}/${maxRetries} - Todo still exists, retrying in ${retryDelay}ms...`);
+            setDeletionStep(`🔄 Verifying deletion (${retryCount}/${maxRetries})...`);
+            setTimeout(verifyDeletion, retryDelay);
+          } else if (!deletedTodoStillExists) {
+            console.log('Deletion verified! Refreshing todo list...');
+            setDeletionStep('✅ Deletion confirmed, refreshing list...');
+            try {
+              await fetchTodos();
+            } catch (fetchError) {
+              console.log('Fetch error after successful deletion, assuming empty directory');
+              setTodos([]);
+              setSelectedTodoId(null);
+            }
+            setTimeout(() => {
+              setIsDeletingTask(false);
+              setDeletionStep('');
+            }, 500);
+          } else {
+            console.log('Max retries reached, assuming deletion succeeded...');
+            setDeletionStep('⚠️ Verification timeout, refreshing anyway...');
+            try {
+              await fetchTodos();
+            } catch (fetchError) {
+              console.log('Fetch error after timeout, assuming empty directory');
+              setTodos([]);
+              setSelectedTodoId(null);
+            }
+            setTimeout(() => {
+              setIsDeletingTask(false);
+              setDeletionStep('');
+            }, 500);
+          }
+        } catch (error) {
+          console.error('Error in delete verification:', error);
+          // If there's an error (like 404 for empty directory), assume deletion worked
+          console.log('Verification error (likely empty directory), assuming deletion succeeded...');
+          setDeletionStep('✅ Directory empty, deletion successful...');
+          
+          // Handle empty directory case - directly update state instead of fetchTodos
+          const errorMessage = error instanceof Error ? error.message : '';
+          if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+            console.log('Empty directory detected, clearing todos');
+            setTodos([]);
+            setSelectedTodoId(null);
+          } else {
+            // For other errors, try to fetch normally but catch errors
+            try {
+              await fetchTodos();
+            } catch (fetchError) {
+              console.log('Fetch error after deletion, assuming empty directory');
+              setTodos([]);
+              setSelectedTodoId(null);
+            }
+          }
+          
+          setTimeout(() => {
+            setIsDeletingTask(false);
+            setDeletionStep('');
+          }, 500);
+        }
+      };
+      
+      // Start verification with delay
+      setTimeout(verifyDeletion, 1000);
     } catch (error) {
       console.error("Error deleting todo:", error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       alert(`Failed to delete task: ${errorMessage}`);
+      setIsDeletingTask(false);
+      setDeletionStep('');
     }
   };
 
@@ -290,8 +448,24 @@ function App() {
     if (creationStep.includes('Preparing task content')) return '40%';
     if (creationStep.includes('Generating commit message')) return '60%';
     if (creationStep.includes('Setting up repository')) return '70%';
-    if (creationStep.includes('Saving to GitHub')) return '85%';
-    if (creationStep.includes('Refreshing task list')) return '95%';
+    if (creationStep.includes('Saving to GitHub')) return '80%';
+    if (creationStep.includes('Refreshing task list')) return '85%';
+    if (creationStep.includes('Waiting for GitHub')) return '90%';
+    if (creationStep.includes('Task found')) return '95%';
+    if (creationStep.includes('Taking longer than expected')) return '95%';
+    if (creationStep.includes('Error, retrying')) return '90%';
+    return '100%';
+  };
+
+  const getDeletionProgressWidth = () => {
+    if (!deletionStep) return '0%';
+    if (deletionStep.includes('Generating commit message')) return '25%';
+    if (deletionStep.includes('Deleting from GitHub')) return '50%';
+    if (deletionStep.includes('Refreshing task list')) return '70%';
+    if (deletionStep.includes('Verifying deletion')) return '80%';
+    if (deletionStep.includes('Deletion confirmed')) return '95%';
+    if (deletionStep.includes('Directory empty')) return '95%';
+    if (deletionStep.includes('Verification timeout')) return '90%';
     return '100%';
   };
 
@@ -397,6 +571,23 @@ function App() {
             <div className="mt-4 bg-gray-700 rounded-full h-2">
               <div className="bg-blue-500 h-2 rounded-full transition-all duration-500" 
                    style={{ width: getProgressWidth() }}></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deletion Loading Overlay */}
+      {isDeletingTask && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-sm w-full mx-4 text-center">
+            <div className="mb-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2">Deleting Task...</h3>
+            <p className="text-gray-300 text-sm">{deletionStep}</p>
+            <div className="mt-4 bg-gray-700 rounded-full h-2">
+              <div className="bg-red-500 h-2 rounded-full transition-all duration-500" 
+                   style={{ width: getDeletionProgressWidth() }}></div>
             </div>
           </div>
         </div>

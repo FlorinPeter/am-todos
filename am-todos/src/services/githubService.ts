@@ -10,6 +10,7 @@ interface GitHubFile {
   path: string;
   sha: string;
   content: string;
+  type?: string;
 }
 
 const getApiUrl = (path: string) => `${GITHUB_API_URL}${path}`;
@@ -60,7 +61,7 @@ export const createOrUpdateTodo = async (
   return result;
 };
 
-export const ensureTodosDirectory = async (token: string, owner: string, repo: string) => {
+export const ensureTodosDirectory = async (token: string, owner: string, repo: string, commitMessage?: string) => {
   // Check if todos directory exists
   const url = getApiUrl(`/repos/${owner}/${repo}/contents/todos`);
   const headers = { Authorization: `token ${token}` };
@@ -77,7 +78,7 @@ export const ensureTodosDirectory = async (token: string, owner: string, repo: s
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        message: 'feat: Create todos directory',
+        message: commitMessage || 'feat: Create todos directory',
         content: btoa('# This file ensures the todos directory exists\n'),
       }),
     });
@@ -95,18 +96,40 @@ export const ensureTodosDirectory = async (token: string, owner: string, repo: s
 export const getTodos = async (token: string, owner: string, repo: string) => {
   const url = getApiUrl(`/repos/${owner}/${repo}/contents/todos`);
   const headers = { Authorization: `token ${token}` };
-  const response = await fetch(url, { headers });
+  console.log('Fetching todos from:', url);
+  
+  try {
+    const response = await fetch(url, { headers });
 
-  if (!response.ok) {
-    if (response.status === 404) {
-      return []; // Directory doesn't exist, return empty array
+    if (!response.ok) {
+      if (response.status === 404) {
+        console.log('todos/ directory not found, returning empty array');
+        return []; // Directory doesn't exist, return empty array
+      }
+      const errorText = await response.text();
+      console.error('GitHub API error response:', errorText);
+      throw new Error(`GitHub API error: ${response.statusText} - ${errorText}`);
     }
-    throw new Error(`GitHub API error: ${response.statusText}`);
-  }
 
-  const files: GitHubFile[] = await response.json();
-  // Filter out .gitkeep file
-  return files.filter(file => file.name !== '.gitkeep');
+    const files: GitHubFile[] = await response.json();
+    console.log('Raw files from GitHub:', files.length);
+    
+    // Filter out .gitkeep file and any non-markdown files
+    const todoFiles = files.filter(file => 
+      file.name !== '.gitkeep' && 
+      file.name.endsWith('.md')
+    );
+    console.log('Filtered todo files:', todoFiles.length);
+    return todoFiles;
+  } catch (error) {
+    console.error('Error fetching todos:', error);
+    // If it's a network error or other fetch error, return empty array
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      console.log('Network error, returning empty array');
+      return [];
+    }
+    throw error;
+  }
 };
 
 export const getFileContent = async (token: string, owner: string, repo: string, path: string) => {
