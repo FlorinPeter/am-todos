@@ -4,7 +4,7 @@ import TodoSidebar from './components/TodoSidebar';
 import TodoEditor from './components/TodoEditor';
 import GitHubSettings from './components/GitHubSettings';
 import { loadSettings } from './utils/localStorage';
-import { getTodos, getFileContent, createOrUpdateTodo, ensureTodosDirectory } from './services/githubService';
+import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureTodosDirectory } from './services/githubService';
 import { generateInitialPlan, generateCommitMessage } from './services/aiService';
 import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, TodoFrontmatter } from './utils/markdown';
 
@@ -257,10 +257,58 @@ function App() {
       const commitMessage = await generateCommitMessage(`fix: Update todo "${todoToUpdate.title}"`);
       console.log('App: Commit message generated:', commitMessage);
 
+      setSaveStep('🔄 Getting latest file version...');
+      console.log('App: Fetching latest SHA for file...');
+      // Get the latest SHA to avoid conflicts
+      let latestSha = todoToUpdate.sha;
+      try {
+        const latestMetadata = await getFileMetadata(settings.pat, settings.owner, settings.repo, todoToUpdate.path);
+        latestSha = latestMetadata.sha;
+        console.log('App: Latest SHA retrieved:', latestSha);
+      } catch (shaError) {
+        console.log('App: Could not fetch latest SHA, using existing:', latestSha);
+      }
+
       setSaveStep('💾 Saving to GitHub...');
-      console.log('App: Calling createOrUpdateTodo...');
-      await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, todoToUpdate.sha);
-      console.log('App: Todo updated successfully, fetching todos...');
+      console.log('App: Calling createOrUpdateTodo with SHA:', latestSha);
+      
+      // Retry logic for SHA conflicts
+      let retryCount = 0;
+      const maxRetries = 3;
+      let saveSuccessful = false;
+      
+      while (!saveSuccessful && retryCount < maxRetries) {
+        try {
+          await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, latestSha);
+          saveSuccessful = true;
+          console.log('App: Todo updated successfully');
+        } catch (saveError) {
+          if (saveError instanceof Error && saveError.message.includes('does not match')) {
+            retryCount++;
+            console.log(`App: SHA conflict detected, retry ${retryCount}/${maxRetries}`);
+            setSaveStep(`🔄 SHA conflict, retrying (${retryCount}/${maxRetries})...`);
+            
+            if (retryCount < maxRetries) {
+              // Fetch the latest SHA again
+              try {
+                const retryMetadata = await getFileMetadata(settings.pat, settings.owner, settings.repo, todoToUpdate.path);
+                latestSha = retryMetadata.sha;
+                console.log('App: Fetched new SHA for retry:', latestSha);
+              } catch (retryError) {
+                console.log('App: Could not fetch SHA for retry, giving up');
+                throw saveError;
+              }
+            }
+          } else {
+            // Non-SHA error, don't retry
+            throw saveError;
+          }
+        }
+      }
+      
+      if (!saveSuccessful) {
+        throw new Error('Failed to save after multiple SHA conflict retries');
+      }
       
       setSaveStep('🔄 Refreshing task list...');
       await fetchTodos(); // Re-fetch to get updated SHA and content
@@ -518,10 +566,11 @@ function App() {
   const getSaveProgressWidth = () => {
     if (!saveStep) return '0%';
     if (saveStep.includes('Preparing to save')) return '10%';
-    if (saveStep.includes('Preparing content')) return '25%';
-    if (saveStep.includes('Generating commit message')) return '50%';
-    if (saveStep.includes('Saving to GitHub')) return '75%';
-    if (saveStep.includes('Refreshing task list')) return '90%';
+    if (saveStep.includes('Preparing content')) return '20%';
+    if (saveStep.includes('Generating commit message')) return '40%';
+    if (saveStep.includes('Getting latest file version')) return '60%';
+    if (saveStep.includes('Saving to GitHub')) return '80%';
+    if (saveStep.includes('Refreshing task list')) return '95%';
     if (saveStep.includes('Save completed')) return '100%';
     if (saveStep.includes('Save failed')) return '100%';
     return '0%';

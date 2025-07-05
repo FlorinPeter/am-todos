@@ -8,25 +8,24 @@ interface ChatMessage {
 
 interface AIChatProps {
   currentContent: string;
-  chatHistory: ChatMessage[];
-  onContentUpdate: (newContent: string, newChatHistory: ChatMessage[]) => void;
-  onChatMessage: (message: string, currentContent: string, chatHistory: ChatMessage[]) => Promise<string>;
+  onContentUpdate: (newContent: string) => void;
+  onChatMessage: (message: string, currentContent: string) => Promise<string>;
 }
 
 const AIChat: React.FC<AIChatProps> = ({ 
   currentContent, 
-  chatHistory, 
   onContentUpdate, 
   onChatMessage 
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [localChatHistory, setLocalChatHistory] = useState<ChatMessage[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory]);
+  }, [localChatHistory]);
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
@@ -37,12 +36,13 @@ const AIChat: React.FC<AIChatProps> = ({
       timestamp: new Date().toISOString()
     };
 
-    const newChatHistory = [...chatHistory, userMessage];
+    const newLocalHistory = [...localChatHistory, userMessage];
+    setLocalChatHistory(newLocalHistory);
     setInputMessage('');
     setIsLoading(true);
 
     try {
-      const updatedContent = await onChatMessage(inputMessage.trim(), currentContent, chatHistory);
+      const updatedContent = await onChatMessage(inputMessage.trim(), currentContent);
       
       const assistantMessage: ChatMessage = {
         role: 'assistant',
@@ -50,8 +50,9 @@ const AIChat: React.FC<AIChatProps> = ({
         timestamp: new Date().toISOString()
       };
 
-      const finalChatHistory = [...newChatHistory, assistantMessage];
-      onContentUpdate(updatedContent, finalChatHistory);
+      const finalLocalHistory = [...newLocalHistory, assistantMessage];
+      setLocalChatHistory(finalLocalHistory);
+      onContentUpdate(updatedContent);
     } catch (error) {
       console.error('Error processing chat message:', error);
       const errorMessage: ChatMessage = {
@@ -59,7 +60,7 @@ const AIChat: React.FC<AIChatProps> = ({
         content: 'Sorry, I encountered an error processing your request.',
         timestamp: new Date().toISOString()
       };
-      onContentUpdate(currentContent, [...newChatHistory, errorMessage]);
+      setLocalChatHistory([...newLocalHistory, errorMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -83,10 +84,10 @@ const AIChat: React.FC<AIChatProps> = ({
           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
-          AI Chat Assistant
-          {chatHistory.length > 0 && (
+          AI Chat Assistant (Session Only)
+          {localChatHistory.length > 0 && (
             <span className="ml-2 px-2 py-1 text-xs bg-blue-600 text-white rounded-full">
-              {chatHistory.length}
+              {localChatHistory.length}
             </span>
           )}
         </span>
@@ -105,7 +106,7 @@ const AIChat: React.FC<AIChatProps> = ({
         <div className="border-t border-gray-700 bg-gray-800">
           {/* Chat History */}
           <div className="max-h-60 overflow-y-auto p-4 space-y-3">
-            {chatHistory.length === 0 ? (
+            {localChatHistory.length === 0 ? (
               <div className="text-gray-500 text-sm text-center py-4">
                 <p>Ask me to modify this task! For example:</p>
                 <p className="italic mt-2">"Add a step for user authentication"</p>
@@ -113,7 +114,7 @@ const AIChat: React.FC<AIChatProps> = ({
                 <p className="italic">"Add a sub-task for database setup"</p>
               </div>
             ) : (
-              chatHistory.map((message, index) => (
+              localChatHistory.map((message, index) => (
                 <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-xs lg:max-w-md px-3 py-2 rounded-lg text-sm ${
                     message.role === 'user' 
@@ -143,6 +144,17 @@ const AIChat: React.FC<AIChatProps> = ({
 
           {/* Input Area */}
           <div className="p-3 sm:p-4 border-t border-gray-700">
+            {localChatHistory.length > 0 && (
+              <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-600">
+                <span className="text-xs text-gray-400">Session chat (not saved)</span>
+                <button
+                  onClick={() => setLocalChatHistory([])}
+                  className="text-xs text-gray-400 hover:text-red-400 transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
             <div className="flex space-x-2">
               <input
                 type="text"
