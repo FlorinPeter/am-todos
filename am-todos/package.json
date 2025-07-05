@@ -31,6 +31,7 @@
     "test:retry": "INTEGRATION_TEST=true react-scripts test --testPathPattern=retryLogic.test.ts --watchAll=false",
     "test:github-basic": "node test-github-integration.js",
     "test:github-stress": "node test-stress-github.js",
+    "test:last-file": "node test-last-file-deletion.js",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
