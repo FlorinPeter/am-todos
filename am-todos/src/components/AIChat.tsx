@@ -1,0 +1,173 @@
+import React, { useState, useRef, useEffect } from 'react';
+
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+interface AIChatProps {
+  currentContent: string;
+  chatHistory: ChatMessage[];
+  onContentUpdate: (newContent: string, newChatHistory: ChatMessage[]) => void;
+  onChatMessage: (message: string, currentContent: string, chatHistory: ChatMessage[]) => Promise<string>;
+}
+
+const AIChat: React.FC<AIChatProps> = ({ 
+  currentContent, 
+  chatHistory, 
+  onContentUpdate, 
+  onChatMessage 
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory]);
+
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || isLoading) return;
+
+    const userMessage: ChatMessage = {
+      role: 'user',
+      content: inputMessage.trim(),
+      timestamp: new Date().toISOString()
+    };
+
+    const newChatHistory = [...chatHistory, userMessage];
+    setInputMessage('');
+    setIsLoading(true);
+
+    try {
+      const updatedContent = await onChatMessage(inputMessage.trim(), currentContent, chatHistory);
+      
+      const assistantMessage: ChatMessage = {
+        role: 'assistant',
+        content: 'Task updated successfully',
+        timestamp: new Date().toISOString()
+      };
+
+      const finalChatHistory = [...newChatHistory, assistantMessage];
+      onContentUpdate(updatedContent, finalChatHistory);
+    } catch (error) {
+      console.error('Error processing chat message:', error);
+      const errorMessage: ChatMessage = {
+        role: 'assistant',
+        content: 'Sorry, I encountered an error processing your request.',
+        timestamp: new Date().toISOString()
+      };
+      onContentUpdate(currentContent, [...newChatHistory, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  return (
+    <div className="border-t border-gray-700 mt-4">
+      {/* Chat Toggle Button */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full px-4 py-2 text-left text-sm text-gray-400 hover:text-white hover:bg-gray-800 transition-colors flex items-center justify-between"
+      >
+        <span className="flex items-center">
+          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+          AI Chat Assistant
+          {chatHistory.length > 0 && (
+            <span className="ml-2 px-2 py-1 text-xs bg-blue-600 text-white rounded-full">
+              {chatHistory.length}
+            </span>
+          )}
+        </span>
+        <svg 
+          className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
+          fill="none" 
+          stroke="currentColor" 
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {/* Chat Interface */}
+      {isExpanded && (
+        <div className="border-t border-gray-700 bg-gray-800">
+          {/* Chat History */}
+          <div className="max-h-60 overflow-y-auto p-4 space-y-3">
+            {chatHistory.length === 0 ? (
+              <div className="text-gray-500 text-sm text-center py-4">
+                <p>Ask me to modify this task! For example:</p>
+                <p className="italic mt-2">"Add a step for user authentication"</p>
+                <p className="italic">"Rephrase the second item to be more formal"</p>
+                <p className="italic">"Add a sub-task for database setup"</p>
+              </div>
+            ) : (
+              chatHistory.map((message, index) => (
+                <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-xs lg:max-w-md px-3 py-2 rounded-lg text-sm ${
+                    message.role === 'user' 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-gray-700 text-gray-200'
+                  }`}>
+                    <p>{message.content}</p>
+                    <p className="text-xs opacity-70 mt-1">
+                      {new Date(message.timestamp).toLocaleTimeString()}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-gray-700 text-gray-200 px-3 py-2 rounded-lg text-sm">
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Processing...</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Input Area */}
+          <div className="p-3 sm:p-4 border-t border-gray-700">
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Ask me to modify this task..."
+                className="flex-1 px-3 py-2 bg-gray-700 text-white rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                disabled={isLoading}
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={!inputMessage.trim() || isLoading}
+                className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AIChat;
