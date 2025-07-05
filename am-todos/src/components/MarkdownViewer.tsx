@@ -107,9 +107,15 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   const handleSave = () => {
     const contentToSave = isEditMode ? editContent : viewContent;
     console.log('MarkdownViewer: Saving content...', contentToSave.substring(0, 100));
-    onMarkdownChange(contentToSave);
+    
+    // Update the view content immediately to show the saved version
+    setViewContent(contentToSave);
+    setEditContent(contentToSave);
     setHasUnsavedChanges(false);
     setIsEditMode(false);
+    
+    // Call parent to save to GitHub
+    onMarkdownChange(contentToSave);
   };
 
   const handleCancel = () => {
