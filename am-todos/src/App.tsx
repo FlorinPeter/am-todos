@@ -37,8 +37,10 @@ function App() {
     
     try {
       console.log(`Fetching from: ${settings.owner}/${settings.repo}`);
+      console.log('Current timestamp:', new Date().toISOString());
       const githubFiles = await getTodos(settings.pat, settings.owner, settings.repo);
       console.log('GitHub files retrieved:', githubFiles.length, 'files');
+      console.log('File names:', githubFiles.map(f => f.name));
       
       if (githubFiles.length === 0) {
         console.log('No todo files found, setting empty todos array');
@@ -49,9 +51,12 @@ function App() {
       
       const fetchedTodos = await Promise.all(
         githubFiles.map(async (file: any) => {
+          console.log('Processing file:', file.name, 'path:', file.path);
           const content = await getFileContent(settings.pat, settings.owner, settings.repo, file.path);
+          console.log('File content length:', content.length);
           const { frontmatter, markdownContent } = parseMarkdownWithFrontmatter(content);
-          return {
+          console.log('Parsed frontmatter:', frontmatter);
+          const todo = {
             id: file.sha, // Using SHA as a unique ID for now
             title: frontmatter?.title || file.name,
             content: markdownContent,
@@ -59,9 +64,12 @@ function App() {
             path: file.path,
             sha: file.sha,
           };
+          console.log('Created todo object:', { id: todo.id, title: todo.title, path: todo.path });
+          return todo;
         })
       );
       console.log('Todos processed:', fetchedTodos.length);
+      console.log('Final todos array:', fetchedTodos.map(t => ({ id: t.id, title: t.title, path: t.path })));
       setTodos(fetchedTodos);
       
       // Auto-select first todo if none selected or if the previously selected todo no longer exists
@@ -179,10 +187,12 @@ function App() {
       await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, filename, fullContent, commitMessage);
       console.log('File created successfully on GitHub');
 
-      // 5. Simple refresh - the file is already created!
+      // 5. Wait for GitHub to process, then refresh
       setCreationStep('🔄 Refreshing task list...');
       console.log('Refreshing todos list...');
       
+      // Wait for GitHub processing
+      await new Promise(resolve => setTimeout(resolve, 2000));
       await fetchTodos();
       
       setCreationStep('✅ Task created successfully!');
@@ -557,13 +567,22 @@ function App() {
               <p className="text-gray-400 text-xs md:text-sm hidden sm:block">Your tasks, your repo, your AI assistant.</p>
             </div>
           </div>
-          <button
-            onClick={() => setShowNewTodoInput(true)}
-            className="px-3 py-2 md:px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors text-sm"
-          >
-            <span className="hidden sm:inline">+ New Task</span>
-            <span className="sm:hidden">+</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => fetchTodos()}
+              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors text-sm"
+            >
+              <span className="hidden sm:inline">🔄 Refresh</span>
+              <span className="sm:hidden">🔄</span>
+            </button>
+            <button
+              onClick={() => setShowNewTodoInput(true)}
+              className="px-3 py-2 md:px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors text-sm"
+            >
+              <span className="hidden sm:inline">+ New Task</span>
+              <span className="sm:hidden">+</span>
+            </button>
+          </div>
         </div>
       </header>
 

@@ -11,6 +11,73 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 app.use(cors());
 app.use(express.json());
 
+// GitHub API proxy endpoint with security validation
+app.post('/api/github', async (req, res) => {
+  const { path, method = 'GET', headers = {}, body, owner, repo } = req.body || {};
+  
+  if (!path || !owner || !repo) {
+    return res.status(400).json({ error: 'Missing required fields: path, owner, repo' });
+  }
+
+  // Security: Validate that the request is for the expected repository pattern
+  const expectedRepoPattern = new RegExp(`^/repos/${owner}/${repo}/`);
+  if (!expectedRepoPattern.test(path)) {
+    return res.status(403).json({ error: 'Invalid repository path' });
+  }
+
+  // Security: Only allow specific GitHub API endpoints
+  const allowedEndpoints = [
+    '/contents/todos',
+    '/contents/todos/',
+    '.md'
+  ];
+  
+  const isAllowedEndpoint = allowedEndpoints.some(endpoint => 
+    path.includes(endpoint) || path.endsWith(endpoint)
+  );
+  
+  if (!isAllowedEndpoint) {
+    return res.status(403).json({ error: 'Endpoint not allowed' });
+  }
+
+  try {
+    const githubUrl = `https://api.github.com${path}`;
+    console.log('Proxying GitHub API request:', method, githubUrl);
+    
+    const fetchOptions = {
+      method,
+      headers: {
+        'User-Agent': 'Agentic-Markdown-Todos',
+        // Security: Only forward specific headers, not all
+        ...(headers.Authorization && { Authorization: headers.Authorization }),
+        ...(headers['Content-Type'] && { 'Content-Type': headers['Content-Type'] }),
+        ...(headers.Accept && { Accept: headers.Accept })
+      }
+    };
+
+    if (body && method !== 'GET') {
+      fetchOptions.body = typeof body === 'string' ? body : JSON.stringify(body);
+    }
+
+    const response = await fetch(githubUrl, fetchOptions);
+    const responseData = await response.text();
+    
+    // Forward the status and headers (filtered)
+    res.status(response.status);
+    const allowedResponseHeaders = ['content-type', 'etag', 'last-modified'];
+    response.headers.forEach((value, key) => {
+      if (allowedResponseHeaders.includes(key.toLowerCase())) {
+        res.setHeader(key, value);
+      }
+    });
+    
+    res.send(responseData);
+  } catch (error) {
+    console.error('GitHub API proxy error:', error);
+    res.status(500).json({ error: 'Failed to proxy GitHub API request' });
+  }
+});
+
 app.post('/api/gemini', async (req, res) => {
   const { action, payload } = req.body;
 
@@ -75,6 +142,6 @@ Please return the updated markdown content:`;
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server listening at http://localhost:${port}`);
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Server listening at http://0.0.0.0:${port}`);
 });
