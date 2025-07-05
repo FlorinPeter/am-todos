@@ -167,7 +167,7 @@ function App() {
       // Retry logic to handle GitHub API delays
       let retryCount = 0;
       const maxRetries = 8;
-      const retryDelay = 3000; // 3 seconds
+      const retryDelay = 5000; // 5 seconds
       
       const fetchWithRetry = async (): Promise<void> => {
         try {
@@ -352,6 +352,23 @@ function App() {
       }
 
       setDeletionStep('🔄 Refreshing task list...');
+      
+      // Check if this is the last todo - if so, we can skip verification
+      const remainingTodos = todos.filter(todo => todo.id !== id);
+      const isLastTodo = remainingTodos.length === 0;
+      
+      if (isLastTodo) {
+        console.log('This is the last todo - skipping verification and directly updating state');
+        setDeletionStep('✅ Last task deleted, clearing list...');
+        setTodos([]);
+        setSelectedTodoId(null);
+        setTimeout(() => {
+          setIsDeletingTask(false);
+          setDeletionStep('');
+        }, 1000);
+        return;
+      }
+      
       // Retry logic to handle GitHub API delays for deletion
       const maxRetries = 8;
       const retryDelay = 3000; // 3 seconds
@@ -361,41 +378,42 @@ function App() {
         try {
           const githubFiles = await getTodos(settings.pat, settings.owner, settings.repo);
           console.log(`Delete verification ${retryCount + 1} - Found ${githubFiles.length} files`);
+          console.log(`Files in directory:`, githubFiles.map(f => f.name));
+          console.log(`Looking for deleted file: ${todoToDelete.path}`);
           
           // Check if the deleted todo file still exists in the response
           const deletedTodoStillExists = githubFiles.some(file => 
             file.path === todoToDelete.path
           );
           
-          if (deletedTodoStillExists && retryCount < maxRetries) {
+          // Deletion is successful if:
+          // 1. File is not found in the list (normal case)
+          // 2. Directory is empty (githubFiles.length === 0) - this covers the "last file" scenario
+          const deletionSuccessful = !deletedTodoStillExists;
+          
+          if (!deletionSuccessful && retryCount < maxRetries) {
             retryCount++;
             console.log(`Delete verification ${retryCount}/${maxRetries} - Todo still exists, retrying in ${retryDelay}ms...`);
             setDeletionStep(`🔄 Verifying deletion (${retryCount}/${maxRetries})...`);
             setTimeout(verifyDeletion, retryDelay);
-          } else if (!deletedTodoStillExists) {
-            console.log('Deletion verified! Refreshing todo list...');
-            setDeletionStep('✅ Deletion confirmed, refreshing list...');
-            try {
-              await fetchTodos();
-            } catch (fetchError) {
-              console.log('Fetch error after successful deletion, assuming empty directory');
-              setTodos([]);
-              setSelectedTodoId(null);
-            }
-            setTimeout(() => {
-              setIsDeletingTask(false);
-              setDeletionStep('');
-            }, 500);
           } else {
-            console.log('Max retries reached, assuming deletion succeeded...');
-            setDeletionStep('⚠️ Verification timeout, refreshing anyway...');
+            // Deletion successful or max retries reached
+            if (deletionSuccessful) {
+              console.log('Deletion verified! File no longer found in directory listing.');
+              setDeletionStep('✅ Deletion confirmed, refreshing list...');
+            } else {
+              console.log('Max retries reached, assuming deletion succeeded...');
+              setDeletionStep('⚠️ Verification timeout, but deletion likely succeeded...');
+            }
+            
             try {
               await fetchTodos();
             } catch (fetchError) {
-              console.log('Fetch error after timeout, assuming empty directory');
+              console.log('Fetch error after deletion verification, assuming empty directory');
               setTodos([]);
               setSelectedTodoId(null);
             }
+            
             setTimeout(() => {
               setIsDeletingTask(false);
               setDeletionStep('');
@@ -403,11 +421,11 @@ function App() {
           }
         } catch (error) {
           console.error('Error in delete verification:', error);
-          // If there's an error (like 404 for empty directory), assume deletion worked
-          console.log('Verification error (likely empty directory), assuming deletion succeeded...');
+          // If there's an error (like 404 for empty directory), deletion was successful
+          console.log('Verification error (likely empty directory), deletion was successful...');
           setDeletionStep('✅ Directory empty, deletion successful...');
           
-          // Handle empty directory case - directly update state instead of fetchTodos
+          // Handle empty directory case - directly update state
           const errorMessage = error instanceof Error ? error.message : '';
           if (errorMessage.includes('404') || errorMessage.includes('not found')) {
             console.log('Empty directory detected, clearing todos');
