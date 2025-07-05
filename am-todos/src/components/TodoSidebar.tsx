@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatDate } from '../utils/dateFormat';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -142,8 +143,8 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
 
                   {/* Created Date */}
                   <div className="text-xs text-gray-400">
-                    {todo.frontmatter?.createdAt ? 
-                      new Date(todo.frontmatter.createdAt).toLocaleDateString() :
+                    Created: {todo.frontmatter?.createdAt ? 
+                      formatDate(todo.frontmatter.createdAt) :
                       'No date'
                     }
                   </div>

@@ -25,8 +25,16 @@ app.post('/api/gemini', async (req, res) => {
 
     switch (action) {
       case 'generateInitialPlan':
-        systemInstruction = `You are an expert project manager and agile coach. Your task is to break down a high-level goal into a detailed, actionable checklist in GitHub Flavored Markdown format. Each item should be a clear, concise task. Use checkboxes for each item.`;
-        prompt = `Generate a detailed checklist for the following goal: ${payload.goal}`;
+        systemInstruction = `You are an expert project manager. Your task is to create a high-level, editable markdown template for a goal. Keep it simple and user-friendly - the user should be able to easily edit and expand on it.
+
+Rules:
+1. Create a brief description of the goal
+2. Add 3-5 high-level checkboxes using - [ ] format
+3. Keep each checkbox item concise and general (not overly detailed)
+4. Use simple GitHub Flavored Markdown
+5. Make it easy for the user to edit and add their own details
+6. Focus on major phases or key areas rather than micro-tasks`;
+        prompt = `Create a simple, high-level markdown template for this goal: ${payload.goal}`;
         break;
       case 'generateCommitMessage':
         systemInstruction = `You are an expert at writing conventional commit messages. Given a description of a change, generate a concise and appropriate conventional commit message (e.g., feat: Add new feature, fix: Fix bug, docs: Update documentation).`;

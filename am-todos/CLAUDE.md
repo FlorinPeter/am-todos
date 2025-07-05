@@ -14,10 +14,15 @@ This is "Agentic Markdown Todos" - an AI-powered todo application that transform
 
 ### Core Features
 - **AI-Powered Task Generation**: High-level goals → detailed actionable checklists
-- **Interactive Markdown Editor**: Direct raw markdown editing with GitHub sync
-- **AI-Powered Task Extension**: Any checklist item can be decomposed into sub-tasks
-- **AI Chat Assistant**: Natural language commands to modify task lists
-- **Task Prioritization & Archiving**: P1-P5 priorities with archive/unarchive functionality
+- **Two-Panel Responsive Layout**: Sidebar task list + main content area with mobile support
+- **AI Chat Assistant**: Natural language commands to modify task lists (integrated at bottom of tasks)
+- **Interactive Checkboxes**: Click to toggle task completion with real-time GitHub sync
+- **Task Management**: Create, edit, delete, archive, and prioritize tasks (P1-P5)
+- **Mobile-First Design**: Hamburger menu, responsive layout, touch-friendly interface
+- **Loading States**: Progress indicators with step-by-step feedback during task creation
+- **Smart File Naming**: User-friendly names like `2025-01-05-task-name.md` instead of timestamps
+- **Auto-Directory Setup**: Automatically creates `/todos` folder if missing
+- **Real-Time Updates**: Instant refresh and auto-selection of new tasks
 - **Conventional Commits**: AI-generated semantic commit messages for clean Git history
 
 ## Development Commands
@@ -53,7 +58,13 @@ node server.js     # Run backend server (localhost:3001)
 - User enters high-level goal → Backend calls Gemini AI → Generated plan saved to GitHub → Frontend displays interactive markdown with checkboxes
 
 ### File Structure Patterns
-- `src/components/`: React components (GitHubSettings, MarkdownViewer, TodoList, NewTodoInput)
+- `src/components/`: React components
+  - `GitHubSettings.tsx`: Configuration interface for GitHub PAT and repository
+  - `MarkdownViewer.tsx`: Interactive markdown display with AI chat integration
+  - `TodoSidebar.tsx`: Priority-sorted task list with mobile hamburger menu
+  - `TodoEditor.tsx`: Main content area with task editing and management
+  - `NewTodoInput.tsx`: Modal for creating new tasks with AI generation
+  - `AIChat.tsx`: Collapsible chat interface for task modifications
 - `src/services/`: API layers (githubService, aiService)
 - `src/utils/`: Utilities (localStorage, markdown parsing)
 - `server/`: Express backend with AI integration
@@ -63,25 +74,30 @@ node server.js     # Run backend server (localhost:3001)
 ### GitHub Integration
 - Stores todos as markdown files in `/todos` directory of configured repository
 - Uses **fine-grained Personal Access Token** restricted to specific repository only
-- Automatically generates conventional commit messages for all changes
-- File naming: `{timestamp}.md` format (e.g., `my-awesome-task-1668273612.md`)
+- **Smart file naming**: `YYYY-MM-DD-task-slug.md` format (e.g., `2025-01-05-deploy-web-app.md`)
+- **Auto-directory creation**: Creates `/todos` folder with `.gitkeep` if missing
+- **Delete functionality**: Complete file removal from repository with confirmation
+- **Unicode support**: Proper Base64 encoding handles special characters and emojis
 - Every action (create, update, archive, delete) results in a versioned commit
 
 ### AI Integration
 - Backend acts as secure proxy to protect Gemini API key (never exposed to client)
 - Uses **Gemini 2.5 Flash** model for all intelligent features
-- AI functions: `generateInitialPlan()`, `generateCommitMessage()`, task extension, and chat assistant
+- **AI functions**: `generateInitialPlan()`, `generateCommitMessage()`, `processChatMessage()`
+- **Chat interface**: Collapsible AI chat at bottom of each task for natural language modifications
+- **Loading feedback**: Step-by-step progress indicators during AI processing
+- **Task generation**: High-level goals converted to detailed actionable checklists
+- **Commit automation**: AI generates conventional commit messages for all changes
 - Receives requests with `action` and `payload`, constructs system/user prompts, returns text responses
-- Supports task decomposition: any checklist item can be broken down into sub-tasks
-- Natural language commands via chat interface for task list modifications
 
 ### Markdown Processing
 - Files use **YAML frontmatter** for metadata (title, createdAt, priority, isArchived, chatHistory)
 - `react-markdown` with `remark-gfm` for GitHub-flavored markdown rendering
-- Interactive checkboxes that update both UI state and GitHub files
-- Custom checkbox component tracks line numbers for precise updates
-- Direct raw markdown editing capability with GitHub sync
-- Support for priorities (P1-P5) and archiving functionality
+- **Interactive checkboxes**: Click to toggle with real-time GitHub sync
+- **Fixed regex bug**: Proper checkbox pattern matching (`\[[ xX]\]`)
+- **Chat history storage**: Persistent AI conversation history in frontmatter
+- **Priority system**: P1 (Critical/Red) to P5 (Very Low/Gray) with color coding
+- **Archive functionality**: Toggle task visibility without deletion
 
 #### Frontmatter Schema Example:
 ```yaml
@@ -103,9 +119,10 @@ chatHistory:
 
 ### Technology Stack Specifics
 - **React 19.1.0** with TypeScript and hooks-based state management
-- **TailwindCSS 3.4.17** with PostCSS configuration
+- **TailwindCSS 3.4.17** with PostCSS configuration and responsive design
 - **Express 5.1.0** backend with CORS enabled
 - **Create React App** build system (do not eject)
+- **Mobile-responsive**: Hamburger menu, touch-friendly interface, responsive breakpoints
 
 ## Development Notes
 
@@ -126,22 +143,69 @@ chatHistory:
 ## Key Workflows
 
 ### Creating a New Todo
-1. User enters goal in `NewTodoInput.tsx` → "GENERATING" placeholder shown
-2. `generateInitialPlan()` calls `/api/gemini` with action/payload
-3. AI returns markdown checklist → combined with frontmatter
-4. `generateCommitMessage()` creates conventional commit message
-5. GitHub API creates file via `PUT /repos/{owner}/{repo}/contents/todos/{filename}.md`
-6. App refetches todos to sync state
+1. User clicks "New Task" → Modal appears with input field
+2. User enters goal → **Loading overlay** shows with progress steps:
+   - 🤖 Generating task plan with AI...
+   - 📝 Preparing task content...
+   - 💬 Generating commit message...
+   - 📂 Setting up repository...
+   - 💾 Saving to GitHub...
+   - 🔄 Refreshing task list...
+3. `generateInitialPlan()` calls `/api/gemini` with action/payload
+4. AI returns markdown checklist → combined with frontmatter
+5. `generateCommitMessage()` creates conventional commit message
+6. **Auto-directory creation**: Creates `/todos` folder if missing
+7. GitHub API creates file with smart naming: `YYYY-MM-DD-task-slug.md`
+8. App refreshes and auto-selects new task
 
-### Checking a Box
-1. User clicks checkbox → `MarkdownViewer.tsx` toggles `[ ]` to `[x]`
-2. New markdown propagated to `App.tsx` via `onMarkdownChange`
-3. `generateCommitMessage()` creates commit for the change
-4. GitHub API updates file (requires file's `sha` for version control)
-5. App refetches todos to get updated content and new `sha`
+### Using AI Chat Assistant
+1. User clicks "AI Chat Assistant" at bottom of task → Chat interface expands
+2. User types natural language command (e.g., "Add a step for user authentication")
+3. `processChatMessage()` calls `/api/gemini` with current content and chat history
+4. AI returns updated markdown content
+5. App updates task and saves to GitHub with commit message
+6. Chat history stored in frontmatter for context
+
+### Managing Tasks
+- **Priority changes**: Dropdown selector (P1-P5) with color-coded badges
+- **Archive/unarchive**: Toggle button to hide/show completed tasks
+- **Delete tasks**: Red trash button with confirmation dialog
+- **Mobile navigation**: Hamburger menu for sidebar on mobile devices
+- **Auto-refresh**: Tasks update automatically after any change
 
 ### Security Considerations
 - **Gemini API Key**: Stored securely as server-side environment variable, never exposed to client
 - **GitHub PAT**: Stored in browser localStorage, sandboxed to application origin
 - **Fine-grained permissions**: PAT restricted to specific repository only
 - **HTTPS only**: All API communications over secure connections
+
+## Recent Improvements (Latest Session)
+
+### UI/UX Enhancements
+- **Two-panel layout**: Professional sidebar + main content design
+- **Mobile responsiveness**: Hamburger menu, touch-friendly interface
+- **Loading states**: Comprehensive progress feedback during task creation
+- **Smart file naming**: Date-prefixed, human-readable file names
+- **Auto-directory setup**: No manual `/todos` folder creation needed
+- **Real-time updates**: Immediate task list refresh and auto-selection
+
+### Functionality Additions
+- **Delete tasks**: Complete removal with confirmation dialog
+- **AI chat interface**: Bottom-of-task collapsible chat for modifications
+- **Priority management**: Visual P1-P5 system with color coding
+- **Archive system**: Hide/show tasks without deletion
+- **Error handling**: Comprehensive debugging and user feedback
+- **Unicode support**: Fixed Base64 encoding for special characters
+
+### Technical Fixes
+- **Build system**: Fixed TailwindCSS PostCSS configuration
+- **TypeScript errors**: Resolved error handling and type safety
+- **Regex bug**: Fixed checkbox pattern matching in MarkdownViewer
+- **State management**: Improved refresh logic and dependency handling
+- **Mobile layout**: Fixed sidebar height and responsive breakpoints
+
+### Development Workflow
+- **Git integration**: Modern `main` branch instead of `master`
+- **Comprehensive logging**: Detailed debugging throughout application
+- **Documentation**: Updated CLAUDE.md with complete implementation details
+- **Commit history**: Professional conventional commits with Claude attribution

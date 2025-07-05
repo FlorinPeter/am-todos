@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import MarkdownViewer from './MarkdownViewer';
+import { formatDate } from '../utils/dateFormat';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -163,7 +164,7 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
         {/* Metadata */}
         <div className="flex flex-col sm:flex-row sm:items-center text-xs sm:text-sm text-gray-400 space-y-1 sm:space-y-0 sm:space-x-4">
           <span>Created: {selectedTodo.frontmatter?.createdAt ? 
-            new Date(selectedTodo.frontmatter.createdAt).toLocaleDateString() : 
+            formatDate(selectedTodo.frontmatter.createdAt) : 
             'Unknown'
           }</span>
           <span className="hidden sm:inline">Priority: {getPriorityLabel(selectedTodo.frontmatter?.priority || 3)}</span>
