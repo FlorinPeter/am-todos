@@ -29,6 +29,8 @@ app.post('/api/github', async (req, res) => {
   const allowedEndpoints = [
     '/contents/todos',
     '/contents/todos/',
+    '/contents/todos/archive',
+    '/contents/todos/archive/',
     '.md'
   ];
   
