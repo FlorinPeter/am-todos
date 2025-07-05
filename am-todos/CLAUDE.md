@@ -17,13 +17,15 @@ This is "Agentic Markdown Todos" - an AI-powered todo application that transform
 - **Two-Panel Responsive Layout**: Sidebar task list + main content area with mobile support
 - **AI Chat Assistant**: Natural language commands to modify task lists (integrated at bottom of tasks)
 - **Interactive Checkboxes**: Click to toggle task completion with real-time GitHub sync
+- **Markdown Edit Mode**: Toggle between view and edit modes with full markdown editing capabilities
 - **Task Management**: Create, edit, delete, archive, and prioritize tasks (P1-P5)
 - **Mobile-First Design**: Hamburger menu, responsive layout, touch-friendly interface
-- **Loading States**: Progress indicators with step-by-step feedback during task creation
+- **Progress Tracking**: Visual progress bars for create, save, and delete operations with step-by-step feedback
 - **Smart File Naming**: User-friendly names like `2025-01-05-task-name.md` instead of timestamps
 - **Auto-Directory Setup**: Automatically creates `/todos` folder if missing
 - **Real-Time Updates**: Instant refresh and auto-selection of new tasks
 - **Conventional Commits**: AI-generated semantic commit messages for clean Git history
+- **Unsaved Changes Protection**: Clear indicators and confirmation dialogs prevent data loss
 
 ## Development Commands
 
@@ -158,6 +160,23 @@ chatHistory:
 7. GitHub API creates file with smart naming: `YYYY-MM-DD-task-slug.md`
 8. App refreshes and auto-selects new task
 
+### Editing Tasks with Markdown Editor
+1. User clicks "Edit" button in markdown viewer → Editor mode activates
+2. **Edit interface** appears with:
+   - Full-width textarea with monospace font for raw markdown editing
+   - "Unsaved changes" indicator when content is modified
+   - Save/Cancel buttons in the header
+3. User edits markdown content directly
+4. Click "Save" → **Progress overlay** shows with steps:
+   - 🔍 Preparing to save... (10%)
+   - 📝 Preparing content... (25%)
+   - 🤖 Generating commit message... (50%)
+   - 💾 Saving to GitHub... (75%)
+   - 🔄 Refreshing task list... (90%)
+   - ✅ Save completed! (100%)
+5. `handleTodoUpdate()` processes the save with full error handling
+6. App refreshes task content and returns to view mode
+
 ### Using AI Chat Assistant
 1. User clicks "AI Chat Assistant" at bottom of task → Chat interface expands
 2. User types natural language command (e.g., "Add a step for user authentication")
@@ -184,13 +203,17 @@ chatHistory:
 ### UI/UX Enhancements
 - **Two-panel layout**: Professional sidebar + main content design
 - **Mobile responsiveness**: Hamburger menu, touch-friendly interface
-- **Loading states**: Comprehensive progress feedback during task creation
+- **Progress tracking**: Visual progress bars for all operations (create, save, delete)
+- **Markdown edit mode**: Toggle between view and edit modes with full editing capabilities
 - **Smart file naming**: Date-prefixed, human-readable file names
 - **Auto-directory setup**: No manual `/todos` folder creation needed
 - **Real-time updates**: Immediate task list refresh and auto-selection
+- **Unsaved changes protection**: Visual indicators and confirmation dialogs
 
 ### Functionality Additions
-- **Delete tasks**: Complete removal with confirmation dialog
+- **Markdown editor**: Full-featured text editor with monospace font and syntax support
+- **Save progress tracking**: 6-step visual feedback during save operations
+- **Delete tasks**: Complete removal with confirmation dialog and progress tracking
 - **AI chat interface**: Bottom-of-task collapsible chat for modifications
 - **Priority management**: Visual P1-P5 system with color coding
 - **Archive system**: Hide/show tasks without deletion
@@ -198,6 +221,8 @@ chatHistory:
 - **Unicode support**: Fixed Base64 encoding for special characters
 
 ### Technical Fixes
+- **Edit mode state management**: Proper handling of edit/view transitions with data integrity
+- **Progress overlay system**: Consistent progress bars across all operations
 - **Build system**: Fixed TailwindCSS PostCSS configuration
 - **TypeScript errors**: Resolved error handling and type safety
 - **Regex bug**: Fixed checkbox pattern matching in MarkdownViewer
@@ -209,3 +234,4 @@ chatHistory:
 - **Comprehensive logging**: Detailed debugging throughout application
 - **Documentation**: Updated CLAUDE.md with complete implementation details
 - **Commit history**: Professional conventional commits with Claude attribution
+- **Testing infrastructure**: Created comprehensive GitHub API integration tests
