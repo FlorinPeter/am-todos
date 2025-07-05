@@ -131,8 +131,8 @@ export const ensureTodosDirectory = async (token: string, owner: string, repo: s
   }
 };
 
-export const getTodos = async (token: string, owner: string, repo: string) => {
-  const apiPath = `/repos/${owner}/${repo}/contents/todos`;
+export const getTodos = async (token: string, owner: string, repo: string, includeArchived = false) => {
+  const apiPath = includeArchived ? `/repos/${owner}/${repo}/contents/todos/archive` : `/repos/${owner}/${repo}/contents/todos`;
   const headers = { 
     Authorization: `token ${token}`,
     'Cache-Control': 'no-cache',
@@ -240,4 +240,125 @@ export const getFileMetadata = async (token: string, owner: string, repo: string
     path: metadata.path,
     name: metadata.name
   };
+};
+
+export const ensureArchiveDirectory = async (token: string, owner: string, repo: string) => {
+  const checkPath = `/repos/${owner}/${repo}/contents/todos/archive`;
+  const headers = { Authorization: `token ${token}` };
+  
+  try {
+    await makeGitHubRequest(checkPath, 'GET', headers, undefined, owner, repo);
+  } catch (error) {
+    // Directory doesn't exist, create it with a .gitkeep file
+    console.log('todos/archive/ directory not found, creating it...');
+    const createPath = `/repos/${owner}/${repo}/contents/todos/archive/.gitkeep`;
+    const createBody = {
+      message: 'feat: Create archive directory',
+      content: btoa('# This file ensures the archive directory exists\\n'),
+    };
+
+    const createResponse = await makeGitHubRequest(createPath, 'PUT', {
+      Authorization: `token ${token}`,
+      'Content-Type': 'application/json',
+    }, createBody, owner, repo);
+
+    if (!createResponse.ok) {
+      const errorText = await createResponse.text();
+      console.error('Failed to create archive directory:', errorText);
+      throw new Error(`Failed to create archive directory: ${createResponse.statusText}`);
+    }
+    
+    console.log('todos/archive/ directory created successfully');
+  }
+};
+
+export const moveTaskToArchive = async (
+  token: string,
+  owner: string,
+  repo: string,
+  currentPath: string,
+  content: string,
+  commitMessage: string
+) => {
+  console.log('Moving task to archive:', currentPath);
+  
+  // Ensure archive directory exists
+  await ensureArchiveDirectory(token, owner, repo);
+  
+  // Get current file SHA for deletion
+  const currentFile = await getFileMetadata(token, owner, repo, currentPath);
+  
+  // Determine new path in archive
+  const fileName = currentPath.split('/').pop();
+  const archivePath = `todos/archive/${fileName}`;
+  
+  // Create file in archive
+  console.log('Creating archived file at:', archivePath);
+  await createOrUpdateTodo(token, owner, repo, archivePath, content, commitMessage);
+  
+  // Delete from original location
+  console.log('Deleting original file at:', currentPath);
+  await deleteFile(token, owner, repo, currentPath, currentFile.sha, `Archive: Remove ${fileName} from active todos`);
+  
+  return archivePath;
+};
+
+export const moveTaskFromArchive = async (
+  token: string,
+  owner: string,
+  repo: string,
+  currentPath: string,
+  content: string,
+  commitMessage: string
+) => {
+  console.log('Moving task from archive:', currentPath);
+  
+  // Get current file SHA for deletion
+  const currentFile = await getFileMetadata(token, owner, repo, currentPath);
+  
+  // Determine new path in todos
+  const fileName = currentPath.split('/').pop();
+  const todosPath = `todos/${fileName}`;
+  
+  // Create file in todos
+  console.log('Creating unarchived file at:', todosPath);
+  await createOrUpdateTodo(token, owner, repo, todosPath, content, commitMessage);
+  
+  // Delete from archive location
+  console.log('Deleting archived file at:', currentPath);
+  await deleteFile(token, owner, repo, currentPath, currentFile.sha, `Unarchive: Remove ${fileName} from archive`);
+  
+  return todosPath;
+};
+
+export const deleteFile = async (
+  token: string,
+  owner: string,
+  repo: string,
+  path: string,
+  sha: string,
+  commitMessage: string
+) => {
+  const apiPath = `/repos/${owner}/${repo}/contents/${path}`;
+  const headers = {
+    Authorization: `token ${token}`,
+    'Content-Type': 'application/json',
+  };
+  
+  const requestBody = {
+    message: commitMessage,
+    sha: sha,
+  };
+
+  console.log('Deleting file via proxy:', apiPath);
+  const response = await makeGitHubRequest(apiPath, 'DELETE', headers, requestBody, owner, repo);
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to delete file:', errorText);
+    throw new Error(`Failed to delete file: ${response.statusText} - ${errorText}`);
+  }
+  
+  console.log('File deleted successfully:', path);
+  return await response.json();
 };
