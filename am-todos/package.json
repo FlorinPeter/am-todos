@@ -5,9 +5,7 @@
   "proxy": "http://localhost:3001",
   "dependencies": {
     "@testing-library/dom": "^10.4.0",
-    "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
-    "@testing-library/user-event": "^13.5.0",
     "@types/jest": "^27.5.2",
     "@types/node": "^16.18.126",
     "@types/react": "^19.1.8",
@@ -28,6 +26,11 @@
     "start": "DANGEROUSLY_DISABLE_HOST_CHECK=true react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "test:integration": "INTEGRATION_TEST=true react-scripts test --testPathPattern=__tests__",
+    "test:github": "INTEGRATION_TEST=true react-scripts test --testPathPattern=githubService.test.ts --watchAll=false",
+    "test:retry": "INTEGRATION_TEST=true react-scripts test --testPathPattern=retryLogic.test.ts --watchAll=false",
+    "test:github-basic": "node test-github-integration.js",
+    "test:github-stress": "node test-stress-github.js",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -49,6 +52,10 @@
     ]
   },
   "devDependencies": {
-    "@types/js-yaml": "^4.0.9"
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/js-yaml": "^4.0.9",
+    "cross-fetch": "^4.1.0",
+    "node-fetch": "^3.3.2"
   }
 }
