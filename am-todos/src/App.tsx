@@ -4,7 +4,7 @@ import TodoSidebar from './components/TodoSidebar';
 import TodoEditor from './components/TodoEditor';
 import GitHubSettings from './components/GitHubSettings';
 import ProjectManager from './components/ProjectManager';
-import { loadSettings } from './utils/localStorage';
+import { loadSettings, getUrlConfig, saveSettings } from './utils/localStorage';
 import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDirectory, ensureTodosDirectory, moveTaskToArchive, moveTaskFromArchive } from './services/githubService';
 import { generateInitialPlan, generateCommitMessage } from './services/aiService';
 import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, TodoFrontmatter } from './utils/markdown';
@@ -13,7 +13,19 @@ function App() {
   const [settings, setSettings] = useState(loadSettings());
 
   useEffect(() => {
-    setSettings(loadSettings());
+    // Check for URL configuration first
+    const urlConfig = getUrlConfig();
+    if (urlConfig) {
+      // Auto-configure from URL and save to localStorage
+      saveSettings(urlConfig);
+      setSettings(urlConfig);
+      // Remove the config parameter from URL without page reload
+      const url = new URL(window.location.href);
+      url.searchParams.delete('config');
+      window.history.replaceState({}, '', url.toString());
+    } else {
+      setSettings(loadSettings());
+    }
   }, []);
 
   

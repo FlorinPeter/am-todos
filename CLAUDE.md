@@ -29,6 +29,7 @@ This is "Agentic Markdown Todos" - an AI-powered todo application that transform
 - **Real-Time Updates**: Instant refresh and auto-selection of new tasks
 - **Conventional Commits**: AI-generated semantic commit messages for clean Git history
 - **Unsaved Changes Protection**: Clear indicators and confirmation dialogs prevent data loss
+- **Configuration Sharing**: Generate shareable URLs and QR codes for seamless setup across devices
 
 ## Development Commands
 
@@ -71,13 +72,14 @@ node server.js     # Run backend server (localhost:3001)
 ### File Structure Patterns
 - `src/components/`: React components
   - `GitHubSettings.tsx`: Configuration interface for GitHub PAT and repository
+  - `SettingsSharing.tsx`: Configuration sharing modal with QR codes and copyable links
   - `MarkdownViewer.tsx`: Interactive markdown display with AI chat integration
   - `TodoSidebar.tsx`: Priority-sorted task list with mobile hamburger menu
   - `TodoEditor.tsx`: Main content area with task editing and management
   - `NewTodoInput.tsx`: Modal for creating new tasks with AI generation
   - `AIChat.tsx`: Collapsible chat interface for task modifications
 - `src/services/`: API layers (githubService, aiService)
-- `src/utils/`: Utilities (localStorage, markdown parsing)
+- `src/utils/`: Utilities (localStorage with URL encoding/decoding, markdown parsing)
 - `server/`: Express backend with AI integration
 
 ## Important Implementation Details
@@ -127,6 +129,7 @@ chatHistory:
 ### Configuration Requirements
 - **Backend**: Requires `.env` file with `GEMINI_API_KEY`
 - **Frontend**: GitHub settings stored in localStorage (PAT, repo owner, repo name, folder)
+- **Configuration Sharing**: Settings encoded in Base64 URLs for cross-device sharing
 - **Folder Support**: Defaults to 'todos' for backward compatibility, can be changed to any folder name
 - **Proxy**: Frontend configured to proxy `/api` requests to `localhost:3001`
 
@@ -134,6 +137,7 @@ chatHistory:
 - **React 19.1.0** with TypeScript and hooks-based state management
 - **TailwindCSS 3.4.17** with PostCSS configuration and responsive design
 - **Express 5.1.0** backend with CORS enabled
+- **QR Code Library**: `qrcode` package for generating configuration QR codes
 - **Create React App** build system (do not eject)
 - **Mobile-responsive**: Hamburger menu, touch-friendly interface, responsive breakpoints
 
@@ -173,8 +177,17 @@ The archive functionality has been fully implemented and debugged:
 - ✅ **Task Counts**: Real-time accurate counts for both active and archived tasks
 - ✅ **Data Persistence**: All operations properly sync with GitHub repository
 - ✅ **Mobile Responsiveness**: Archive functionality works on mobile devices
+- ✅ **Configuration Sharing**: URL-based sharing with QR codes for cross-device setup
 
 ## Key Workflows
+
+### Configuration Sharing
+1. User clicks "Share Config" in GitHub Settings → Modal opens with generation progress
+2. **QR Code Generation**: Creates high-quality QR code for mobile device scanning
+3. **URL Generation**: Encodes all settings (PAT, repo details, API keys) in Base64 URL parameter
+4. **Copy/Share**: User can copy link or scan QR code to share configuration
+5. **Auto-Configuration**: Opening shared URL automatically configures app and saves settings to localStorage
+6. **Security Notice**: Clear warning about sensitive data being shared
 
 ### Creating a New Todo
 1. User clicks "New Task" → Modal appears with input field
@@ -249,6 +262,7 @@ The archive functionality has been fully implemented and debugged:
 - **AI chat interface**: Bottom-of-task collapsible chat for modifications
 - **Priority management**: Visual P1-P5 system with color coding
 - **Archive system**: Hide/show tasks without deletion
+- **Configuration sharing**: Generate shareable URLs and QR codes for cross-device setup
 - **Error handling**: Comprehensive debugging and user feedback
 - **Unicode support**: Fixed Base64 encoding for special characters
 
