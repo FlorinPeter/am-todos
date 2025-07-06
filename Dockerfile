@@ -57,11 +57,10 @@ COPY --chown=nextjs:nodejs am-todos/server/server.js ./server/
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV PORT=3001
 ENV FRONTEND_BUILD_PATH=/app/build
 
-# Expose port
-EXPOSE 3001
+# Expose port (Cloud Run will set PORT dynamically)
+EXPOSE 8080
 
 # Switch to non-root user
 USER nextjs
