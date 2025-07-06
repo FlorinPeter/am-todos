@@ -30,7 +30,7 @@ services:
       - NODE_ENV=development
       - CHOKIDAR_USEPOLLING=true
     volumes:
-      - .:/app
+      - ./am-todos:/app
       - /app/node_modules
       - /app/server/node_modules
     restart: unless-stopped

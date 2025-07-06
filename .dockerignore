@@ -1,12 +1,12 @@
 # Dependencies
-node_modules/
-server/node_modules/
+am-todos/node_modules/
+am-todos/server/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
 # Production build (will be created in container)
-build/
+am-todos/build/
 
 # Development files
 .env
