@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
@@ -7,6 +8,12 @@ const port = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
+
+// Serve static files from the React app build directory in production
+if (process.env.NODE_ENV === 'production') {
+  const buildPath = process.env.FRONTEND_BUILD_PATH || path.join(__dirname, '../build');
+  app.use(express.static(buildPath));
+}
 
 // GitHub API proxy endpoint with security validation
 app.post('/api/github', async (req, res) => {
@@ -264,6 +271,14 @@ app.post('/api/file-at-commit', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch file at commit' });
   }
 });
+
+// Catch-all handler: send back React's index.html file in production
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    const buildPath = process.env.FRONTEND_BUILD_PATH || path.join(__dirname, '../build');
+    res.sendFile(path.join(buildPath, 'index.html'));
+  });
+}
 
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server listening at http://0.0.0.0:${port}`);

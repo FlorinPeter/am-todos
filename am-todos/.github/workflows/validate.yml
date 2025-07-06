@@ -1,0 +1,43 @@
+name: Validate Docker Configuration
+
+on:
+  pull_request:
+    paths:
+      - 'Dockerfile*'
+      - '.dockerignore'
+      - 'docker-compose.yml'
+      - '.github/workflows/docker-*.yml'
+
+jobs:
+  validate-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate Dockerfile syntax
+        run: |
+          echo "Validating Dockerfile syntax..."
+          docker buildx build --dry-run .
+
+      - name: Validate docker-compose
+        run: |
+          echo "Validating docker-compose.yml..."
+          docker compose config
+
+      - name: Check for security issues in Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          format: sarif
+          output-file: hadolint-results.sarif
+          no-fail: true
+
+      - name: Upload Hadolint scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: hadolint-results.sarif
