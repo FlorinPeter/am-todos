@@ -77,23 +77,25 @@ app.post('/api/github', async (req, res) => {
   }
 });
 
-app.post('/api/gemini', async (req, res) => {
-  const { action, payload, apiKey } = req.body;
+app.post('/api/ai', async (req, res) => {
+  const { action, payload, provider, apiKey, model } = req.body;
 
   if (!action) {
     return res.status(400).json({ error: 'Missing action in request body' });
   }
 
   if (!apiKey) {
-    return res.status(400).json({ error: 'Missing Gemini API key. Please configure your API key in the application settings.' });
+    return res.status(400).json({ error: 'Missing AI API key. Please configure your API key in the application settings.' });
+  }
+
+  if (!provider) {
+    return res.status(400).json({ error: 'Missing AI provider. Please select a provider in the application settings.' });
   }
 
   try {
-    // Create a new GoogleGenerativeAI instance with the provided API key
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     let prompt = '';
     let systemInstruction = '';
+    let response;
 
     switch (action) {
       case 'generateInitialPlan':
@@ -137,13 +139,54 @@ Please return the updated markdown content:`;
         return res.status(400).json({ error: 'Unknown action' });
     }
 
-    const result = await model.generateContent({ contents: [{ role: "user", parts: [{ text: prompt }] }], systemInstruction: { parts: [{ text: systemInstruction }] } });
-    const response = await result.response;
-    const text = response.text();
-    res.json({ text });
+    if (provider === 'gemini') {
+      // Gemini API implementation
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const geminiModel = genAI.getGenerativeModel({ model: model || "gemini-2.5-flash" });
+      const result = await geminiModel.generateContent({ 
+        contents: [{ role: "user", parts: [{ text: prompt }] }], 
+        systemInstruction: { parts: [{ text: systemInstruction }] } 
+      });
+      response = await result.response;
+      const text = response.text();
+      res.json({ text });
+    } else if (provider === 'openrouter') {
+      // OpenRouter API implementation
+      const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://agentic-markdown-todos.local',
+          'X-Title': 'Agentic Markdown Todos'
+        },
+        body: JSON.stringify({
+          model: model || 'anthropic/claude-3.5-sonnet',
+          messages: [
+            { role: 'system', content: systemInstruction },
+            { role: 'user', content: prompt }
+          ]
+        })
+      });
+
+      if (!openRouterResponse.ok) {
+        const errorText = await openRouterResponse.text();
+        console.error('OpenRouter API error:', errorText);
+        if (openRouterResponse.status === 401) {
+          throw new Error('OpenRouter API key is invalid or not authorized. Please check your API key in settings.');
+        }
+        throw new Error(`OpenRouter API error: ${openRouterResponse.statusText} - ${errorText}`);
+      }
+
+      const openRouterData = await openRouterResponse.json();
+      const text = openRouterData.choices[0].message.content;
+      res.json({ text });
+    } else {
+      return res.status(400).json({ error: 'Unsupported AI provider' });
+    }
   } catch (error) {
-    console.error('Error calling Gemini API:', error);
-    res.status(500).json({ error: 'Failed to get response from Gemini API' });
+    console.error(`Error calling ${provider} API:`, error);
+    res.status(500).json({ error: `Failed to get response from ${provider} API` });
   }
 });
 
