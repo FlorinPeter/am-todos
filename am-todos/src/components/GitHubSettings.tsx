@@ -11,6 +11,7 @@ const GitHubSettings: React.FC<GitHubSettingsProps> = ({ onSettingsSaved }) => {
   const [owner, setOwner] = useState('');
   const [repo, setRepo] = useState('');
   const [folder, setFolder] = useState('todos');
+  const [geminiApiKey, setGeminiApiKey] = useState('');
   const [availableFolders, setAvailableFolders] = useState<string[]>(['todos']);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -24,6 +25,7 @@ const GitHubSettings: React.FC<GitHubSettingsProps> = ({ onSettingsSaved }) => {
       setOwner(savedSettings.owner);
       setRepo(savedSettings.repo);
       setFolder(savedSettings.folder || 'todos');
+      setGeminiApiKey(savedSettings.geminiApiKey || '');
     }
   }, []);
 
@@ -69,14 +71,15 @@ const GitHubSettings: React.FC<GitHubSettingsProps> = ({ onSettingsSaved }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    saveSettings({ pat, owner, repo, folder });
+    saveSettings({ pat, owner, repo, folder, geminiApiKey });
     onSettingsSaved();
   };
 
   return (
     <div className="bg-gray-800 p-6 rounded-lg shadow-md mb-8">
-      <h2 className="text-2xl font-bold mb-4">GitHub Settings</h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <h2 className="text-2xl font-bold mb-4">Application Setup</h2>
+      <p className="text-gray-300 mb-6">Configure your GitHub repository and AI settings to get started.</p>
+      <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label htmlFor="pat" className="block text-sm font-medium text-gray-300">GitHub Personal Access Token (PAT)</label>
           <input
@@ -90,34 +93,65 @@ const GitHubSettings: React.FC<GitHubSettingsProps> = ({ onSettingsSaved }) => {
           />
           <p className="mt-1 text-sm text-gray-400">Create a fine-grained PAT with 'contents' read/write access to your todo repository.</p>
         </div>
+        
         <div>
-          <label htmlFor="owner" className="block text-sm font-medium text-gray-300">Repository Owner (Username or Organization)</label>
+          <label htmlFor="geminiApiKey" className="block text-sm font-medium text-gray-300">Google Gemini API Key</label>
           <input
-            type="text"
-            id="owner"
-            value={owner}
-            onChange={(e) => setOwner(e.target.value)}
+            type="password"
+            id="geminiApiKey"
+            value={geminiApiKey}
+            onChange={(e) => setGeminiApiKey(e.target.value)}
             className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            placeholder="your-github-username"
+            placeholder="AIzaSyxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
             required
           />
+          <p className="mt-1 text-sm text-gray-400">
+            Get your free API key from{' '}
+            <a 
+              href="https://makersuite.google.com/app/apikey" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:text-blue-300 underline"
+            >
+              Google AI Studio
+            </a>
+            . Required for AI-powered task generation and chat features.
+          </p>
         </div>
-        <div>
-          <label htmlFor="repo" className="block text-sm font-medium text-gray-300">Repository Name</label>
-          <input
-            type="text"
-            id="repo"
-            value={repo}
-            onChange={(e) => setRepo(e.target.value)}
-            className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            placeholder="your-todo-repo"
-            required
-          />
-        </div>
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label htmlFor="folder" className="block text-sm font-medium text-gray-300">Project Folder</label>
-            <button
+
+        <div className="border-t border-gray-600 pt-4">
+          <h3 className="text-lg font-medium text-gray-200 mb-4">Repository Configuration</h3>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="owner" className="block text-sm font-medium text-gray-300">Repository Owner (Username or Organization)</label>
+              <input
+                type="text"
+                id="owner"
+                value={owner}
+                onChange={(e) => setOwner(e.target.value)}
+                className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                placeholder="your-github-username"
+                required
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="repo" className="block text-sm font-medium text-gray-300">Repository Name</label>
+              <input
+                type="text"
+                id="repo"
+                value={repo}
+                onChange={(e) => setRepo(e.target.value)}
+                className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                placeholder="your-todo-repo"
+                required
+              />
+            </div>
+            
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="folder" className="block text-sm font-medium text-gray-300">Project Folder</label>
+                <button
               type="button"
               onClick={() => setShowCreateFolder(!showCreateFolder)}
               className="text-sm bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-md"
@@ -205,7 +239,10 @@ const GitHubSettings: React.FC<GitHubSettingsProps> = ({ onSettingsSaved }) => {
               </div>
             </div>
           )}
+            </div>
+          </div>
         </div>
+        
         <button
           type="submit"
           className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md"

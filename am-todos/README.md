@@ -9,12 +9,12 @@ Transform your GitHub repository into a smart todo system that merges the simpli
 ### **Development Setup**
 1. **Backend**: `cd server && node server.js` (port 3001)
 2. **Frontend**: `npm start` (port 3000)  
-3. **Configuration**: Add GitHub PAT and repository details in the UI
+3. **Configuration**: Complete the setup wizard in the application UI
 
 ### **Production Setup**
 1. **Build**: `npm run build`
 2. **Deploy**: Deploy `build/` folder and `server/` directory
-3. **Environment**: Set `GEMINI_API_KEY` in server environment
+3. **Configuration**: Users provide their own API keys through the UI
 
 ## ✨ **Key Features**
 
@@ -22,6 +22,7 @@ Transform your GitHub repository into a smart todo system that merges the simpli
 - Enter high-level goals → Get detailed actionable checklists
 - AI chat assistant for task modifications
 - Smart commit message generation
+- **User-owned API keys**: Each user provides their own Google Gemini API key
 
 ### **📱 Mobile-First Responsive Design**
 - Optimized mobile interface with hamburger menu
@@ -57,6 +58,35 @@ Transform your GitHub repository into a smart todo system that merges the simpli
 - **Hamburger Navigation**: Clean mobile sidebar experience
 - **Shortened Titles**: "AM Todos" instead of full name on mobile
 - **Icon-Based Actions**: Icons on mobile, text on desktop
+- **Mobile Settings Access**: Dedicated settings gear (⚙️) button visible on mobile
+
+## ⚙️ **Initial Setup**
+
+### **Required API Keys**
+1. **GitHub Personal Access Token (PAT)**:
+   - Go to [GitHub Settings → Developer settings → Personal access tokens](https://github.com/settings/tokens)
+   - Create a **fine-grained personal access token**
+   - Grant `Contents` read/write permissions to your todo repository
+   - Copy the token (starts with `ghp_`)
+
+2. **Google Gemini API Key**:
+   - Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+   - Create a free API key
+   - Copy the key (starts with `AIzaSy`)
+
+### **Setup Wizard**
+When you first open the application, you'll see the setup wizard:
+1. **GitHub PAT**: Paste your GitHub token
+2. **Gemini API Key**: Paste your Google AI key  
+3. **Repository**: Enter your GitHub username and repository name
+4. **Project Folder**: Choose or create a project folder (defaults to `todos`)
+
+All settings are stored securely in your browser's localStorage.
+
+### **Accessing Settings Later**
+- **Desktop**: Click the gear icon (⚙️) in the top-right toolbar
+- **Mobile**: Tap the gear icon (⚙️) next to the + button in the header
+- **Settings Modal**: Full-screen responsive settings dialog with all configuration options
 
 ## 🛠 **Available Scripts**
 
@@ -117,7 +147,7 @@ All interactive elements follow consistent design patterns:
 - ✅ **100% Test Coverage**: All features validated with comprehensive test suite
 - ✅ **Mobile Optimized**: Touch-friendly interface with responsive design
 - ✅ **Performance**: Sub-second operations, optimized for mobile networks
-- ✅ **Security**: Fine-grained GitHub permissions, server-side API key protection
+- ✅ **Security**: Fine-grained GitHub permissions, user-owned API keys
 - ✅ **Accessibility**: Keyboard navigation, screen reader friendly
 
 ## 📞 **Support**

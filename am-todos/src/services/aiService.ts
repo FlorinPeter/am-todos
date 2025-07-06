@@ -1,9 +1,20 @@
+import { loadSettings } from '../utils/localStorage';
+
 const AI_API_URL = '/api/gemini';
+
+const getApiKey = () => {
+  const settings = loadSettings();
+  if (!settings?.geminiApiKey) {
+    throw new Error('Gemini API key not configured. Please add your API key in the application settings.');
+  }
+  return settings.geminiApiKey;
+};
 
 export const generateInitialPlan = async (goal: string) => {
   console.log('AI Service: Generating initial plan for goal:', goal);
   
   try {
+    const apiKey = getApiKey();
     const response = await fetch(AI_API_URL, {
       method: 'POST',
       headers: {
@@ -12,6 +23,7 @@ export const generateInitialPlan = async (goal: string) => {
       body: JSON.stringify({
         action: 'generateInitialPlan',
         payload: { goal },
+        apiKey,
       }),
     });
 
@@ -37,6 +49,7 @@ export const generateInitialPlan = async (goal: string) => {
 
 export const generateCommitMessage = async (changeDescription: string) => {
   try {
+    const apiKey = getApiKey();
     const response = await fetch(AI_API_URL, {
       method: 'POST',
       headers: {
@@ -45,6 +58,7 @@ export const generateCommitMessage = async (changeDescription: string) => {
       body: JSON.stringify({
         action: 'generateCommitMessage',
         payload: { changeDescription },
+        apiKey,
       }),
     });
 
@@ -70,6 +84,7 @@ export const processChatMessage = async (
   currentContent: string, 
   chatHistory: Array<{ role: string; content: string }>
 ) => {
+  const apiKey = getApiKey();
   const response = await fetch(AI_API_URL, {
     method: 'POST',
     headers: {
@@ -82,6 +97,7 @@ export const processChatMessage = async (
         currentContent, 
         chatHistory 
       },
+      apiKey,
     }),
   });
 
