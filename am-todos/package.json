@@ -1,6 +1,22 @@
 {
   "name": "am-todos",
   "version": "0.1.0",
+  "description": "AI-powered todo application that transforms GitHub repositories into intelligent task management systems",
+  "license": "Apache-2.0",
+  "author": "Agentic Markdown Todos Contributors",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/am-todos.git"
+  },
+  "keywords": [
+    "todo",
+    "markdown",
+    "ai",
+    "github",
+    "task-management",
+    "react",
+    "typescript"
+  ],
   "private": true,
   "proxy": "http://localhost:3001",
   "dependencies": {
