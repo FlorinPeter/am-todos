@@ -36,6 +36,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
     if (settings?.pat && settings?.owner && settings?.repo) {
       loadFolders();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings?.pat, settings?.owner, settings?.repo]);
 
   const handleProjectSwitch = (newFolder: string) => {

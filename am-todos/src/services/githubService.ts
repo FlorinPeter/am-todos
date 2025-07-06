@@ -1,9 +1,5 @@
 const BACKEND_URL = 'http://159.65.120.9:3001'; // Use external IP for backend
 
-interface GitHubUser {
-  login: string;
-  name: string;
-}
 
 interface GitHubFile {
   name: string;
