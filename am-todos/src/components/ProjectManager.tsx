@@ -84,7 +84,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
       <div className="md:hidden flex items-center">
         <button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center space-x-1 bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded-md text-sm"
+          className="flex items-center space-x-1 bg-gray-700 hover:bg-gray-600 text-white px-2 py-1.5 rounded-md text-sm min-h-[32px]"
           title={`Current: ${currentProject}`}
         >
           <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -123,7 +123,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
         {/* Create New Project Button */}
         <button
           onClick={() => setShowCreateModal(true)}
-          className="text-sm bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-md flex items-center space-x-1"
+          className="text-sm bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-md flex items-center space-x-1 min-h-[32px]"
           title="Create New Project"
         >
           <span>+</span>
