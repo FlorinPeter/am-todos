@@ -4,18 +4,18 @@ FROM node:18-alpine AS frontend-builder
 # Set working directory for frontend build
 WORKDIR /app
 
-# Copy frontend package files
-COPY package*.json ./
-COPY tsconfig.json ./
-COPY tailwind.config.js ./
-COPY postcss.config.js ./
+# Copy frontend package files from am-todos subdirectory
+COPY am-todos/package*.json ./
+COPY am-todos/tsconfig.json ./
+COPY am-todos/tailwind.config.js ./
+COPY am-todos/postcss.config.js ./
 
 # Install frontend dependencies
 RUN npm ci --only=production
 
-# Copy frontend source code
-COPY public/ ./public/
-COPY src/ ./src/
+# Copy frontend source code from am-todos subdirectory
+COPY am-todos/public/ ./public/
+COPY am-todos/src/ ./src/
 
 # Build the React application for production
 RUN npm run build
@@ -26,8 +26,8 @@ FROM node:18-alpine AS backend-builder
 # Set working directory for backend
 WORKDIR /app/server
 
-# Copy backend package files
-COPY server/package*.json ./
+# Copy backend package files from am-todos subdirectory
+COPY am-todos/server/package*.json ./
 
 # Install backend dependencies
 RUN npm ci --only=production
@@ -52,8 +52,8 @@ COPY --from=backend-builder /app/server/node_modules ./server/node_modules
 # Copy frontend build
 COPY --from=frontend-builder --chown=nextjs:nodejs /app/build ./build
 
-# Copy server source
-COPY --chown=nextjs:nodejs server/server.js ./server/
+# Copy server source from am-todos subdirectory
+COPY --chown=nextjs:nodejs am-todos/server/server.js ./server/
 
 # Set environment variables
 ENV NODE_ENV=production
