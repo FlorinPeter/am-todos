@@ -160,54 +160,72 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   return (
     <div className="bg-gray-800 rounded-lg overflow-hidden">
       {/* Edit/View Mode Toggle */}
-      <div className="bg-gray-700 border-b border-gray-600 p-3 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={handleEditModeToggle}
-            className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-              isEditMode 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-600 text-gray-200 hover:bg-gray-500'
-            }`}
-          >
-            {isEditMode ? 'View' : 'Edit'}
-          </button>
-          {hasUnsavedChanges && (
-            <span className="text-yellow-400 text-sm">• Unsaved changes</span>
-          )}
-        </div>
-        
-        {/* History button */}
-        {filePath && token && owner && repo && (
-          <button
-            onClick={() => setShowHistory(true)}
-            className="px-3 py-1 bg-gray-600 text-gray-200 rounded text-sm hover:bg-gray-500 transition-colors"
-          >
-            📜 History
-          </button>
-        )}
-        
-        {(isEditMode || hasUnsavedChanges) && (
-          <div className="flex items-center space-x-2">
+      <div className="bg-gray-700 border-b border-gray-600 p-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center space-x-2 min-w-0">
             <button
-              onClick={handleCancel}
-              className="px-3 py-1 bg-gray-600 text-gray-200 rounded text-sm hover:bg-gray-500 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={!hasUnsavedChanges}
-              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                hasUnsavedChanges
-                  ? 'bg-green-600 text-white hover:bg-green-700'
-                  : 'bg-gray-500 text-gray-400 cursor-not-allowed'
+              onClick={handleEditModeToggle}
+              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors flex-shrink-0 min-h-[32px] flex items-center justify-center ${
+                isEditMode 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-600 text-gray-200 hover:bg-gray-500'
               }`}
             >
-              Save
+              {isEditMode ? 'View' : 'Edit'}
             </button>
+            {hasUnsavedChanges && (
+              <span className="text-yellow-400 text-xs sm:text-sm whitespace-nowrap">• Unsaved</span>
+            )}
           </div>
-        )}
+          
+          <div className="flex items-center space-x-2 flex-shrink-0">
+            {/* History button */}
+            {filePath && token && owner && repo && (
+              <button
+                onClick={() => setShowHistory(true)}
+                className="px-3 py-1.5 bg-gray-600 text-gray-200 rounded text-sm hover:bg-gray-500 transition-colors hidden sm:block min-h-[32px] flex items-center justify-center"
+                title="View History"
+              >
+                📜 History
+              </button>
+            )}
+            {filePath && token && owner && repo && (
+              <button
+                onClick={() => setShowHistory(true)}
+                className="px-2 py-1.5 bg-gray-600 text-gray-200 rounded text-sm hover:bg-gray-500 transition-colors sm:hidden min-h-[32px] flex items-center justify-center"
+                title="View History"
+              >
+                📜
+              </button>
+            )}
+            
+            {(isEditMode || hasUnsavedChanges) && (
+              <>
+                <button
+                  onClick={handleCancel}
+                  className="px-2 py-1.5 sm:px-3 bg-gray-600 text-gray-200 rounded text-sm hover:bg-gray-500 transition-colors min-h-[32px] flex items-center justify-center"
+                >
+                  <span className="hidden sm:inline">Cancel</span>
+                  <svg className="w-4 h-4 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={!hasUnsavedChanges}
+                  className={`px-2 py-1.5 sm:px-3 rounded text-sm font-medium transition-colors min-h-[32px] flex items-center justify-center ${
+                    hasUnsavedChanges
+                      ? 'bg-green-600 text-white hover:bg-green-700'
+                      : 'bg-gray-500 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  <span className="hidden sm:inline">Save</span>
+                  <span className="sm:hidden">💾</span>
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Content Area */}

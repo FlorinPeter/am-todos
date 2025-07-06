@@ -645,7 +645,7 @@ function App() {
               {/* Primary Action Button */}
               <button
                 onClick={() => setShowNewTodoInput(true)}
-                className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors text-sm"
+                className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors text-sm min-h-[32px] flex items-center justify-center"
               >
                 <span className="hidden sm:inline">+ New Task</span>
                 <span className="sm:hidden">+</span>
@@ -655,14 +655,14 @@ function App() {
               <div className="hidden sm:flex items-center space-x-2">
                 <button
                   onClick={() => fetchTodos()}
-                  className="px-2 py-2 bg-gray-600 text-gray-200 rounded-lg hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors text-sm"
+                  className="px-2 py-1.5 bg-gray-600 text-gray-200 rounded-lg hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors text-sm min-h-[32px] flex items-center justify-center"
                   title="Refresh"
                 >
                   🔄
                 </button>
                 <button
                   onClick={() => window.location.reload()}
-                  className="px-2 py-2 bg-gray-600 text-gray-200 rounded-lg hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors text-sm"
+                  className="px-2 py-1.5 bg-gray-600 text-gray-200 rounded-lg hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors text-sm min-h-[32px] flex items-center justify-center"
                   title="Settings"
                 >
                   ⚙️
@@ -673,8 +673,8 @@ function App() {
         </div>
         
         {/* Archive/Active Tabs */}
-        <div className="px-4 pb-0">
-          <div className="flex relative">
+        <div className="px-4 pb-3">
+          <div className="flex">
             <button
               onClick={() => setViewMode('active')}
               className={`px-4 py-2 text-sm font-medium transition-colors relative ${
@@ -701,8 +701,6 @@ function App() {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400"></div>
               )}
             </button>
-            {/* Bottom border for the entire tab container */}
-            <div className="absolute bottom-0 left-0 right-0 h-px bg-gray-600"></div>
           </div>
         </div>
       </header>
