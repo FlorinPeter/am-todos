@@ -19,7 +19,28 @@ process.env.REACT_APP_TEST_MODE = 'true';
 // Increase timeout for integration tests
 jest.setTimeout(60000);
 
-// Mock fetch if needed for unit tests (integration tests use real fetch)
-if (process.env.NODE_ENV === 'test' && !process.env.INTEGRATION_TEST) {
-  global.fetch = jest.fn();
-}
+// Mock fetch for all tests to avoid real API calls
+global.fetch = jest.fn();
+
+// Mock localStorage
+Object.defineProperty(window, 'localStorage', {
+  value: {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
+    clear: jest.fn(),
+  },
+  writable: true,
+});
+
+// Mock window.confirm
+Object.defineProperty(window, 'confirm', {
+  value: jest.fn(() => true),
+  writable: true,
+});
+
+// Reset mocks before each test
+beforeEach(() => {
+  jest.clearAllMocks();
+  (fetch as jest.Mock).mockClear();
+});
