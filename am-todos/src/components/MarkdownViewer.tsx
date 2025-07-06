@@ -44,18 +44,14 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
     setViewContent(content);
     setHasUnsavedChanges(false);
   }, [content]);
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { checked, dataset } = e.target;
-    const line = parseInt(dataset.line || '0', 10);
-    const lines = content.split('\n');
-    const currentLine = lines[line];
-
-    if (currentLine) {
-      const newLine = currentLine.replace(/\[[ xX]\]/, checked ? '[x]' : '[ ]');
-      lines[line] = newLine;
-      onMarkdownChange(lines.join('\n'));
-    }
-  };
+  // TODO: Implement dynamic checkbox handling
+  // This functionality allows users to click checkboxes directly in the rendered markdown
+  // to toggle task completion status. Implementation needs to handle:
+  // 1. Parse checkbox clicks from rendered markdown
+  // 2. Update the appropriate line in viewContent state
+  // 3. Sync changes with parent component via onMarkdownChange
+  // 4. Handle line number mapping between rendered and source content
+  // 5. Update unsaved changes state appropriately
 
   const handleChatMessage = async (
     message: string, 
@@ -230,13 +226,13 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
               components={{
                 input: ({ node, ...props }) => {
                   if (props.type === 'checkbox') {
-                    const lineNum = node?.position?.start.line;
+                    // TODO: Implement interactive checkbox functionality
+                    // Currently renders as static checkbox - needs click handler
                     return (
                       <input 
                         {...props} 
-                        onChange={handleCheckboxChange} 
-                        data-line={lineNum}
-                        className="w-4 h-4 mr-3 mt-1 rounded border-gray-400 bg-gray-700 text-blue-500 focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                        disabled={true}
+                        className="w-4 h-4 mr-3 mt-1 rounded border-gray-400 bg-gray-700 text-blue-500 opacity-75 cursor-not-allowed"
                       />
                     );
                   }

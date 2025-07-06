@@ -100,20 +100,20 @@ export const createOrUpdateTodo = async (
   return result;
 };
 
-export const ensureTodosDirectory = async (token: string, owner: string, repo: string, commitMessage?: string) => {
-  // Check if todos directory exists
-  const checkPath = `/repos/${owner}/${repo}/contents/todos`;
+export const ensureDirectory = async (token: string, owner: string, repo: string, folder: string, commitMessage?: string) => {
+  // Check if directory exists
+  const checkPath = `/repos/${owner}/${repo}/contents/${folder}`;
   const headers = { Authorization: `token ${token}` };
   
   try {
     await makeGitHubRequest(checkPath, 'GET', headers, undefined, owner, repo);
   } catch (error) {
     // Directory doesn't exist, create it with a .gitkeep file
-    console.log('todos/ directory not found, creating it...');
-    const createPath = `/repos/${owner}/${repo}/contents/todos/.gitkeep`;
+    console.log(`${folder}/ directory not found, creating it...`);
+    const createPath = `/repos/${owner}/${repo}/contents/${folder}/.gitkeep`;
     const createBody = {
-      message: commitMessage || 'feat: Create todos directory',
-      content: btoa('# This file ensures the todos directory exists\\n'),
+      message: commitMessage || `feat: Create ${folder} directory`,
+      content: btoa(`# This file ensures the ${folder} directory exists\\n`),
     };
 
     const createResponse = await makeGitHubRequest(createPath, 'PUT', {
@@ -123,16 +123,21 @@ export const ensureTodosDirectory = async (token: string, owner: string, repo: s
 
     if (!createResponse.ok) {
       const errorText = await createResponse.text();
-      console.error('Failed to create todos directory:', errorText);
-      throw new Error(`Failed to create todos directory: ${createResponse.statusText}`);
+      console.error(`Failed to create ${folder} directory:`, errorText);
+      throw new Error(`Failed to create ${folder} directory: ${createResponse.statusText}`);
     }
     
-    console.log('todos/ directory created successfully');
+    console.log(`${folder}/ directory created successfully`);
   }
 };
 
-export const getTodos = async (token: string, owner: string, repo: string, includeArchived = false) => {
-  const apiPath = includeArchived ? `/repos/${owner}/${repo}/contents/todos/archive` : `/repos/${owner}/${repo}/contents/todos`;
+// Backward compatibility wrapper
+export const ensureTodosDirectory = async (token: string, owner: string, repo: string, commitMessage?: string) => {
+  return ensureDirectory(token, owner, repo, 'todos', commitMessage);
+};
+
+export const getTodos = async (token: string, owner: string, repo: string, folder: string = 'todos', includeArchived = false) => {
+  const apiPath = includeArchived ? `/repos/${owner}/${repo}/contents/${folder}/archive` : `/repos/${owner}/${repo}/contents/${folder}`;
   const headers = { 
     Authorization: `token ${token}`,
     'Cache-Control': 'no-cache',
@@ -242,18 +247,18 @@ export const getFileMetadata = async (token: string, owner: string, repo: string
   };
 };
 
-export const ensureArchiveDirectory = async (token: string, owner: string, repo: string) => {
-  const checkPath = `/repos/${owner}/${repo}/contents/todos/archive`;
+export const ensureArchiveDirectory = async (token: string, owner: string, repo: string, folder: string = 'todos') => {
+  const checkPath = `/repos/${owner}/${repo}/contents/${folder}/archive`;
   const headers = { Authorization: `token ${token}` };
   
   try {
     await makeGitHubRequest(checkPath, 'GET', headers, undefined, owner, repo);
   } catch (error) {
     // Directory doesn't exist, create it with a .gitkeep file
-    console.log('todos/archive/ directory not found, creating it...');
-    const createPath = `/repos/${owner}/${repo}/contents/todos/archive/.gitkeep`;
+    console.log(`${folder}/archive/ directory not found, creating it...`);
+    const createPath = `/repos/${owner}/${repo}/contents/${folder}/archive/.gitkeep`;
     const createBody = {
-      message: 'feat: Create archive directory',
+      message: `feat: Create ${folder}/archive directory`,
       content: btoa('# This file ensures the archive directory exists\\n'),
     };
 
@@ -264,11 +269,11 @@ export const ensureArchiveDirectory = async (token: string, owner: string, repo:
 
     if (!createResponse.ok) {
       const errorText = await createResponse.text();
-      console.error('Failed to create archive directory:', errorText);
-      throw new Error(`Failed to create archive directory: ${createResponse.statusText}`);
+      console.error(`Failed to create ${folder}/archive directory:`, errorText);
+      throw new Error(`Failed to create ${folder}/archive directory: ${createResponse.statusText}`);
     }
     
-    console.log('todos/archive/ directory created successfully');
+    console.log(`${folder}/archive/ directory created successfully`);
   }
 };
 
@@ -278,19 +283,20 @@ export const moveTaskToArchive = async (
   repo: string,
   currentPath: string,
   content: string,
-  commitMessage: string
+  commitMessage: string,
+  folder: string = 'todos'
 ) => {
   console.log('Moving task to archive:', currentPath);
   
   // Ensure archive directory exists
-  await ensureArchiveDirectory(token, owner, repo);
+  await ensureArchiveDirectory(token, owner, repo, folder);
   
   // Get current file SHA for deletion
   const currentFile = await getFileMetadata(token, owner, repo, currentPath);
   
   // Determine new path in archive
   const fileName = currentPath.split('/').pop();
-  const archivePath = `todos/archive/${fileName}`;
+  const archivePath = `${folder}/archive/${fileName}`;
   
   // Create file in archive
   console.log('Creating archived file at:', archivePath);
@@ -298,7 +304,7 @@ export const moveTaskToArchive = async (
   
   // Delete from original location
   console.log('Deleting original file at:', currentPath);
-  await deleteFile(token, owner, repo, currentPath, currentFile.sha, `Archive: Remove ${fileName} from active todos`);
+  await deleteFile(token, owner, repo, currentPath, currentFile.sha, `Archive: Remove ${fileName} from active ${folder}`);
   
   return archivePath;
 };
@@ -309,26 +315,27 @@ export const moveTaskFromArchive = async (
   repo: string,
   currentPath: string,
   content: string,
-  commitMessage: string
+  commitMessage: string,
+  folder: string = 'todos'
 ) => {
   console.log('Moving task from archive:', currentPath);
   
   // Get current file SHA for deletion
   const currentFile = await getFileMetadata(token, owner, repo, currentPath);
   
-  // Determine new path in todos
+  // Determine new path in active folder
   const fileName = currentPath.split('/').pop();
-  const todosPath = `todos/${fileName}`;
+  const activePath = `${folder}/${fileName}`;
   
-  // Create file in todos
-  console.log('Creating unarchived file at:', todosPath);
-  await createOrUpdateTodo(token, owner, repo, todosPath, content, commitMessage);
+  // Create file in active folder
+  console.log('Creating unarchived file at:', activePath);
+  await createOrUpdateTodo(token, owner, repo, activePath, content, commitMessage);
   
   // Delete from archive location
   console.log('Deleting archived file at:', currentPath);
-  await deleteFile(token, owner, repo, currentPath, currentFile.sha, `Unarchive: Remove ${fileName} from archive`);
+  await deleteFile(token, owner, repo, currentPath, currentFile.sha, `Unarchive: Remove ${fileName} from ${folder}/archive`);
   
-  return todosPath;
+  return activePath;
 };
 
 export const deleteFile = async (
@@ -386,6 +393,77 @@ export const getFileHistory = async (
 
   const data = await response.json();
   return data.commits;
+};
+
+export const listProjectFolders = async (
+  token: string,
+  owner: string,
+  repo: string
+): Promise<string[]> => {
+  const apiPath = `/repos/${owner}/${repo}/contents/`;
+  const headers = { Authorization: `token ${token}` };
+  
+  try {
+    const response = await makeGitHubRequest(apiPath, 'GET', headers, undefined, owner, repo);
+    
+    if (!response.ok) {
+      console.error('Failed to list repository contents');
+      return ['todos']; // Default fallback
+    }
+    
+    const contents = await response.json();
+    
+    // Filter for directories that might contain todo files
+    const folders = contents
+      .filter((item: any) => item.type === 'dir')
+      .map((item: any) => item.name)
+      .filter((name: string) => 
+        // Include common project folder patterns
+        name.includes('todo') || 
+        name.includes('task') || 
+        name.includes('project') ||
+        name.includes('work') ||
+        name.includes('personal') ||
+        name === 'todos' || // Default
+        name.match(/^[a-zA-Z][a-zA-Z0-9_-]*$/) // Valid folder names
+      );
+    
+    // Always include 'todos' as default if not present
+    if (!folders.includes('todos')) {
+      folders.unshift('todos');
+    }
+    
+    return folders;
+  } catch (error) {
+    console.error('Error listing project folders:', error);
+    return ['todos']; // Default fallback
+  }
+};
+
+export const createProjectFolder = async (
+  token: string,
+  owner: string,
+  repo: string,
+  folderName: string
+): Promise<void> => {
+  // Validate folder name
+  if (!folderName || !folderName.match(/^[a-zA-Z][a-zA-Z0-9_-]*$/)) {
+    throw new Error('Invalid folder name. Use letters, numbers, underscores, and hyphens only.');
+  }
+  
+  const gitkeepPath = `${folderName}/.gitkeep`;
+  const commitMessage = `feat: Create ${folderName} project folder`;
+  
+  const gitkeepContent = `# ${folderName} Project\n\nThis file ensures the ${folderName} directory exists in the repository.\n`;
+  
+  await createOrUpdateTodo(token, owner, repo, gitkeepPath, gitkeepContent, commitMessage);
+  
+  // Also create the archive subdirectory
+  const archiveGitkeepPath = `${folderName}/archive/.gitkeep`;
+  const archiveCommitMessage = `feat: Create ${folderName}/archive directory`;
+  const archiveContent = `# ${folderName}/archive\n\nThis directory contains archived tasks from the ${folderName} project.\n`;
+  
+  await createOrUpdateTodo(token, owner, repo, archiveGitkeepPath, archiveContent, archiveCommitMessage);
 };
 
 export const getFileAtCommit = async (

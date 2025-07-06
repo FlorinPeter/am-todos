@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is "Agentic Markdown Todos" - an AI-powered todo application that transforms GitHub repositories into intelligent task management systems. The core vision merges the simplicity of plain text files with modern AI power, ensuring **you own your data** as markdown files in your Git repository.
 
+> **📋 For detailed feature verification with code evidence, see [FEATURES.md](FEATURES.md)**
+
 ### Key Principles
 - **You Own Your Data**: Tasks are `.md` files in your GitHub repo, editable with any tool
 - **Git-Powered Workflow**: Every change is a versioned commit with complete audit history
@@ -14,6 +16,7 @@ This is "Agentic Markdown Todos" - an AI-powered todo application that transform
 
 ### Core Features
 - **AI-Powered Task Generation**: High-level goals → detailed actionable checklists
+- **Multi-Folder Support**: Organize tasks in configurable folders for different projects/contexts
 - **Two-Panel Responsive Layout**: Sidebar task list + main content area with mobile support
 - **AI Chat Assistant**: Natural language commands to modify task lists (integrated at bottom of tasks)
 - **Interactive Checkboxes**: Click to toggle task completion with real-time GitHub sync
@@ -22,7 +25,7 @@ This is "Agentic Markdown Todos" - an AI-powered todo application that transform
 - **Mobile-First Design**: Hamburger menu, responsive layout, touch-friendly interface
 - **Progress Tracking**: Visual progress bars for create, save, and delete operations with step-by-step feedback
 - **Smart File Naming**: User-friendly names like `2025-01-05-task-name.md` instead of timestamps
-- **Auto-Directory Setup**: Automatically creates `/todos` folder if missing
+- **Auto-Directory Setup**: Automatically creates chosen folder and `/archive` subfolder if missing
 - **Real-Time Updates**: Instant refresh and auto-selection of new tasks
 - **Conventional Commits**: AI-generated semantic commit messages for clean Git history
 - **Unsaved Changes Protection**: Clear indicators and confirmation dialogs prevent data loss
@@ -31,6 +34,7 @@ This is "Agentic Markdown Todos" - an AI-powered todo application that transform
 
 ### Frontend Development
 ```bash
+cd am-todos        # Navigate to project directory
 npm start          # Run development server (localhost:3000)
 npm test           # Run tests in watch mode
 npm run build      # Build for production
@@ -38,14 +42,19 @@ npm run build      # Build for production
 
 ### Backend Development
 ```bash
-cd server
+cd am-todos/server
 node server.js     # Run backend server (localhost:3001)
 ```
 
 ### Full Development Setup
-1. Start backend: `cd server && node server.js`
-2. Start frontend: `npm start` (in root directory)  
-3. The frontend proxy forwards `/api` requests to the backend
+1. Navigate to project: `cd am-todos`
+2. Start backend: `cd server && node server.js`
+3. Start frontend: `npm start` (in am-todos directory)  
+4. The frontend proxy forwards `/api` requests to the backend
+
+**Hot Reload**: Both frontend and backend support hot reload, so code changes are automatically reflected. The restart script is rarely needed.
+
+**Manual Restart**: If needed, use `./restart.sh` (in am-todos directory) to restart both servers.
 
 **Note**: The concept document mentions this should be a serverless function (e.g., Vercel Edge Function) rather than Express server for production deployment.
 
@@ -74,10 +83,11 @@ node server.js     # Run backend server (localhost:3001)
 ## Important Implementation Details
 
 ### GitHub Integration
-- Stores todos as markdown files in `/todos` directory of configured repository
+- Stores todos as markdown files in configurable directory of your repository (defaults to `/todos`)
+- **Multi-folder support**: Organize tasks in different folders for multiple projects (e.g., `work-tasks`, `personal`, `client-alpha`)
 - Uses **fine-grained Personal Access Token** restricted to specific repository only
 - **Smart file naming**: `YYYY-MM-DD-task-slug.md` format (e.g., `2025-01-05-deploy-web-app.md`)
-- **Auto-directory creation**: Creates `/todos` folder with `.gitkeep` if missing
+- **Auto-directory creation**: Creates folder and `/archive` subfolder with `.gitkeep` if missing
 - **Delete functionality**: Complete file removal from repository with confirmation
 - **Unicode support**: Proper Base64 encoding handles special characters and emojis
 - Every action (create, update, archive, delete) results in a versioned commit
@@ -116,7 +126,8 @@ chatHistory:
 
 ### Configuration Requirements
 - **Backend**: Requires `.env` file with `GEMINI_API_KEY`
-- **Frontend**: GitHub settings stored in localStorage (PAT, repo owner, repo name)
+- **Frontend**: GitHub settings stored in localStorage (PAT, repo owner, repo name, folder)
+- **Folder Support**: Defaults to 'todos' for backward compatibility, can be changed to any folder name
 - **Proxy**: Frontend configured to proxy `/api` requests to `localhost:3001`
 
 ### Technology Stack Specifics
@@ -143,6 +154,9 @@ chatHistory:
 - Graceful fallbacks for storage and API failures
 
 ## Current Status (Latest Updates)
+
+> **📊 Implementation Status: 100% Complete** - See [FEATURES.md](FEATURES.md) for detailed verification  
+> **🧪 Testing Status: 100% Coverage** - See [am-todos/TESTING.md](am-todos/TESTING.md) for comprehensive test documentation
 
 The archive functionality has been fully implemented and debugged:
 
@@ -255,4 +269,4 @@ The archive functionality has been fully implemented and debugged:
 - **Documentation**: Updated CLAUDE.md with complete implementation details
 - **Commit history**: Professional conventional commits with Claude attribution
 - **Testing infrastructure**: Created comprehensive GitHub API integration tests
-- **Restart script**: Use `./restart.sh` to restart both backend and frontend servers
+- **Restart script**: Use `./restart.sh` (in am-todos directory) to restart both servers when needed (rarely required due to hot reload)

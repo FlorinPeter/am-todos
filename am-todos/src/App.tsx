@@ -3,8 +3,9 @@ import NewTodoInput from './components/NewTodoInput';
 import TodoSidebar from './components/TodoSidebar';
 import TodoEditor from './components/TodoEditor';
 import GitHubSettings from './components/GitHubSettings';
+import ProjectManager from './components/ProjectManager';
 import { loadSettings } from './utils/localStorage';
-import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureTodosDirectory, moveTaskToArchive, moveTaskFromArchive } from './services/githubService';
+import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDirectory, ensureTodosDirectory, moveTaskToArchive, moveTaskFromArchive } from './services/githubService';
 import { generateInitialPlan, generateCommitMessage } from './services/aiService';
 import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, TodoFrontmatter } from './utils/markdown';
 
@@ -30,21 +31,31 @@ function App() {
   const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
   const [allTodos, setAllTodos] = useState<any[]>([]);
 
-  const fetchTodos = useCallback(async () => {
-    console.log('Fetching todos...', settings ? 'Settings available' : 'No settings');
-    if (!settings) {
+  const handleSettingsSaved = () => {
+    const newSettings = loadSettings();
+    setSettings(newSettings);
+    fetchTodos(); // Fetch todos after settings are saved
+  };
+
+  const fetchTodosWithSettings = async (useSettings?: any, useViewMode?: 'active' | 'archived') => {
+    const currentSettings = useSettings || settings;
+    const currentViewMode = useViewMode || viewMode;
+    console.log('Fetching todos with settings...', currentSettings ? 'Settings available' : 'No settings');
+    console.log('Current folder:', currentSettings?.folder || 'todos');
+    
+    if (!currentSettings) {
       console.log('No settings, skipping fetch');
       return;
     }
     
     try {
-      console.log(`Fetching from: ${settings.owner}/${settings.repo}`);
+      console.log(`Fetching from: ${currentSettings.owner}/${currentSettings.repo}`);
       console.log('Current timestamp:', new Date().toISOString());
       
       // Fetch both active and archived todos
       const [activeFiles, archivedFiles] = await Promise.all([
-        getTodos(settings.pat, settings.owner, settings.repo, false),
-        getTodos(settings.pat, settings.owner, settings.repo, true)
+        getTodos(currentSettings.pat, currentSettings.owner, currentSettings.repo, currentSettings.folder || 'todos', false),
+        getTodos(currentSettings.pat, currentSettings.owner, currentSettings.repo, currentSettings.folder || 'todos', true)
       ]);
       
       console.log('Active files retrieved:', activeFiles.length, 'files');
@@ -64,7 +75,7 @@ function App() {
       const fetchedTodos = await Promise.all(
         allFiles.map(async (file: any) => {
           console.log('Processing file:', file.name, 'path:', file.path);
-          const content = await getFileContent(settings.pat, settings.owner, settings.repo, file.path);
+          const content = await getFileContent(currentSettings.pat, currentSettings.owner, currentSettings.repo, file.path);
           console.log('File content length:', content.length);
           const { frontmatter, markdownContent } = parseMarkdownWithFrontmatter(content);
           console.log('Parsed frontmatter:', frontmatter);
@@ -85,11 +96,11 @@ function App() {
       
       // Store all todos and filter based on current view mode
       setAllTodos(fetchedTodos);
-      const filteredTodos = viewMode === 'archived' 
+      const filteredTodos = currentViewMode === 'archived' 
         ? fetchedTodos.filter((todo: any) => todo.path.includes('/archive/'))
         : fetchedTodos.filter((todo: any) => !todo.path.includes('/archive/'));
       
-      console.log(`Filtered todos for ${viewMode} view:`, filteredTodos.length);
+      console.log(`Filtered todos for ${currentViewMode} view:`, filteredTodos.length);
       setTodos(filteredTodos);
       
       // Auto-select first todo if none selected or if the previously selected todo no longer exists
@@ -99,51 +110,33 @@ function App() {
           const firstTodo = filteredTodos[0];
           console.log('Auto-selected todo:', firstTodo.title);
           return firstTodo.id;
-        } else if (fetchedTodos.length === 0) {
-          // No todos left, clear selection
-          console.log('No todos found, cleared selection');
-          return null;
         }
         return currentSelectedId;
       });
+      
     } catch (error) {
-      console.error("Error fetching todos:", error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      console.log('Full error details:', { error, errorMessage });
-      
-      // Handle all expected empty directory scenarios silently
-      const isEmptyDirectoryError = errorMessage.includes('404') || 
-                                   errorMessage.includes('not found') ||
-                                   errorMessage.includes('empty') ||
-                                   errorMessage.includes('No such file or directory') ||
-                                   (error instanceof Error && error.name === 'NotFoundError');
-      
-      if (isEmptyDirectoryError) {
-        console.log('Empty directory or missing file, treating as empty todos list');
-        setTodos([]);
-        setSelectedTodoId(null);
-      } else {
-        // Log but don't show alert on page reload to avoid user disruption
-        console.error('Non-empty-directory error during fetch:', errorMessage);
-        // Still set empty state to prevent UI from breaking
-        setTodos([]);
-        setSelectedTodoId(null);
-        
-        // Only show alert if this seems like a genuine API/auth issue
-        if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.includes('rate limit')) {
-          alert(`Failed to fetch tasks: ${errorMessage}`);
-        }
-      }
+      console.error('Error fetching todos:', error);
+      console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+      setTodos([]);
+      setAllTodos([]);
     }
+  };
+
+  const fetchTodos = useCallback(async () => {
+    await fetchTodosWithSettings();
   }, [settings, viewMode]);
 
   useEffect(() => {
     fetchTodos();
   }, [fetchTodos]);
 
-  const handleSettingsSaved = () => {
-    setSettings(loadSettings());
-    fetchTodos(); // Fetch todos after settings are saved
+  const handleProjectChanged = (newSettings?: any) => {
+    const settingsToUse = newSettings || loadSettings();
+    setSettings(settingsToUse);
+    setSelectedTodoId(null); // Clear selection when switching projects
+    
+    // Fetch todos immediately with the new settings
+    fetchTodosWithSettings(settingsToUse);
   };
 
   const handleGoalSubmit = async (goal: string) => {
@@ -183,10 +176,10 @@ function App() {
       const commitMessage = await generateCommitMessage(`feat: Add new todo for "${goal}"`);
       console.log('Commit message generated:', commitMessage);
 
-      // 4. Ensure todos directory exists and create file with user-friendly name
+      // 4. Ensure directory exists and create file with user-friendly name
       setCreationStep('📂 Setting up repository...');
-      console.log('Ensuring todos directory exists...');
-      await ensureTodosDirectory(settings.pat, settings.owner, settings.repo);
+      console.log('Ensuring directory exists...');
+      await ensureDirectory(settings.pat, settings.owner, settings.repo, settings.folder || 'todos');
       
       const createSlug = (title: string) => {
         return title
@@ -200,7 +193,7 @@ function App() {
       
       const slug = createSlug(goal);
       const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-      const filename = `todos/${timestamp}-${slug}.md`;
+      const filename = `${settings.folder || 'todos'}/${timestamp}-${slug}.md`;
       
       setCreationStep('💾 Saving to GitHub...');
       console.log('Creating file on GitHub:', filename);
@@ -414,10 +407,10 @@ function App() {
 
       if (isCurrentlyArchived) {
         // Move from archive to active todos
-        await moveTaskFromArchive(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage);
+        await moveTaskFromArchive(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, settings.folder || 'todos');
       } else {
         // Move from active todos to archive
-        await moveTaskToArchive(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage);
+        await moveTaskToArchive(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, settings.folder || 'todos');
       }
 
       setSaveStep('🔄 Refreshing...');
@@ -629,20 +622,35 @@ function App() {
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <button
-                onClick={() => fetchTodos()}
-                className="px-3 py-2 bg-gray-600 text-gray-200 rounded-lg hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors text-sm"
-              >
-                <span className="hidden sm:inline">🔄 Refresh</span>
-                <span className="sm:hidden">🔄</span>
-              </button>
+              {/* Project Manager */}
+              <ProjectManager onProjectChanged={handleProjectChanged} />
+              
+              {/* Primary Action Button */}
               <button
                 onClick={() => setShowNewTodoInput(true)}
-                className="px-3 py-2 md:px-4 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors text-sm"
+                className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors text-sm"
               >
                 <span className="hidden sm:inline">+ New Task</span>
                 <span className="sm:hidden">+</span>
               </button>
+              
+              {/* Settings/Refresh - Desktop Only */}
+              <div className="hidden sm:flex items-center space-x-2">
+                <button
+                  onClick={() => fetchTodos()}
+                  className="px-2 py-2 bg-gray-600 text-gray-200 rounded-lg hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors text-sm"
+                  title="Refresh"
+                >
+                  🔄
+                </button>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-2 py-2 bg-gray-600 text-gray-200 rounded-lg hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors text-sm"
+                  title="Settings"
+                >
+                  ⚙️
+                </button>
+              </div>
             </div>
           </div>
         </div>
