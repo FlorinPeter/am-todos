@@ -10,8 +10,8 @@ COPY am-todos/tsconfig.json ./
 COPY am-todos/tailwind.config.js ./
 COPY am-todos/postcss.config.js ./
 
-# Install frontend dependencies
-RUN npm ci --only=production
+# Install frontend dependencies (including devDependencies for build)
+RUN npm ci
 
 # Copy frontend source code from am-todos subdirectory
 COPY am-todos/public/ ./public/
