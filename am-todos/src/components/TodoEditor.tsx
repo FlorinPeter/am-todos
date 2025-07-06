@@ -79,12 +79,6 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
 
   const handleTitleSave = () => {
     if (titleInput.trim() && titleInput !== selectedTodo.frontmatter?.title) {
-      // Update the frontmatter with new title
-      const updatedFrontmatter = {
-        ...selectedTodo.frontmatter,
-        title: titleInput.trim()
-      };
-      
       // This would need to be handled by updating the frontmatter
       // For now, we'll just close the edit mode
     }
