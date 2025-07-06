@@ -19,12 +19,41 @@ An AI-powered todo application that merges the simplicity of plain text markdown
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### 🐳 Deploy with Docker (Recommended)
+
+The easiest way to get started is using our pre-built container images:
+
+```bash
+# Run the latest version
+docker run -p 3001:3001 ghcr.io/florinpeter/am-todos:latest
+
+# Or run a specific version
+docker run -p 3001:3001 ghcr.io/florinpeter/am-todos:v1.0.0
+
+# Using docker-compose
+curl -O https://raw.githubusercontent.com/FlorinPeter/am-todos/main/docker-compose.yml
+docker-compose up -d
+```
+
+**Access the app at:** http://localhost:3001
+
+### 📦 Available Container Images
+
+- **Latest stable**: `ghcr.io/florinpeter/am-todos:latest`
+- **Specific versions**: `ghcr.io/florinpeter/am-todos:v1.0.0`
+- **Platform support**: linux/amd64, linux/arm64
+- **Registry**: [GitHub Container Registry](https://github.com/FlorinPeter/am-todos/pkgs/container/am-todos)
+
+### 💻 Development Setup
+
+For local development and customization:
+
+#### Prerequisites
 - Node.js 16+ 
 - GitHub Personal Access Token (fine-grained, repository-specific)
-- Google Gemini API Key
+- AI API Key (Google Gemini or OpenRouter)
 
-### Installation
+#### Installation
 
 1. **Clone and navigate to the project:**
    ```bash
@@ -38,10 +67,21 @@ An AI-powered todo application that merges the simplicity of plain text markdown
    cd server && npm install && cd ..
    ```
 
-3. **Configure environment:**
+3. **Configure AI Provider:**
+   
+   The application supports multiple AI providers. Choose one:
+   
+   **Option A: Google Gemini (Default)**
    ```bash
-   # Create server/.env
-   echo "GEMINI_API_KEY=your_gemini_api_key_here" > server/.env
+   # Get API key from: https://makersuite.google.com/app/apikey
+   # Configure in the web UI settings
+   ```
+   
+   **Option B: OpenRouter (400+ Models)**
+   ```bash
+   # Get API key from: https://openrouter.ai/keys
+   # Configure in the web UI settings
+   # Supports models like: anthropic/claude-3.5-sonnet, openai/gpt-4o, etc.
    ```
 
 4. **Start the application:**
@@ -144,22 +184,36 @@ cd server && node server.js  # Start backend server
 
 ### Environment Variables
 
-**Backend (`server/.env`):**
-```env
-GEMINI_API_KEY=your_gemini_api_key_here
+**Container Deployment:**
+- No environment variables required
+- All configuration done through the web UI
+- Settings persist in browser localStorage
+
+**Development Setup:**
+```bash
+# Optional: Pre-configure for faster development
+# All can also be configured through the web UI
+GITHUB_PAT=your_github_token
+GITHUB_OWNER=your_username  
+GITHUB_REPO=your_repo_name
+FOLDER_NAME=todos
 ```
 
-**Frontend Configuration:**
-- GitHub settings stored in browser localStorage (PAT, owner, repo, folder)
-- No environment variables needed
-- Folder defaults to 'todos' for backward compatibility
+**Configuration Storage:**
+- **GitHub Settings**: PAT, owner, repo, folder (localStorage)
+- **AI Provider**: Selected provider, API keys, model preferences (localStorage)
+- **Application State**: UI preferences, active project (localStorage)
+- **Data**: All tasks stored as markdown files in your GitHub repository
 
 ## 🔒 Security
 
-- **API Keys**: Gemini API key stored server-side only, never exposed to client
+- **AI API Keys**: Stored in browser localStorage, proxied through backend for security
+- **Multi-Provider Support**: Choose between Google Gemini or OpenRouter with 400+ models
 - **GitHub Access**: Fine-grained Personal Access Tokens with repository-specific permissions
+- **Container Security**: Non-root user, minimal Alpine Linux base, security scanning
 - **CORS**: Properly configured for production deployment
 - **Data Ownership**: All data stored in your GitHub repository under your control
+- **No Server-Side Secrets**: All configuration done through secure web UI
 
 ## 📱 Usage Examples
 
@@ -227,16 +281,122 @@ your-repo/
 
 ## 🚀 Deployment
 
-### Vercel (Recommended)
+### 🐳 Container Deployment (Recommended)
+
+**Production-ready container images are automatically built and published:**
+
+#### Docker Run
+```bash
+# Latest stable version
+docker run -d \
+  --name am-todos \
+  -p 3001:3001 \
+  --restart unless-stopped \
+  ghcr.io/florinpeter/am-todos:latest
+```
+
+#### Docker Compose
+```bash
+# Download compose file
+curl -O https://raw.githubusercontent.com/FlorinPeter/am-todos/main/docker-compose.yml
+
+# Run in production mode
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+```
+
+#### Kubernetes
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: am-todos
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: am-todos
+  template:
+    metadata:
+      labels:
+        app: am-todos
+    spec:
+      containers:
+      - name: am-todos
+        image: ghcr.io/florinpeter/am-todos:v1.0.0
+        ports:
+        - containerPort: 3001
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: am-todos-service
+spec:
+  selector:
+    app: am-todos
+  ports:
+  - port: 80
+    targetPort: 3001
+  type: LoadBalancer
+```
+
+### ☁️ Cloud Platform Deployment
+
+#### Fly.io
+```bash
+# Install flyctl and login
+fly launch --image ghcr.io/florinpeter/am-todos:latest
+fly deploy
+```
+
+#### Railway
+```bash
+railway login
+railway deploy --image ghcr.io/florinpeter/am-todos:latest
+```
+
+#### Render
+- Create a new **Web Service**
+- Use **Container Image**: `ghcr.io/florinpeter/am-todos:latest`
+- Set port to **3001**
+
+### 🏗️ Traditional Hosting
+
+#### Vercel (Frontend + Serverless Backend)
 1. Deploy frontend to Vercel with environment variables
 2. Convert Express server to Vercel Edge Function
 3. Update API endpoints from localhost to production URLs
 
-### Traditional Hosting
+#### Traditional Hosting
 1. Build frontend: `npm run build`
 2. Deploy `build/` folder to static hosting
 3. Deploy `server/` to Node.js hosting service
 4. Update CORS settings for production domain
+
+### 🔄 CI/CD and Releases
+
+The project includes automated workflows for:
+
+- **Continuous Integration**: Tests and builds on every push
+- **Container Builds**: Multi-platform images (amd64/arm64) on main branch updates
+- **Release Management**: Versioned container images when creating Git tags
+- **Automated Deployment**: Ready for GitOps workflows
+
+**Create a new release:**
+```bash
+git tag v1.1.0
+git push origin v1.1.0
+# Automatically builds and publishes ghcr.io/florinpeter/am-todos:v1.1.0
+```
 
 ## 🧪 Testing
 
@@ -255,8 +415,36 @@ npm run test:retry      # Error handling and retry logic
 ## 📚 Documentation
 
 - **[FEATURES.md](FEATURES.md)**: Detailed feature implementation evidence
-- **[CLAUDE.md](am-todos/CLAUDE.md)**: Development guidelines and architecture details
+- **[CLAUDE.md](am-todos/CLAUDE.md)**: Development guidelines and architecture details  
 - **[TESTING.md](am-todos/TESTING.md)**: Comprehensive testing documentation
+- **[DEPLOYMENT.md](DEPLOYMENT.md)**: Complete deployment guide with examples
+
+## 📋 Releases
+
+### Latest Release: v1.0.0
+
+**Container Images:**
+- `ghcr.io/florinpeter/am-todos:v1.0.0` - Specific version
+- `ghcr.io/florinpeter/am-todos:latest` - Latest stable
+
+**Features:**
+- ✅ Multi-AI provider support (Gemini + OpenRouter with 400+ models)
+- ✅ Production-ready container deployment
+- ✅ Multi-platform support (linux/amd64, linux/arm64)
+- ✅ Complete multi-folder project organization
+- ✅ Mobile-responsive design with touch support
+- ✅ Real-time GitHub synchronization
+- ✅ Configuration sharing with QR codes
+
+**Deployment:**
+```bash
+docker run -p 3001:3001 ghcr.io/florinpeter/am-todos:v1.0.0
+```
+
+### Release Notes
+- [View all releases](https://github.com/FlorinPeter/am-todos/releases)
+- [Container registry](https://github.com/FlorinPeter/am-todos/pkgs/container/am-todos)
+- [Deployment guide](DEPLOYMENT.md)
 
 ## 🤝 Contributing
 
