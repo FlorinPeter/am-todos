@@ -30,10 +30,12 @@ function App() {
   const [saveStep, setSaveStep] = useState('');
   const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
   const [allTodos, setAllTodos] = useState<any[]>([]);
+  const [showSettings, setShowSettings] = useState(false);
 
   const handleSettingsSaved = () => {
     const newSettings = loadSettings();
     setSettings(newSettings);
+    setShowSettings(false); // Close the settings modal
     fetchTodos(); // Fetch todos after settings are saved
   };
 
@@ -651,6 +653,15 @@ function App() {
                 <span className="sm:hidden">+</span>
               </button>
               
+              {/* Mobile Settings Button */}
+              <button
+                onClick={() => setShowSettings(true)}
+                className="sm:hidden px-2 py-1.5 bg-gray-600 text-gray-200 rounded-lg hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors text-sm min-h-[32px] flex items-center justify-center"
+                title="Settings"
+              >
+                ⚙️
+              </button>
+              
               {/* Settings/Refresh - Desktop Only */}
               <div className="hidden sm:flex items-center space-x-2">
                 <button
@@ -661,7 +672,7 @@ function App() {
                   🔄
                 </button>
                 <button
-                  onClick={() => window.location.reload()}
+                  onClick={() => setShowSettings(true)}
                   className="px-2 py-1.5 bg-gray-600 text-gray-200 rounded-lg hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors text-sm min-h-[32px] flex items-center justify-center"
                   title="Settings"
                 >
@@ -754,6 +765,24 @@ function App() {
               onGoalSubmit={handleGoalSubmit}
               onCancel={() => setShowNewTodoInput(false)}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white">Settings</h2>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="px-3 py-1.5 bg-gray-600 text-gray-200 rounded text-sm hover:bg-gray-500 transition-colors min-h-[32px] flex items-center justify-center"
+              >
+                ✕
+              </button>
+            </div>
+            <GitHubSettings onSettingsSaved={handleSettingsSaved} />
           </div>
         </div>
       )}

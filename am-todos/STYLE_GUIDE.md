@@ -88,6 +88,18 @@ className="px-3 py-1.5 bg-red-600 text-white rounded text-sm hover:bg-red-700 tr
 </h1>
 ```
 
+### **Mobile-Only Elements**
+```tsx
+// ✅ CORRECT: Mobile-only settings button
+<button
+  onClick={() => setShowSettings(true)}
+  className="sm:hidden px-2 py-1.5 bg-gray-600 text-gray-200 rounded-lg hover:bg-gray-500 min-h-[32px] flex items-center justify-center"
+  title="Settings"
+>
+  ⚙️
+</button>
+```
+
 ---
 
 ## 🔧 **Component Patterns**
@@ -224,6 +236,28 @@ className="p-3"  // Should be p-2, p-4, or p-6
 
 ---
 
+## 🔐 **API Key Management**
+
+### **User-Owned API Keys Pattern**
+Since January 2025, users provide their own API keys through the setup wizard:
+
+**Setup Form Pattern**:
+```tsx
+// ✅ CORRECT: Secure API key input
+<input
+  type="password"
+  className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500"
+  placeholder="AIzaSyxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  required
+/>
+```
+
+**Security Considerations**:
+- API keys stored in localStorage (client-side only)
+- Server never stores or logs API keys
+- Each request includes the key for that user only
+- No shared server-side API key configuration
+
 ## 🛠 **Development Tools**
 
 ### **TailwindCSS Configuration Validation**
@@ -295,6 +329,24 @@ npm run test:basic
   <span>+</span>
 </button>
 ```
+
+### **Mobile Settings Button (App.tsx)**
+```tsx
+// ✅ CORRECT: Mobile-only settings access
+<button
+  onClick={() => setShowSettings(true)}
+  className="sm:hidden px-2 py-1.5 bg-gray-600 text-gray-200 rounded-lg hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors text-sm min-h-[32px] flex items-center justify-center"
+  title="Settings"
+>
+  ⚙️
+</button>
+```
+
+**Implementation Notes**:
+- Uses `sm:hidden` to show only on mobile (< 640px)
+- Maintains consistent button height with `min-h-[32px]`
+- Positioned next to the + New Task button for easy access
+- Complements the desktop settings button in the toolbar
 
 ---
 
