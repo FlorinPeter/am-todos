@@ -11,10 +11,6 @@ on:
 jobs:
   validate-docker:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-      actions: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -36,12 +32,5 @@ jobs:
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: Dockerfile
-          format: sarif
-          output-file: hadolint-results.sarif
+          format: tty
           no-fail: true
-
-      - name: Upload Hadolint scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: hadolint-results.sarif
