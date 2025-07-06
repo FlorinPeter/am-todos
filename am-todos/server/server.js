@@ -6,12 +6,31 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const app = express();
 const port = process.env.PORT || 3001;
 
+// Debug logging for Cloud Run
+console.log('🚀 Starting server...');
+console.log('📝 Environment variables:');
+console.log('   NODE_ENV:', process.env.NODE_ENV);
+console.log('   PORT:', process.env.PORT);
+console.log('   FRONTEND_BUILD_PATH:', process.env.FRONTEND_BUILD_PATH);
+console.log('🔌 Server will listen on port:', port);
+
 app.use(cors());
 app.use(express.json());
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    port: port,
+    nodeEnv: process.env.NODE_ENV 
+  });
+});
 
 // Serve static files from the React app build directory in production
 if (process.env.NODE_ENV === 'production') {
   const buildPath = process.env.FRONTEND_BUILD_PATH || path.join(__dirname, '../build');
+  console.log('📁 Static files path:', buildPath);
   app.use(express.static(buildPath));
 }
 
@@ -272,14 +291,30 @@ app.post('/api/file-at-commit', async (req, res) => {
   }
 });
 
-// Catch-all handler: send back React's index.html file in production
-if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => {
+// Serve index.html for the root route
+app.get('/', (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
     const buildPath = process.env.FRONTEND_BUILD_PATH || path.join(__dirname, '../build');
     res.sendFile(path.join(buildPath, 'index.html'));
-  });
-}
+  } else {
+    res.json({ message: 'AM-Todos API Server', status: 'running', timestamp: new Date().toISOString() });
+  }
+});
+
+// Handle 404 for unknown routes
+app.use((req, res) => {
+  if (req.path.startsWith('/api/')) {
+    res.status(404).json({ error: 'API endpoint not found' });
+  } else if (process.env.NODE_ENV === 'production') {
+    // For any non-API route, serve the React app (SPA fallback)
+    const buildPath = process.env.FRONTEND_BUILD_PATH || path.join(__dirname, '../build');
+    res.sendFile(path.join(buildPath, 'index.html'));
+  } else {
+    res.status(404).json({ error: 'Not found' });
+  }
+});
 
 app.listen(port, '0.0.0.0', () => {
-  console.log(`Server listening at http://0.0.0.0:${port}`);
+  console.log(`✅ Server successfully listening at http://0.0.0.0:${port}`);
+  console.log(`🌐 Health check available at http://0.0.0.0:${port}/health`);
 });

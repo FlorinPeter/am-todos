@@ -1,4 +1,5 @@
-const BACKEND_URL = 'http://159.65.120.9:3001'; // Use external IP for backend
+// Use relative URL for production, falls back to proxy in development
+const BACKEND_URL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
 
 
 interface GitHubFile {
