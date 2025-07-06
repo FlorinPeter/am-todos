@@ -74,7 +74,7 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
   };
 
   return (
-    <div className="w-80 md:w-80 sm:w-72 bg-gray-800 border-r border-gray-700 flex flex-col h-screen md:h-full">
+    <div className="w-full bg-gray-800 border-r border-gray-700 flex flex-col h-screen md:h-full md:shadow-none shadow-2xl">
       {/* Header */}
       <div className="p-4 border-b border-gray-700">
         <h2 className="text-lg font-semibold text-white mb-3">Tasks</h2>

@@ -197,7 +197,7 @@ function App() {
       
       setCreationStep('💾 Saving to GitHub...');
       console.log('Creating file on GitHub:', filename);
-      await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, filename, fullContent, commitMessage);
+      const createResult = await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, filename, fullContent, commitMessage);
       console.log('File created successfully on GitHub');
 
       // 5. Wait for GitHub to process, then refresh
@@ -207,6 +207,12 @@ function App() {
       // Wait for GitHub processing
       await new Promise(resolve => setTimeout(resolve, 2000));
       await fetchTodos();
+      
+      // Auto-select the newly created task
+      if (createResult?.content?.sha) {
+        console.log('Auto-selecting newly created task with SHA:', createResult.content.sha);
+        setSelectedTodoId(createResult.content.sha);
+      }
       
       setCreationStep('✅ Task created successfully!');
       setTimeout(() => {
@@ -610,14 +616,25 @@ function App() {
               {/* Mobile hamburger menu */}
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="md:hidden mr-3 p-2 text-gray-400 hover:text-white"
+                className={`md:hidden mr-3 p-2 rounded-lg transition-colors ${
+                  sidebarOpen 
+                    ? 'text-blue-400 bg-blue-900/20' 
+                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                }`}
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  {sidebarOpen ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  )}
                 </svg>
               </button>
               <div>
-                <h1 className="text-xl md:text-2xl font-bold">Agentic Markdown Todos</h1>
+                <h1 className="text-lg md:text-2xl font-bold">
+                  <span className="hidden sm:inline">Agentic Markdown Todos</span>
+                  <span className="sm:hidden">AM Todos</span>
+                </h1>
                 <p className="text-gray-400 text-xs md:text-sm hidden sm:block">Your tasks, your repo, your AI assistant.</p>
               </div>
             </div>
@@ -656,38 +673,46 @@ function App() {
         </div>
         
         {/* Archive/Active Tabs */}
-        <div className="px-4 pb-3">
-          <div className="flex border-b border-gray-600">
+        <div className="px-4 pb-0">
+          <div className="flex relative">
             <button
               onClick={() => setViewMode('active')}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
+              className={`px-4 py-2 text-sm font-medium transition-colors relative ${
                 viewMode === 'active'
-                  ? 'text-blue-400 border-b-2 border-blue-400'
+                  ? 'text-blue-400'
                   : 'text-gray-400 hover:text-gray-200'
               }`}
             >
               📋 Active Tasks ({allTodos.filter(t => !t.path.includes('/archive/')).length})
+              {viewMode === 'active' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400"></div>
+              )}
             </button>
             <button
               onClick={() => setViewMode('archived')}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
+              className={`px-4 py-2 text-sm font-medium transition-colors relative ${
                 viewMode === 'archived'
-                  ? 'text-blue-400 border-b-2 border-blue-400'
+                  ? 'text-blue-400'
                   : 'text-gray-400 hover:text-gray-200'
               }`}
             >
               📦 Archived ({allTodos.filter(t => t.path.includes('/archive/')).length})
+              {viewMode === 'archived' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400"></div>
+              )}
             </button>
+            {/* Bottom border for the entire tab container */}
+            <div className="absolute bottom-0 left-0 right-0 h-px bg-gray-600"></div>
           </div>
         </div>
       </header>
 
       {/* Main Layout */}
-      <div className="flex-1 flex relative">
-        {/* Mobile Sidebar Overlay */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Mobile Sidebar Backdrop */}
         {sidebarOpen && (
           <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
+            className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden transition-opacity duration-300"
             onClick={() => setSidebarOpen(false)}
           />
         )}
@@ -695,7 +720,7 @@ function App() {
         {/* Sidebar */}
         <div className={`${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } md:translate-x-0 fixed md:relative z-30 md:z-auto transition-transform duration-300 ease-in-out`}>
+        } md:translate-x-0 fixed md:relative z-30 md:z-auto transition-all duration-300 ease-in-out w-80 md:w-80 flex-shrink-0 h-full inset-y-0 md:inset-y-auto`}>
           <TodoSidebar
             todos={todos}
             selectedTodoId={selectedTodoId}
@@ -708,7 +733,7 @@ function App() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 flex flex-col bg-gray-900">
           <TodoEditor
             selectedTodo={selectedTodo}
             onTodoUpdate={handleTodoUpdate}
