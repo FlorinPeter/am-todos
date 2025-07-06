@@ -1,11 +1,13 @@
 import { getTodos, createOrUpdateTodo, ensureTodosDirectory, getFileContent } from '../githubService';
-import { generateCommitMessage } from '../aiService';
+
+// Mock fetch globally
+const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
 
 // Test configuration
 const TEST_CONFIG = {
-  token: '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',
-  owner: 'FlorinPeter',
-  repo: 'todo-test'
+  token: 'test-token',
+  owner: 'test-owner',
+  repo: 'test-repo'
 };
 
 // Helper function to generate unique test file names
@@ -44,10 +46,14 @@ chatHistory: []
 ${markdownContent}`;
 };
 
-describe('GitHub Service Integration Tests', () => {
+describe('GitHub Service - Basic Feature Coverage', () => {
   let testFileName: string;
   let testContent: string;
   let createdFileSha: string;
+
+  beforeEach(() => {
+    mockFetch.mockClear();
+  });
 
   beforeEach(() => {
     testFileName = generateTestFileName();

@@ -25,21 +25,20 @@ app.post('/api/github', async (req, res) => {
     return res.status(403).json({ error: 'Invalid repository path' });
   }
 
-  // Security: Only allow specific GitHub API endpoints
-  const allowedEndpoints = [
-    '/contents/todos',
-    '/contents/todos/',
-    '/contents/todos/archive',
-    '/contents/todos/archive/',
-    '/commits',
-    '.md'
+  // Security: Only allow specific GitHub API endpoints for contents and commits
+  const allowedPatterns = [
+    // Allow any contents endpoint (for dynamic folder support)
+    /^\/repos\/[^\/]+\/[^\/]+\/contents\/.*/,
+    // Allow commits endpoint
+    /^\/repos\/[^\/]+\/[^\/]+\/commits/,
+    // Allow root contents listing (for folder discovery)
+    /^\/repos\/[^\/]+\/[^\/]+\/contents\/?$/
   ];
   
-  const isAllowedEndpoint = allowedEndpoints.some(endpoint => 
-    path.includes(endpoint) || path.endsWith(endpoint)
-  );
+  const isAllowedEndpoint = allowedPatterns.some(pattern => pattern.test(path));
   
   if (!isAllowedEndpoint) {
+    console.log('Blocked endpoint:', path);
     return res.status(403).json({ error: 'Endpoint not allowed' });
   }
 
