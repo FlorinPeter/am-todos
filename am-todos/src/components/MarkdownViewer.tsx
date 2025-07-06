@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import AIChat from './AIChat';
+import GitHistory from './GitHistory';
 import { processChatMessage } from '../services/aiService';
 
 interface ChatMessage {
@@ -15,18 +16,27 @@ interface MarkdownViewerProps {
   chatHistory: ChatMessage[];
   onMarkdownChange: (newContent: string) => void;
   onChatHistoryChange: (newChatHistory: ChatMessage[]) => void;
+  filePath?: string;
+  token?: string;
+  owner?: string;
+  repo?: string;
 }
 
 const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ 
   content, 
   chatHistory, 
   onMarkdownChange, 
-  onChatHistoryChange 
+  onChatHistoryChange,
+  filePath,
+  token,
+  owner,
+  repo
 }) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editContent, setEditContent] = useState(content);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [viewContent, setViewContent] = useState(content); // Track content for view mode
+  const [showHistory, setShowHistory] = useState(false);
 
   // Update both editContent and viewContent when content prop changes
   React.useEffect(() => {
@@ -131,6 +141,26 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
     }
   };
 
+  const handleRestoreFromHistory = (restoredContent: string, commitSha: string) => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('You have unsaved changes. Restoring from history will discard them. Continue?')) {
+        return;
+      }
+    }
+    
+    // Set the restored content
+    setEditContent(restoredContent);
+    setViewContent(restoredContent);
+    setHasUnsavedChanges(true); // Mark as unsaved since we need to commit the restore
+    setIsEditMode(false); // Switch to view mode to show the restored content
+    
+    // Optionally auto-save the restored content
+    if (window.confirm(`Restore content from commit ${commitSha.substring(0, 7)}? This will save the restored version immediately.`)) {
+      onMarkdownChange(restoredContent);
+      setHasUnsavedChanges(false);
+    }
+  };
+
   return (
     <div className="bg-gray-800 rounded-lg overflow-hidden">
       {/* Edit/View Mode Toggle */}
@@ -150,6 +180,16 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
             <span className="text-yellow-400 text-sm">• Unsaved changes</span>
           )}
         </div>
+        
+        {/* History button */}
+        {filePath && token && owner && repo && (
+          <button
+            onClick={() => setShowHistory(true)}
+            className="px-3 py-1 bg-gray-600 text-gray-200 rounded text-sm hover:bg-gray-500 transition-colors"
+          >
+            📜 History
+          </button>
+        )}
         
         {(isEditMode || hasUnsavedChanges) && (
           <div className="flex items-center space-x-2">
@@ -350,6 +390,18 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
           onChatMessage={handleChatMessage}
         />
       </div>
+      
+      {/* Git History Modal */}
+      {showHistory && filePath && token && owner && repo && (
+        <GitHistory
+          token={token}
+          owner={owner}
+          repo={repo}
+          filePath={filePath}
+          onRestore={handleRestoreFromHistory}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
     </div>
   );
 };

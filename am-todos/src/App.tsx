@@ -631,7 +631,7 @@ function App() {
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => fetchTodos()}
-                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors text-sm"
+                className="px-3 py-2 bg-gray-600 text-gray-200 rounded-lg hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors text-sm"
               >
                 <span className="hidden sm:inline">🔄 Refresh</span>
                 <span className="sm:hidden">🔄</span>
@@ -707,6 +707,9 @@ function App() {
             onPriorityUpdate={handlePriorityUpdate}
             onArchiveToggle={handleArchiveToggle}
             onDeleteTodo={handleDeleteTodo}
+            token={settings?.pat}
+            owner={settings?.owner}
+            repo={settings?.repo}
           />
         </div>
       </div>
