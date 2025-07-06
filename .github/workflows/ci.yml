@@ -23,18 +23,19 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
+        cache-dependency-path: 'am-todos/package-lock.json'
 
     - name: Install frontend dependencies
-      run: npm ci
+      run: cd am-todos && npm ci
 
     - name: Install backend dependencies
-      run: cd server && npm ci
+      run: cd am-todos/server && npm ci
 
     - name: Run frontend tests
-      run: npm run test:basic
+      run: cd am-todos && npm run test:basic
 
     - name: Build frontend
-      run: npm run build
+      run: cd am-todos && npm run build
 
     - name: Test Docker build
       run: docker build -t test-image .
