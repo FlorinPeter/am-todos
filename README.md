@@ -75,7 +75,7 @@ An AI-powered todo application that merges the simplicity of plain text markdown
 ### Three-Layer Design
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   React Frontend │ ←→ │  Express Backend │ ←→ │ External APIs   │
+│  React Frontend │ ←→ │  Express Backend │ ←→ │ External APIs   │
 │                 │    │                  │    │                 │
 │ • UI Components │    │ • AI Proxy       │    │ • GitHub API    │
 │ • State Mgmt    │    │ • Security Layer │    │ • Google Gemini │
