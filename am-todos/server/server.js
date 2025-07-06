@@ -1,12 +1,9 @@
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 const port = process.env.PORT || 3001;
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 app.use(cors());
 app.use(express.json());
@@ -81,13 +78,19 @@ app.post('/api/github', async (req, res) => {
 });
 
 app.post('/api/gemini', async (req, res) => {
-  const { action, payload } = req.body;
+  const { action, payload, apiKey } = req.body;
 
   if (!action) {
     return res.status(400).json({ error: 'Missing action in request body' });
   }
 
+  if (!apiKey) {
+    return res.status(400).json({ error: 'Missing Gemini API key. Please configure your API key in the application settings.' });
+  }
+
   try {
+    // Create a new GoogleGenerativeAI instance with the provided API key
+    const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     let prompt = '';
     let systemInstruction = '';

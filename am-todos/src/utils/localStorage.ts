@@ -3,6 +3,7 @@ interface GitHubSettings {
   owner: string;
   repo: string;
   folder: string;
+  geminiApiKey?: string;
 }
 
 const SETTINGS_KEY = 'githubSettings';
