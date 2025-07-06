@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+server/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Production build (will be created in container)
+build/
+
+# Development files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Testing
+coverage/
+**/__tests__/**
+**/*.test.ts
+**/*.test.tsx
+jest.config.js
+test-*.js
+
+# Logs
+*.log
+server.log
+app.log
+console.log
+server.pid
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# CI/CD
+.github/
+
+# Documentation
+*.md
+!README.md
+
+# Style guide and concept docs
+STYLE_GUIDE.md
+concept.md
+GEMINI.md
+TESTING.md
+
+# Development scripts
+restart.sh

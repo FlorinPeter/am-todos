@@ -1,0 +1,39 @@
+# Development Dockerfile with hot reload
+FROM node:18-alpine
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY server/package*.json ./server/
+
+# Install dependencies
+RUN npm ci
+RUN cd server && npm ci
+
+# Copy configuration files
+COPY tsconfig.json ./
+COPY tailwind.config.js ./
+COPY postcss.config.js ./
+COPY jest.config.js ./
+
+# Create a non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nextjs -u 1001
+
+# Change ownership of the app directory
+RUN chown -R nextjs:nodejs /app
+USER nextjs
+
+# Expose ports
+EXPOSE 3000 3001
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start both frontend and backend in development mode
+CMD ["sh", "-c", "cd server && node server.js & npm start"]
