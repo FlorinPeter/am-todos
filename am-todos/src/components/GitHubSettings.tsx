@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { saveSettings, loadSettings } from '../utils/localStorage';
 import { listProjectFolders, createProjectFolder } from '../services/githubService';
+import SettingsSharing from './SettingsSharing';
 
 interface GitHubSettingsProps {
   onSettingsSaved: () => void;
@@ -17,6 +18,7 @@ const GitHubSettings: React.FC<GitHubSettingsProps> = ({ onSettingsSaved }) => {
   const [newFolderName, setNewFolderName] = useState('');
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [isLoadingFolders, setIsLoadingFolders] = useState(false);
+  const [showSettingsSharing, setShowSettingsSharing] = useState(false);
 
   useEffect(() => {
     const savedSettings = loadSettings();
@@ -243,13 +245,27 @@ const GitHubSettings: React.FC<GitHubSettingsProps> = ({ onSettingsSaved }) => {
           </div>
         </div>
         
-        <button
-          type="submit"
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md"
-        >
-          Save Settings
-        </button>
+        <div className="flex space-x-4">
+          <button
+            type="submit"
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md"
+          >
+            Save Settings
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowSettingsSharing(true)}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-md"
+          >
+            Share Config
+          </button>
+        </div>
       </form>
+      
+      <SettingsSharing
+        isVisible={showSettingsSharing}
+        onClose={() => setShowSettingsSharing(false)}
+      />
     </div>
   );
 };
