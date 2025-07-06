@@ -14,6 +14,10 @@ const GitHubSettings: React.FC<GitHubSettingsProps> = ({ onSettingsSaved }) => {
   const [folder, setFolder] = useState('todos');
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [availableFolders, setAvailableFolders] = useState<string[]>(['todos']);
+  // AI Provider settings
+  const [aiProvider, setAiProvider] = useState<'gemini' | 'openrouter'>('gemini');
+  const [openRouterApiKey, setOpenRouterApiKey] = useState('');
+  const [aiModel, setAiModel] = useState('');
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
@@ -28,6 +32,9 @@ const GitHubSettings: React.FC<GitHubSettingsProps> = ({ onSettingsSaved }) => {
       setRepo(savedSettings.repo);
       setFolder(savedSettings.folder || 'todos');
       setGeminiApiKey(savedSettings.geminiApiKey || '');
+      setAiProvider(savedSettings.aiProvider || 'gemini');
+      setOpenRouterApiKey(savedSettings.openRouterApiKey || '');
+      setAiModel(savedSettings.aiModel || '');
     }
   }, []);
 
@@ -73,7 +80,16 @@ const GitHubSettings: React.FC<GitHubSettingsProps> = ({ onSettingsSaved }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    saveSettings({ pat, owner, repo, folder, geminiApiKey });
+    saveSettings({ 
+      pat, 
+      owner, 
+      repo, 
+      folder, 
+      geminiApiKey, 
+      aiProvider, 
+      openRouterApiKey, 
+      aiModel 
+    });
     onSettingsSaved();
   };
 
@@ -96,29 +112,95 @@ const GitHubSettings: React.FC<GitHubSettingsProps> = ({ onSettingsSaved }) => {
           <p className="mt-1 text-sm text-gray-400">Create a fine-grained PAT with 'contents' read/write access to your todo repository.</p>
         </div>
         
-        <div>
-          <label htmlFor="geminiApiKey" className="block text-sm font-medium text-gray-300">Google Gemini API Key</label>
-          <input
-            type="password"
-            id="geminiApiKey"
-            value={geminiApiKey}
-            onChange={(e) => setGeminiApiKey(e.target.value)}
-            className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            placeholder="AIzaSyxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-            required
-          />
-          <p className="mt-1 text-sm text-gray-400">
-            Get your free API key from{' '}
-            <a 
-              href="https://makersuite.google.com/app/apikey" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-blue-400 hover:text-blue-300 underline"
-            >
-              Google AI Studio
-            </a>
-            . Required for AI-powered task generation and chat features.
-          </p>
+        <div className="border-t border-gray-600 pt-4">
+          <h3 className="text-lg font-medium text-gray-200 mb-4">AI Provider Configuration</h3>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="aiProvider" className="block text-sm font-medium text-gray-300">AI Provider</label>
+              <select
+                id="aiProvider"
+                value={aiProvider}
+                onChange={(e) => setAiProvider(e.target.value as 'gemini' | 'openrouter')}
+                className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="gemini">Google Gemini</option>
+                <option value="openrouter">OpenRouter</option>
+              </select>
+              <p className="mt-1 text-sm text-gray-400">Choose your preferred AI provider for task generation and chat features.</p>
+            </div>
+
+            {aiProvider === 'gemini' && (
+              <div>
+                <label htmlFor="geminiApiKey" className="block text-sm font-medium text-gray-300">Google Gemini API Key</label>
+                <input
+                  type="password"
+                  id="geminiApiKey"
+                  value={geminiApiKey}
+                  onChange={(e) => setGeminiApiKey(e.target.value)}
+                  className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="AIzaSyxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  required={aiProvider === 'gemini'}
+                />
+                <p className="mt-1 text-sm text-gray-400">
+                  Get your free API key from{' '}
+                  <a 
+                    href="https://makersuite.google.com/app/apikey" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 underline"
+                  >
+                    Google AI Studio
+                  </a>
+                  . Required for AI-powered task generation and chat features.
+                </p>
+              </div>
+            )}
+
+            {aiProvider === 'openrouter' && (
+              <div>
+                <label htmlFor="openRouterApiKey" className="block text-sm font-medium text-gray-300">OpenRouter API Key</label>
+                <input
+                  type="password"
+                  id="openRouterApiKey"
+                  value={openRouterApiKey}
+                  onChange={(e) => setOpenRouterApiKey(e.target.value)}
+                  className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="sk-or-vxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  required={aiProvider === 'openrouter'}
+                />
+                <p className="mt-1 text-sm text-gray-400">
+                  Get your API key from{' '}
+                  <a 
+                    href="https://openrouter.ai/keys" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 underline"
+                  >
+                    OpenRouter
+                  </a>
+                  . Access to 400+ AI models including GPT, Claude, and more.
+                </p>
+              </div>
+            )}
+
+            <div>
+              <label htmlFor="aiModel" className="block text-sm font-medium text-gray-300">AI Model</label>
+              <input
+                type="text"
+                id="aiModel"
+                value={aiModel}
+                onChange={(e) => setAiModel(e.target.value)}
+                className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                placeholder={aiProvider === 'gemini' ? 'gemini-2.5-flash' : 'anthropic/claude-3.5-sonnet'}
+              />
+              <p className="mt-1 text-sm text-gray-400">
+                {aiProvider === 'gemini' 
+                  ? 'Gemini model to use (e.g., gemini-2.5-flash, gemini-1.5-pro). Leave empty for default.'
+                  : 'OpenRouter model to use (e.g., anthropic/claude-3.5-sonnet, openai/gpt-4o, meta-llama/llama-3.1-70b-instruct:free). Leave empty for default.'
+                }
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="border-t border-gray-600 pt-4">

@@ -1,20 +1,42 @@
 import { loadSettings } from '../utils/localStorage';
 
-const AI_API_URL = '/api/gemini';
+const AI_API_URL = '/api/ai';
 
-const getApiKey = () => {
+const getAISettings = () => {
   const settings = loadSettings();
-  if (!settings?.geminiApiKey) {
-    throw new Error('Gemini API key not configured. Please add your API key in the application settings.');
+  if (!settings) {
+    throw new Error('No settings configured. Please configure your settings in the application.');
   }
-  return settings.geminiApiKey;
+
+  const provider = settings.aiProvider || 'gemini';
+  let apiKey: string;
+  
+  if (provider === 'gemini') {
+    if (!settings.geminiApiKey) {
+      throw new Error('Gemini API key not configured. Please add your API key in the application settings.');
+    }
+    apiKey = settings.geminiApiKey;
+  } else if (provider === 'openrouter') {
+    if (!settings.openRouterApiKey) {
+      throw new Error('OpenRouter API key not configured. Please add your API key in the application settings.');
+    }
+    apiKey = settings.openRouterApiKey;
+  } else {
+    throw new Error('Invalid AI provider configured. Please select a valid provider in the application settings.');
+  }
+
+  return {
+    provider,
+    apiKey,
+    model: settings.aiModel || (provider === 'gemini' ? 'gemini-2.5-flash' : 'anthropic/claude-3.5-sonnet')
+  };
 };
 
 export const generateInitialPlan = async (goal: string) => {
   console.log('AI Service: Generating initial plan for goal:', goal);
   
   try {
-    const apiKey = getApiKey();
+    const aiSettings = getAISettings();
     const response = await fetch(AI_API_URL, {
       method: 'POST',
       headers: {
@@ -23,7 +45,9 @@ export const generateInitialPlan = async (goal: string) => {
       body: JSON.stringify({
         action: 'generateInitialPlan',
         payload: { goal },
-        apiKey,
+        provider: aiSettings.provider,
+        apiKey: aiSettings.apiKey,
+        model: aiSettings.model,
       }),
     });
 
@@ -49,7 +73,7 @@ export const generateInitialPlan = async (goal: string) => {
 
 export const generateCommitMessage = async (changeDescription: string) => {
   try {
-    const apiKey = getApiKey();
+    const aiSettings = getAISettings();
     const response = await fetch(AI_API_URL, {
       method: 'POST',
       headers: {
@@ -58,7 +82,9 @@ export const generateCommitMessage = async (changeDescription: string) => {
       body: JSON.stringify({
         action: 'generateCommitMessage',
         payload: { changeDescription },
-        apiKey,
+        provider: aiSettings.provider,
+        apiKey: aiSettings.apiKey,
+        model: aiSettings.model,
       }),
     });
 
@@ -84,7 +110,7 @@ export const processChatMessage = async (
   currentContent: string, 
   chatHistory: Array<{ role: string; content: string }>
 ) => {
-  const apiKey = getApiKey();
+  const aiSettings = getAISettings();
   const response = await fetch(AI_API_URL, {
     method: 'POST',
     headers: {
@@ -97,7 +123,9 @@ export const processChatMessage = async (
         currentContent, 
         chatHistory 
       },
-      apiKey,
+      provider: aiSettings.provider,
+      apiKey: aiSettings.apiKey,
+      model: aiSettings.model,
     }),
   });
 

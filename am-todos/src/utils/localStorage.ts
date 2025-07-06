@@ -4,6 +4,10 @@ interface GitHubSettings {
   repo: string;
   folder: string;
   geminiApiKey?: string;
+  // AI Provider settings
+  aiProvider?: 'gemini' | 'openrouter';
+  openRouterApiKey?: string;
+  aiModel?: string;
 }
 
 const SETTINGS_KEY = 'githubSettings';
@@ -26,6 +30,13 @@ export const loadSettings = (): GitHubSettings | null => {
     if (!settings.folder) {
       settings.folder = 'todos';
     }
+    // Ensure AI provider fields exist with defaults
+    if (!settings.aiProvider) {
+      settings.aiProvider = 'gemini';
+    }
+    if (!settings.aiModel) {
+      settings.aiModel = settings.aiProvider === 'gemini' ? 'gemini-2.5-flash' : 'anthropic/claude-3.5-sonnet';
+    }
     return settings;
   } catch (error) {
     console.error("Error loading settings from localStorage", error);
@@ -40,7 +51,10 @@ export const encodeSettingsToUrl = (settings: GitHubSettings): string => {
       owner: settings.owner,
       repo: settings.repo,
       folder: settings.folder,
-      geminiApiKey: settings.geminiApiKey || ''
+      geminiApiKey: settings.geminiApiKey || '',
+      aiProvider: settings.aiProvider || 'gemini',
+      openRouterApiKey: settings.openRouterApiKey || '',
+      aiModel: settings.aiModel || ''
     };
     const encoded = btoa(JSON.stringify(settingsToEncode));
     return `${window.location.origin}${window.location.pathname}?config=${encoded}`;
