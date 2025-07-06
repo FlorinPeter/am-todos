@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { saveSettings, loadSettings } from '../utils/localStorage';
 import { listProjectFolders, createProjectFolder } from '../services/githubService';
 import SettingsSharing from './SettingsSharing';
@@ -38,7 +38,7 @@ const GitHubSettings: React.FC<GitHubSettingsProps> = ({ onSettingsSaved }) => {
     }
   }, []);
 
-  const loadFolders = async () => {
+  const loadFolders = useCallback(async () => {
     if (!pat || !owner || !repo) return;
     
     setIsLoadingFolders(true);
@@ -51,14 +51,14 @@ const GitHubSettings: React.FC<GitHubSettingsProps> = ({ onSettingsSaved }) => {
     } finally {
       setIsLoadingFolders(false);
     }
-  };
+  }, [pat, owner, repo]);
 
   // Load folders when credentials are available
   useEffect(() => {
     if (pat && owner && repo) {
       loadFolders();
     }
-  }, [pat, owner, repo]);
+  }, [pat, owner, repo, loadFolders]);
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim() || !pat || !owner || !repo) return;

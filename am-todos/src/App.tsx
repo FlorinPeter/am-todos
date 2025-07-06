@@ -5,7 +5,7 @@ import TodoEditor from './components/TodoEditor';
 import GitHubSettings from './components/GitHubSettings';
 import ProjectManager from './components/ProjectManager';
 import { loadSettings, getUrlConfig, saveSettings } from './utils/localStorage';
-import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDirectory, ensureTodosDirectory, moveTaskToArchive, moveTaskFromArchive } from './services/githubService';
+import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDirectory, moveTaskToArchive, moveTaskFromArchive } from './services/githubService';
 import { generateInitialPlan, generateCommitMessage } from './services/aiService';
 import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, TodoFrontmatter } from './utils/markdown';
 
@@ -51,6 +51,7 @@ function App() {
     fetchTodos(); // Fetch todos after settings are saved
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const fetchTodosWithSettings = async (useSettings?: any, useViewMode?: 'active' | 'archived') => {
     const currentSettings = useSettings || settings;
     const currentViewMode = useViewMode || viewMode;
@@ -138,7 +139,8 @@ function App() {
 
   const fetchTodos = useCallback(async () => {
     await fetchTodosWithSettings();
-  }, [settings, viewMode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     fetchTodos();
