@@ -29,6 +29,9 @@ interface TodoEditorProps {
   onPriorityUpdate: (id: string, newPriority: number) => void;
   onArchiveToggle: (id: string) => void;
   onDeleteTodo: (id: string) => void;
+  token?: string;
+  owner?: string;
+  repo?: string;
 }
 
 const getPriorityLabel = (priority: number): string => {
@@ -47,7 +50,10 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
   onTodoUpdate, 
   onPriorityUpdate, 
   onArchiveToggle,
-  onDeleteTodo
+  onDeleteTodo,
+  token,
+  owner,
+  repo
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState('');
@@ -181,6 +187,10 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
           chatHistory={selectedTodo.frontmatter?.chatHistory || []}
           onMarkdownChange={(newContent) => onTodoUpdate(selectedTodo.id, newContent)}
           onChatHistoryChange={(newChatHistory) => onTodoUpdate(selectedTodo.id, selectedTodo.content, newChatHistory)}
+          filePath={selectedTodo.path}
+          token={token}
+          owner={owner}
+          repo={repo}
         />
       </div>
     </div>

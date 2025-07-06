@@ -362,3 +362,54 @@ export const deleteFile = async (
   console.log('File deleted successfully:', path);
   return await response.json();
 };
+
+export const getFileHistory = async (
+  token: string,
+  owner: string,
+  repo: string,
+  path: string
+) => {
+  const response = await fetch(`${BACKEND_URL}/api/git-history`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `token ${token}`,
+    },
+    body: JSON.stringify({ path, owner, repo }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch file history:', errorText);
+    throw new Error(`Failed to fetch file history: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.commits;
+};
+
+export const getFileAtCommit = async (
+  token: string,
+  owner: string,
+  repo: string,
+  path: string,
+  sha: string
+) => {
+  const response = await fetch(`${BACKEND_URL}/api/file-at-commit`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `token ${token}`,
+    },
+    body: JSON.stringify({ path, sha, owner, repo }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Failed to fetch file at commit:', errorText);
+    throw new Error(`Failed to fetch file at commit: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data;
+};
