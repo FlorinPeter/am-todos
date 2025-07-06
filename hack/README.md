@@ -1,4 +1,23 @@
-# Deployment Scripts
+# Operational Scripts
+
+Scripts for AM-Todos development and deployment operations.
+
+## Development Scripts
+
+### restart-dev.sh
+Restart development servers (frontend + backend) for local development.
+
+```bash
+./hack/restart-dev.sh
+```
+
+This will:
+- Stop any existing React and Node.js processes
+- Start backend server on port 3001
+- Start frontend development server on port 3000
+- Show access URLs and log file locations
+
+## Deployment Scripts
 
 Quick deployment scripts for AM-Todos to Google Cloud Run.
 
