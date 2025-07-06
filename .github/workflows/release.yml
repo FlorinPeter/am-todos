@@ -22,7 +22,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write
 
     steps:
       - name: Checkout repository
@@ -80,12 +79,6 @@ jobs:
             VERSION=${{ steps.get_tag.outputs.tag }}
             BUILD_DATE=${{ github.run_id }}
 
-      - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v1
-        with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          subject-digest: ${{ steps.build.outputs.digest }}
-          push-to-registry: true
 
       - name: Create container summary
         run: |
