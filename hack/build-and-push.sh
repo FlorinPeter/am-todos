@@ -21,9 +21,9 @@ if [ -z "$GOOGLE_CLOUD_PROJECT" ]; then
 fi
 
 # Configuration
-REGION="europe-west3"  # Frankfurt
+REGION="europe-west4"  # Netherlands (supports custom domains)
 TAG="${TAG:-v1.0.0}"
-IMAGE="europe-west3-docker.pkg.dev/$GOOGLE_CLOUD_PROJECT/am-todos/app:$TAG"
+IMAGE="europe-west4-docker.pkg.dev/$GOOGLE_CLOUD_PROJECT/am-todos/app:$TAG"
 DOCKERFILE_PATH="../Dockerfile"
 
 echo -e "${GREEN}📋 Build Configuration:${NC}"
@@ -61,7 +61,7 @@ fi
 
 # Configure Docker authentication
 echo -e "${GREEN}🔐 Configuring Docker authentication...${NC}"
-gcloud auth configure-docker europe-west3-docker.pkg.dev
+gcloud auth configure-docker europe-west4-docker.pkg.dev
 
 # Build the Docker image
 echo -e "${GREEN}🔨 Building Docker image...${NC}"

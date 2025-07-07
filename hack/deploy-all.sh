@@ -38,7 +38,12 @@ if [ -z "$TAG" ]; then
 fi
 
 # Set the IMAGE variable for the deployment script
-export IMAGE="europe-west3-docker.pkg.dev/$GOOGLE_CLOUD_PROJECT/am-todos/app:$TAG"
+export IMAGE="europe-west4-docker.pkg.dev/$GOOGLE_CLOUD_PROJECT/am-todos/app:$TAG"
+
+# Pass through custom domain if set
+if [ -n "$CUSTOM_DOMAIN" ]; then
+  export CUSTOM_DOMAIN="$CUSTOM_DOMAIN"
+fi
 
 echo ""
 echo -e "${GREEN}Step 2/2: Deploying to Cloud Run${NC}"
