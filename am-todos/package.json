@@ -40,7 +40,7 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "DANGEROUSLY_DISABLE_HOST_CHECK=true vite",
+    "start": "vite --host 0.0.0.0",
     "build": "vite build",
     "test": "vitest",
     "test:basic": "vitest run --testPathPattern='(FeatureValidation|ComponentBasics)\\.test\\.(ts|tsx)'",

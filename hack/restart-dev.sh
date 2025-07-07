@@ -15,7 +15,8 @@ echo -e "${YELLOW}🛑 Stopping all existing processes...${NC}"
 
 # Kill all npm start processes
 pkill -f "npm start" 2>/dev/null || true
-pkill -f "react-scripts start" 2>/dev/null || true
+pkill -f "vite" 2>/dev/null || true
+pkill -f "esbuild" 2>/dev/null || true
 
 # Kill all node server.js processes
 pkill -f "node server.js" 2>/dev/null || true
@@ -25,7 +26,8 @@ sleep 2
 
 # Force kill any remaining processes
 pkill -9 -f "npm start" 2>/dev/null || true
-pkill -9 -f "react-scripts start" 2>/dev/null || true
+pkill -9 -f "vite" 2>/dev/null || true
+pkill -9 -f "esbuild" 2>/dev/null || true
 pkill -9 -f "node server.js" 2>/dev/null || true
 
 echo -e "${GREEN}🚀 Starting backend server...${NC}"
@@ -36,7 +38,7 @@ echo "Backend server PID: $BACKEND_PID"
 
 echo -e "${GREEN}🌐 Starting frontend...${NC}"
 cd /root/todo/am-todos
-nohup npm start > app.log 2>&1 &
+nohup npm run dev > app.log 2>&1 &
 FRONTEND_PID=$!
 echo "Frontend PID: $FRONTEND_PID"
 
