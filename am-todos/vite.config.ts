@@ -23,12 +23,6 @@ export default defineConfig(({ mode }) => {
       proxyPlugin(),
       
     ],
-    test: {
-      environment: 'jsdom',
-      setupFiles: ['./src/setupTests.ts'],
-      globals: true,
-      css: false,
-    },
   };
 });
 
