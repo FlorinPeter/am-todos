@@ -35,7 +35,7 @@ const VersionInfoComponent: React.FC = () => {
   const formatDate = (dateString: string | null) => {
     if (!dateString || dateString === 'unknown') return null;
     try {
-      return new Date(dateString).toLocaleDateString();
+      return new Date(dateString).toLocaleDateString('de-DE');
     } catch {
       return dateString;
     }
@@ -50,12 +50,11 @@ const VersionInfoComponent: React.FC = () => {
     <div className="text-xs text-gray-500 space-y-1">
       <div className="flex items-center space-x-2">
         <span className="font-medium">Version:</span>
-        <span className="font-mono">{versionInfo.version}</span>
-        {versionInfo.gitTag && versionInfo.gitTag !== 'unknown' && (
-          <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">
-            {versionInfo.gitTag}
-          </span>
-        )}
+        <span className="font-mono">
+          {versionInfo.gitTag && versionInfo.gitTag !== 'unknown' && versionInfo.gitTag !== null
+            ? versionInfo.gitTag 
+            : versionInfo.version}
+        </span>
       </div>
       
       <div className="flex items-center space-x-2">
