@@ -40,9 +40,10 @@ describe('Feature Implementation Validation', () => {
   });
 
   describe('Feature 3: Interactive Markdown Editor with Progress Tracking', () => {
-    test('MarkdownViewer component exists', () => {
+    test('MarkdownViewer component exists', async () => {
       // Test component file exists by checking if import doesn't throw
-      expect(() => require.resolve('../components/MarkdownViewer')).not.toThrow();
+      const MarkdownViewer = await import('../components/MarkdownViewer');
+      expect(MarkdownViewer.default).toBeDefined();
     });
   });
 
@@ -61,8 +62,9 @@ describe('Feature Implementation Validation', () => {
   });
 
   describe('Feature 5: Task Management System', () => {
-    test('TodoEditor component exists', () => {
-      expect(() => require.resolve('../components/TodoEditor')).not.toThrow();
+    test('TodoEditor component exists', async () => {
+      const TodoEditor = await import('../components/TodoEditor');
+      expect(TodoEditor.default).toBeDefined();
     });
     
     test('Priority levels P1-P5 are defined', () => {
@@ -75,8 +77,9 @@ describe('Feature Implementation Validation', () => {
   });
 
   describe('Feature 6: Smart File Naming System', () => {
-    test('File naming logic exists in App component', () => {
-      expect(() => require.resolve('../App')).not.toThrow();
+    test('File naming logic exists in App component', async () => {
+      const App = await import('../App');
+      expect(App.default).toBeDefined();
     });
     
     test('Date-based naming pattern validation', () => {
@@ -134,12 +137,14 @@ describe('Feature Implementation Validation', () => {
   });
 
   describe('Feature 10: Mobile-First Responsive Design', () => {
-    test('TodoSidebar component exists', () => {
-      expect(() => require.resolve('../components/TodoSidebar')).not.toThrow();
+    test('TodoSidebar component exists', async () => {
+      const TodoSidebar = await import('../components/TodoSidebar');
+      expect(TodoSidebar.default).toBeDefined();
     });
     
-    test('App component exists with responsive layout', () => {
-      expect(() => require.resolve('../App')).not.toThrow();
+    test('App component exists with responsive layout', async () => {
+      const App = await import('../App');
+      expect(App.default).toBeDefined();
     });
     
     test('Responsive design classes validation', () => {
@@ -161,14 +166,13 @@ describe('Feature Implementation Validation', () => {
 
   describe('Feature 11: Comprehensive Testing Infrastructure', () => {
     test('Testing dependencies are available', () => {
-      expect(jest).toBeDefined();
       expect(expect).toBeDefined();
       expect(describe).toBeDefined();
       expect(test).toBeDefined();
     });
     
     test('Test configuration files exist', async () => {
-      // This test itself validates that Jest is properly configured
+      // This test itself validates that Vitest is properly configured
       expect(process.env.NODE_ENV).toBe('test');
     });
   });
