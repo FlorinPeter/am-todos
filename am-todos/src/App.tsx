@@ -139,12 +139,13 @@ function App() {
 
   const fetchTodos = useCallback(async () => {
     await fetchTodosWithSettings();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [settings, viewMode]);
 
   useEffect(() => {
-    fetchTodos();
-  }, [fetchTodos]);
+    if (settings) {
+      fetchTodos();
+    }
+  }, [fetchTodos, settings]);
 
   const handleProjectChanged = (newSettings?: any) => {
     const settingsToUse = newSettings || loadSettings();
