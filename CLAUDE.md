@@ -58,7 +58,93 @@ node server.js     # Run backend server (localhost:3001)
 
 **Manual Restart**: If needed, use `./restart.sh` (in am-todos directory) to restart both servers.
 
-**Note**: The concept document mentions this should be a serverless function (e.g., Vercel Edge Function) rather than Express server for production deployment.
+## Production Deployment
+
+### Google Cloud Run Deployment
+The application is production-ready for Google Cloud Run deployment using the scripts in the `hack/` directory.
+
+#### Prerequisites
+```bash
+# Install dependencies (run once)
+sudo ./hack/install-dependencies.sh
+
+# Authenticate with Google Cloud
+gcloud auth login
+export GOOGLE_CLOUD_PROJECT="your-project-id"
+```
+
+#### Quick Deployment
+```bash
+# Deploy latest GitHub image
+export SOURCE_IMAGE="ghcr.io/your-username/am-todos:main"
+./hack/deploy-all.sh
+```
+
+#### Deployment Options
+1. **Complete deployment (Recommended)**: `./hack/deploy-all.sh`
+2. **Pull and retag existing image**: `./hack/pull-and-push.sh && ./hack/deploy-to-cloud-run.sh`
+3. **Build from source**: `./hack/build-and-push.sh && ./hack/deploy-to-cloud-run.sh`
+
+#### Environment Configuration
+- **Development**: Uses `localhost:3001` proxy and direct GitHub/AI API calls
+- **Production**: Uses relative URLs, deployed as single container with frontend + backend
+- **Region**: Frankfurt (europe-west3) by default
+- **Scaling**: 0-10 instances with 1Gi memory and 1 CPU per instance
+
+## Development vs Production Differences
+
+### Key Configuration Changes
+| Aspect | Development | Production |
+|--------|-------------|------------|
+| **API URLs** | `http://localhost:3001/api/*` (via proxy) | Relative URLs `/api/*` |
+| **Frontend Serving** | React dev server (port 3000) | Express static serving |
+| **Backend** | Separate Node.js process (port 3001) | Integrated with frontend container |
+| **Environment Variables** | Set in local shell | Set via Cloud Run deployment |
+| **Port Handling** | Fixed ports (3000/3001) | Cloud Run dynamic PORT |
+| **CORS** | Handled by proxy | Handled by Express CORS middleware |
+
+### Development-Specific Files
+- `package.json` - Contains `"proxy": "http://localhost:3001"` for dev proxy
+- `.env.local` - Local environment variables (if used)
+- `restart.sh` - Development server restart script
+
+### Production-Specific Files
+- `Dockerfile` - Multi-stage build for production container
+- `hack/` - Cloud Run deployment scripts
+- Container handles both frontend and backend in single process
+
+### Important Notes for Developers
+
+1. **API URL Handling**: The frontend automatically detects production vs development:
+   ```typescript
+   const BACKEND_URL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
+   ```
+
+2. **Environment Variables**: 
+   - Development: Set in local shell or `.env.local`
+   - Production: Set via Cloud Run `--set-env-vars` parameter
+
+3. **Static Files**: 
+   - Development: Served by React dev server
+   - Production: Served by Express with SPA fallback routing
+
+4. **Debugging**:
+   - Development: Use browser dev tools and Node.js debugging
+   - Production: Use Cloud Run logs and health check endpoint
+
+5. **Hot Reload**: Only available in development mode via React dev server
+
+### Testing Production Locally
+To test production build locally:
+```bash
+# Build production version
+npm run build
+
+# Start production server
+NODE_ENV=production node server/server.js
+
+# Access at http://localhost:3001
+```
 
 ## Architecture Overview
 
