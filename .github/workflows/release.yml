@@ -40,7 +40,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Get release tag
+      - name: Get release tag and build info
         id: get_tag
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
@@ -48,6 +48,10 @@ jobs:
           else
             echo "tag=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
           fi
+          GIT_SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
+          BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          echo "git_sha_short=$GIT_SHA_SHORT" >> $GITHUB_OUTPUT
+          echo "build_date=$BUILD_DATE" >> $GITHUB_OUTPUT
 
       - name: Extract metadata for release
         id: meta
@@ -76,9 +80,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            GIT_SHA=${{ github.sha }}
+            GIT_SHA=${{ steps.get_tag.outputs.git_sha_short }}
             GIT_TAG=${{ steps.get_tag.outputs.tag }}
-            BUILD_DATE=${{ github.run_id }}
+            BUILD_DATE=${{ steps.get_tag.outputs.build_date }}
             VERSION=${{ steps.get_tag.outputs.tag }}
 
 

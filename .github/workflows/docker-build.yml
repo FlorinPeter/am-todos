@@ -37,11 +37,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Get package version
+      - name: Get package version and git info
         id: package_version
         run: |
           VERSION=$(grep '"version"' am-todos/package.json | cut -d'"' -f4)
+          GIT_SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
+          BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "git_sha_short=$GIT_SHA_SHORT" >> $GITHUB_OUTPUT
+          echo "build_date=$BUILD_DATE" >> $GITHUB_OUTPUT
 
       - name: Extract metadata
         id: meta
@@ -73,8 +77,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            GIT_SHA=${{ github.sha }}
+            GIT_SHA=${{ steps.package_version.outputs.git_sha_short }}
             GIT_TAG=${{ github.ref_name }}
-            BUILD_DATE=${{ github.run_id }}
+            BUILD_DATE=${{ steps.package_version.outputs.build_date }}
             VERSION=${{ steps.package_version.outputs.version }}
 
