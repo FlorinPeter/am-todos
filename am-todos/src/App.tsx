@@ -51,8 +51,7 @@ function App() {
     fetchTodos(); // Fetch todos after settings are saved
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const fetchTodosWithSettings = async (useSettings?: any, useViewMode?: 'active' | 'archived') => {
+  const fetchTodosWithSettings = useCallback(async (useSettings?: any, useViewMode?: 'active' | 'archived') => {
     const currentSettings = useSettings || settings;
     const currentViewMode = useViewMode || viewMode;
     console.log('Fetching todos with settings...', currentSettings ? 'Settings available' : 'No settings');
@@ -135,11 +134,11 @@ function App() {
       setTodos([]);
       setAllTodos([]);
     }
-  };
+  }, [settings, viewMode]);
 
   const fetchTodos = useCallback(async () => {
     await fetchTodosWithSettings();
-  }, [settings, viewMode]);
+  }, [fetchTodosWithSettings]);
 
   useEffect(() => {
     if (settings) {
