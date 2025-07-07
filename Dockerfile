@@ -9,6 +9,8 @@ COPY am-todos/package*.json ./
 COPY am-todos/tsconfig.json ./
 COPY am-todos/tailwind.config.js ./
 COPY am-todos/postcss.config.js ./
+COPY am-todos/vite.config.mjs ./
+COPY am-todos/index.html ./
 
 # Install frontend dependencies (including devDependencies for build)
 RUN npm ci
