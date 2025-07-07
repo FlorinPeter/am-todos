@@ -21,7 +21,7 @@ if [ -z "$GOOGLE_CLOUD_PROJECT" ]; then
 fi
 
 # Configuration
-REGION="europe-west3"  # Frankfurt
+REGION="europe-west4"  # Netherlands (supports custom domains)
 SOURCE_IMAGE="${SOURCE_IMAGE:-ghcr.io/your-username/am-todos:v1.0.0}"
 
 # Extract tag from source image if not explicitly set
@@ -32,7 +32,7 @@ if [ -z "$TAG" ]; then
     fi
 fi
 
-TARGET_IMAGE="europe-west3-docker.pkg.dev/$GOOGLE_CLOUD_PROJECT/am-todos/app:$TAG"
+TARGET_IMAGE="europe-west4-docker.pkg.dev/$GOOGLE_CLOUD_PROJECT/am-todos/app:$TAG"
 
 echo -e "${GREEN}📋 Image Migration Configuration:${NC}"
 echo "  Project: $GOOGLE_CLOUD_PROJECT"
@@ -63,7 +63,7 @@ fi
 
 # Configure Docker authentication
 echo -e "${GREEN}🔐 Configuring Docker authentication...${NC}"
-gcloud auth configure-docker europe-west3-docker.pkg.dev
+gcloud auth configure-docker europe-west4-docker.pkg.dev
 
 # Pull the source image
 echo -e "${GREEN}📥 Pulling source image...${NC}"

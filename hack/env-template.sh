@@ -18,6 +18,9 @@ export SERVICE_NAME="am-todos"
 # Optional: Source image to pull and retag (defaults to ghcr.io/your-username/am-todos:v1.0.0)
 # export SOURCE_IMAGE="ghcr.io/your-username/am-todos:v1.0.1"
 
+# Optional: Custom domain for Cloud Run (requires DNS configuration)
+# export CUSTOM_DOMAIN="todo.yourdomain.com"
+
 # Optional: Memory allocation (defaults to 1Gi)
 # export MEMORY="512Mi"
 

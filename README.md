@@ -19,9 +19,26 @@ An AI-powered todo application that merges the simplicity of plain text markdown
 
 ## 🚀 Quick Start
 
-### 🐳 Deploy with Docker (Recommended)
+### ☁️ Deploy to Google Cloud Run (Recommended)
 
-The easiest way to get started is using our pre-built container images:
+Deploy to Google Cloud Run for a production-ready, scalable solution:
+
+```bash
+# Prerequisites: Install Docker and gcloud CLI
+sudo ./hack/install-dependencies.sh
+
+# Authenticate and set project
+gcloud auth login
+export GOOGLE_CLOUD_PROJECT="your-project-id"
+
+# Deploy latest version
+export SOURCE_IMAGE="ghcr.io/florinpeter/am-todos:main"
+./hack/deploy-all.sh
+```
+
+### 🐳 Deploy with Docker (Local)
+
+For local development or testing:
 
 ```bash
 # Run the latest version
