@@ -27,6 +27,17 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Version info endpoint
+app.get('/api/version', (req, res) => {
+  res.status(200).json({
+    version: process.env.VERSION || '0.1.0',
+    gitSha: process.env.GIT_SHA || 'development',
+    gitTag: process.env.GIT_TAG || null,
+    buildDate: process.env.BUILD_DATE || null,
+    nodeEnv: process.env.NODE_ENV
+  });
+});
+
 // Serve static files from the React app build directory in production
 if (process.env.NODE_ENV === 'production') {
   const buildPath = process.env.FRONTEND_BUILD_PATH || path.join(__dirname, '../build');

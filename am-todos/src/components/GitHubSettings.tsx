@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { saveSettings, loadSettings } from '../utils/localStorage';
 import { listProjectFolders, createProjectFolder } from '../services/githubService';
 import SettingsSharing from './SettingsSharing';
+import VersionInfo from './VersionInfo';
 
 interface GitHubSettingsProps {
   onSettingsSaved: () => void;
@@ -348,6 +349,11 @@ const GitHubSettings: React.FC<GitHubSettingsProps> = ({ onSettingsSaved }) => {
         isVisible={showSettingsSharing}
         onClose={() => setShowSettingsSharing(false)}
       />
+      
+      <div className="mt-6 pt-4 border-t border-gray-600">
+        <h3 className="text-sm font-medium text-gray-400 mb-3">Application Version</h3>
+        <VersionInfo />
+      </div>
     </div>
   );
 };

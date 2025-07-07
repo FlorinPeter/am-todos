@@ -63,9 +63,29 @@ fi
 echo -e "${GREEN}🔐 Configuring Docker authentication...${NC}"
 gcloud auth configure-docker europe-west4-docker.pkg.dev
 
-# Build the Docker image
+# Get build information
+GIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || echo "")
+BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+VERSION=$(grep '"version"' ../am-todos/package.json | cut -d'"' -f4 2>/dev/null || echo "0.1.0")
+
+echo -e "${GREEN}📋 Version Information:${NC}"
+echo "  Version: $VERSION"
+echo "  Git SHA: $GIT_SHA"
+echo "  Git Tag: $GIT_TAG"
+echo "  Build Date: $BUILD_DATE"
+echo ""
+
+# Build the Docker image with version information
 echo -e "${GREEN}🔨 Building Docker image...${NC}"
-docker build -f $DOCKERFILE_PATH -t $IMAGE ..
+docker build \
+  -f $DOCKERFILE_PATH \
+  --build-arg GIT_SHA="$GIT_SHA" \
+  --build-arg GIT_TAG="$GIT_TAG" \
+  --build-arg BUILD_DATE="$BUILD_DATE" \
+  --build-arg VERSION="$VERSION" \
+  -t $IMAGE \
+  ..
 
 # Push the image
 echo -e "${GREEN}📤 Pushing image to Artifact Registry...${NC}"
