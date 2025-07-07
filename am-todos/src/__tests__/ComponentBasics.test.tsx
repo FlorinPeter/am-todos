@@ -1,11 +1,12 @@
 import React from 'react';
 import { render } from '@testing-library/react';
+import { vi } from 'vitest';
 
 // Mock all external dependencies
-jest.mock('react-markdown');
-jest.mock('remark-gfm');
-jest.mock('../services/githubService');
-jest.mock('../services/aiService');
+vi.mock('react-markdown');
+vi.mock('remark-gfm');
+vi.mock('../services/githubService');
+vi.mock('../services/aiService');
 
 // Import components after mocking dependencies
 import MarkdownViewer from '../components/MarkdownViewer';
@@ -22,8 +23,8 @@ describe('Component Basic Functionality Tests', () => {
     const mockProps = {
       content: '# Test Content\n\n- [ ] Test task',
       chatHistory: [],
-      onMarkdownChange: jest.fn(),
-      onChatHistoryChange: jest.fn()
+      onMarkdownChange: vi.fn(),
+      onChatHistoryChange: vi.fn()
     };
 
     test('renders without crashing', () => {
@@ -64,9 +65,9 @@ describe('Component Basic Functionality Tests', () => {
 
     const mockProps = {
       selectedTodo: mockTodo,
-      onPriorityUpdate: jest.fn(),
-      onArchiveToggle: jest.fn(),
-      onDeleteTodo: jest.fn(),
+      onPriorityUpdate: vi.fn(),
+      onArchiveToggle: vi.fn(),
+      onDeleteTodo: vi.fn(),
       isLoading: false
     };
 
@@ -115,11 +116,11 @@ describe('Component Basic Functionality Tests', () => {
     const mockProps = {
       todos: mockTodos,
       selectedTodoId: 'todo-1',
-      onSelectTodo: jest.fn(),
-      onNewTodo: jest.fn(),
+      onSelectTodo: vi.fn(),
+      onNewTodo: vi.fn(),
       showArchived: false,
       isOpen: true,
-      onClose: jest.fn()
+      onClose: vi.fn()
     };
 
     test('renders without crashing', () => {
@@ -143,8 +144,8 @@ describe('Component Basic Functionality Tests', () => {
   describe('Feature 1: NewTodoInput Component', () => {
     const mockProps = {
       isOpen: true,
-      onClose: jest.fn(),
-      onSubmit: jest.fn(),
+      onClose: vi.fn(),
+      onSubmit: vi.fn(),
       isGenerating: false
     };
 
@@ -173,7 +174,7 @@ describe('Component Basic Functionality Tests', () => {
 
   describe('Feature 2: GitHubSettings Component', () => {
     const mockProps = {
-      onSave: jest.fn(),
+      onSave: vi.fn(),
       initialSettings: { pat: '', owner: '', repo: '' }
     };
 
@@ -184,7 +185,7 @@ describe('Component Basic Functionality Tests', () => {
 
     test('handles initial settings', () => {
       const settingsWithValues = {
-        onSave: jest.fn(),
+        onSave: vi.fn(),
         initialSettings: { pat: 'test-token', owner: 'test-owner', repo: 'test-repo' }
       };
       
@@ -202,8 +203,8 @@ describe('Component Basic Functionality Tests', () => {
   describe('Feature 4: AIChat Component', () => {
     const mockProps = {
       currentContent: '# Test',
-      onContentUpdate: jest.fn(),
-      onChatMessage: jest.fn().mockResolvedValue('Updated content')
+      onContentUpdate: vi.fn(),
+      onChatMessage: vi.fn().mockResolvedValue('Updated content')
     };
 
     test('renders without crashing', () => {
@@ -227,13 +228,14 @@ describe('Component Basic Functionality Tests', () => {
   });
 
   describe('Feature 9: GitHistory Component', () => {
-    test('component exists and is importable', () => {
-      expect(() => require.resolve('../components/GitHistory')).not.toThrow();
+    test('component exists and is importable', async () => {
+      const GitHistory = await import('../components/GitHistory');
+      expect(GitHistory.default).toBeDefined();
     });
 
     test('handles callback functions without errors', () => {
-      const mockRestore = jest.fn();
-      const mockClose = jest.fn();
+      const mockRestore = vi.fn();
+      const mockClose = vi.fn();
       
       expect(() => {
         mockRestore('restored content', 'commit-sha');
@@ -262,9 +264,9 @@ describe('Component Basic Functionality Tests', () => {
         
         const mockProps = {
           selectedTodo: mockTodo,
-          onPriorityUpdate: jest.fn(),
-          onArchiveToggle: jest.fn(),
-          onDeleteTodo: jest.fn(),
+          onPriorityUpdate: vi.fn(),
+          onArchiveToggle: vi.fn(),
+          onDeleteTodo: vi.fn(),
           isLoading: false
         };
         
@@ -297,9 +299,9 @@ describe('Component Basic Functionality Tests', () => {
       };
 
       const editorProps = {
-        onPriorityUpdate: jest.fn(),
-        onArchiveToggle: jest.fn(),
-        onDeleteTodo: jest.fn(),
+        onPriorityUpdate: vi.fn(),
+        onArchiveToggle: vi.fn(),
+        onDeleteTodo: vi.fn(),
         isLoading: false
       };
 
@@ -328,39 +330,39 @@ describe('Component Basic Functionality Tests', () => {
         () => render(<TodoSidebar 
           todos={todos}
           selectedTodoId="test"
-          onSelectTodo={jest.fn()}
-          onNewTodo={jest.fn()}
+          onSelectTodo={vi.fn()}
+          onNewTodo={vi.fn()}
           showArchived={false}
           isOpen={true}
-          onClose={jest.fn()}
+          onClose={vi.fn()}
         />),
         () => render(<TodoEditor 
           selectedTodo={todos[0]}
-          onPriorityUpdate={jest.fn()}
-          onArchiveToggle={jest.fn()}
-          onDeleteTodo={jest.fn()}
+          onPriorityUpdate={vi.fn()}
+          onArchiveToggle={vi.fn()}
+          onDeleteTodo={vi.fn()}
           isLoading={false}
         />),
         () => render(<MarkdownViewer 
           content="# Test"
           chatHistory={[]}
-          onMarkdownChange={jest.fn()}
-          onChatHistoryChange={jest.fn()}
+          onMarkdownChange={vi.fn()}
+          onChatHistoryChange={vi.fn()}
         />),
         () => render(<NewTodoInput 
           isOpen={false}
-          onClose={jest.fn()}
-          onSubmit={jest.fn()}
+          onClose={vi.fn()}
+          onSubmit={vi.fn()}
           isGenerating={false}
         />),
         () => render(<GitHubSettings 
-          onSave={jest.fn()}
+          onSave={vi.fn()}
           initialSettings={{ pat: '', owner: '', repo: '' }}
         />),
         () => render(<AIChat 
           currentContent="test"
-          onContentUpdate={jest.fn()}
-          onChatMessage={jest.fn().mockResolvedValue('response')}
+          onContentUpdate={vi.fn()}
+          onChatMessage={vi.fn().mockResolvedValue('response')}
         />),
         () => {
           // Skip GitHistory due to complex state management
