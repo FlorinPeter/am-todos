@@ -69,6 +69,12 @@ COPY --from=frontend-builder --chown=nextjs:nodejs /app/build ./build
 # Copy server source from am-todos subdirectory
 COPY --chown=nextjs:nodejs am-todos/server/server.js ./server/
 
+# Re-declare build args for runtime stage
+ARG GIT_SHA
+ARG GIT_TAG
+ARG BUILD_DATE
+ARG VERSION
+
 # Set environment variables
 ENV NODE_ENV=production
 ENV FRONTEND_BUILD_PATH=/app/build
