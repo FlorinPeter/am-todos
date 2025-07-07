@@ -208,43 +208,13 @@ function proxyPlugin(): Plugin {
 	return {
 		name: "proxy-plugin",
 		config() {
-			const { proxy } = JSON.parse(readFileSync("package.json", "utf-8"));
-			const publicUrl = process.env.PUBLIC_URL || "";
-			const basePath = publicUrl.startsWith("http")
-				? new URL(publicUrl).pathname
-				: publicUrl;
 			return {
 				server: {
 					proxy: {
-						"^.*": {
-							target: proxy,
+						"/api": {
+							target: "http://localhost:3001",
 							changeOrigin: true,
 							secure: false,
-							ws: true,
-							bypass(req) {
-								const path = req.url || "";
-								const pathWithoutBase = path.replace(
-									new RegExp(`^(${basePath})?/`),
-									"",
-								);
-								if (req.method !== "GET") return;
-								if (
-									!req.headers.accept?.includes("text/html") &&
-									!existsSync(resolve("public", pathWithoutBase)) &&
-									![
-										"src",
-										"@id",
-										"@fs",
-										"@vite",
-										"@react-refresh",
-										"node_modules",
-										"__open-in-editor",
-									].includes(pathWithoutBase.split("/")[0])
-								) {
-									return;
-								}
-								return req.url;
-							},
 						},
 					},
 				},
