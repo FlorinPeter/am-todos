@@ -207,18 +207,22 @@ function svgrPlugin(): Plugin {
 function proxyPlugin(): Plugin {
 	return {
 		name: "proxy-plugin",
-		config() {
-			return {
-				server: {
-					proxy: {
-						"/api": {
-							target: "http://localhost:3001",
-							changeOrigin: true,
-							secure: false,
+		config(_, { mode }) {
+			// Only proxy in development mode
+			if (mode === 'development') {
+				return {
+					server: {
+						proxy: {
+							"/api": {
+								target: "http://localhost:3001",
+								changeOrigin: true,
+								secure: false,
+							},
 						},
 					},
-				},
-			};
+				};
+			}
+			return {};
 		},
 	};
 }
