@@ -4,6 +4,18 @@ FROM node:18-alpine AS frontend-builder
 # Set working directory for frontend build
 WORKDIR /app
 
+# Capture build-time Git information
+ARG GIT_SHA
+ARG GIT_TAG
+ARG BUILD_DATE
+ARG VERSION
+
+# Set default values if not provided
+ENV REACT_APP_GIT_SHA=${GIT_SHA:-unknown}
+ENV REACT_APP_GIT_TAG=${GIT_TAG:-unknown}
+ENV REACT_APP_BUILD_DATE=${BUILD_DATE:-unknown}
+ENV REACT_APP_VERSION=${VERSION:-0.1.0}
+
 # Copy frontend package files from am-todos subdirectory
 COPY am-todos/package*.json ./
 COPY am-todos/tsconfig.json ./
@@ -60,6 +72,12 @@ COPY --chown=nextjs:nodejs am-todos/server/server.js ./server/
 # Set environment variables
 ENV NODE_ENV=production
 ENV FRONTEND_BUILD_PATH=/app/build
+
+# Pass build-time variables to runtime
+ENV GIT_SHA=${GIT_SHA:-unknown}
+ENV GIT_TAG=${GIT_TAG:-unknown}
+ENV BUILD_DATE=${BUILD_DATE:-unknown}
+ENV VERSION=${VERSION:-0.1.0}
 
 # Expose port (Cloud Run will set PORT dynamically)
 EXPOSE 8080

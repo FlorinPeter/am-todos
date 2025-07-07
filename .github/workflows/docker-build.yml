@@ -37,6 +37,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Get package version
+        id: package_version
+        run: |
+          VERSION=$(grep '"version"' am-todos/package.json | cut -d'"' -f4)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -66,4 +72,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            GIT_TAG=${{ github.ref_name }}
+            BUILD_DATE=${{ github.run_id }}
+            VERSION=${{ steps.package_version.outputs.version }}
 

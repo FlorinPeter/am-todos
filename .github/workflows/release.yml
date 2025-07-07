@@ -76,8 +76,10 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            VERSION=${{ steps.get_tag.outputs.tag }}
+            GIT_SHA=${{ github.sha }}
+            GIT_TAG=${{ steps.get_tag.outputs.tag }}
             BUILD_DATE=${{ github.run_id }}
+            VERSION=${{ steps.get_tag.outputs.tag }}
 
 
       - name: Create container summary
