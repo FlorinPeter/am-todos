@@ -31,8 +31,8 @@ jobs:
     - name: Install backend dependencies
       run: cd am-todos/server && npm ci
 
-    - name: Run frontend tests
-      run: cd am-todos && npm run test:basic
+    - name: Run all frontend tests
+      run: cd am-todos && npm test -- --run
 
     - name: Build frontend
       run: cd am-todos && npm run build
