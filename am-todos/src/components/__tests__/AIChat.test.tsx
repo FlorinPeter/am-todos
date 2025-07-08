@@ -119,6 +119,11 @@ describe('AIChat Component', () => {
       
       // Should show loading state
       expect(screen.getByText(/processing/i)).toBeInTheDocument();
+      
+      // Wait for the promise to resolve to prevent cleanup issues
+      await waitFor(() => {
+        expect(mockProps.onChatMessage).toHaveBeenCalled();
+      });
     });
 
     it('displays helper text when no chat history', async () => {
