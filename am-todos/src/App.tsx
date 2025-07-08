@@ -5,7 +5,7 @@ import TodoEditor from './components/TodoEditor';
 import GitHubSettings from './components/GitHubSettings';
 import ProjectManager from './components/ProjectManager';
 import { loadSettings, getUrlConfig, saveSettings } from './utils/localStorage';
-import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDirectory, moveTaskToArchive, moveTaskFromArchive } from './services/githubService';
+import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDirectory, moveTaskToArchive, moveTaskFromArchive, deleteFile } from './services/githubService';
 import { generateInitialPlan, generateCommitMessage } from './services/aiService';
 import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, TodoFrontmatter } from './utils/markdown';
 
@@ -213,6 +213,7 @@ function App() {
           .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
           .replace(/\s+/g, '-') // Replace spaces with hyphens
           .replace(/-+/g, '-') // Replace multiple hyphens with single
+          .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
           .trim()
           .substring(0, 50); // Limit length
       };
@@ -424,6 +425,13 @@ function App() {
         return;
       }
 
+      // Check if title actually changed
+      if (todoToUpdate.frontmatter?.title === newTitle) {
+        setIsSavingTask(false);
+        setSaveStep('');
+        return;
+      }
+
       setSaveStep('🔄 Getting latest file version...');
       // Get the latest SHA to avoid conflicts (same pattern as handleTodoUpdate)
       let latestSha = todoToUpdate.sha;
@@ -442,14 +450,73 @@ function App() {
       };
       const fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, todoToUpdate.content);
       
-      // Simple clear commit message without AI generation
-      const commitMessage = `docs: Update title to "${newTitle}"`;
-
-      setSaveStep('💾 Saving to GitHub...');
-      await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, latestSha);
+      // Generate new filename based on new title
+      const createSlug = (title: string) => {
+        return title
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+          .replace(/\s+/g, '-') // Replace spaces with hyphens
+          .replace(/-+/g, '-') // Replace multiple hyphens with single
+          .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
+          .trim()
+          .substring(0, 50); // Limit length
+      };
       
-      setSaveStep('🔄 Refreshing...');
-      await fetchTodos(todoToUpdate.path); // Re-fetch and preserve selection
+      const newSlug = createSlug(newTitle);
+      const timestamp = todoToUpdate.path.match(/\d{4}-\d{2}-\d{2}/)?.[0] || new Date().toISOString().split('T')[0];
+      const folder = settings.folder || 'todos';
+      const newPath = `${folder}/${timestamp}-${newSlug}.md`;
+      
+      const oldPath = todoToUpdate.path;
+      const needsRename = oldPath !== newPath;
+      
+      setSaveStep('🔍 Checking for conflicts...');
+      let finalPath = newPath;
+      
+      // Handle file name conflicts if renaming is needed
+      if (needsRename) {
+        let counter = 1;
+        let conflictFreePath = newPath;
+        
+        while (true) {
+          try {
+            await getFileMetadata(settings.pat, settings.owner, settings.repo, conflictFreePath);
+            // File exists, try next number
+            const pathParts = newPath.split('.');
+            const extension = pathParts.pop();
+            const basePath = pathParts.join('.');
+            conflictFreePath = `${basePath}-${counter}.${extension}`;
+            counter++;
+          } catch (error) {
+            // File doesn't exist, we can use this path
+            finalPath = conflictFreePath;
+            break;
+          }
+        }
+      }
+      
+      if (needsRename) {
+        setSaveStep('📁 Renaming file...');
+        
+        // Create new file with new name
+        const commitMessage = `docs: Rename task to "${newTitle}"`;
+        await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, finalPath, fullContent, commitMessage);
+        
+        // Delete old file
+        setSaveStep('🗑️ Cleaning up old file...');
+        await deleteFile(settings.pat, settings.owner, settings.repo, oldPath, latestSha, `docs: Remove old file after renaming to "${newTitle}"`);
+        
+        setSaveStep('🔄 Refreshing...');
+        await fetchTodos(finalPath); // Re-fetch and select the new file
+      } else {
+        // Just update the existing file
+        const commitMessage = `docs: Update title to "${newTitle}"`;
+        setSaveStep('💾 Saving to GitHub...');
+        await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, latestSha);
+        
+        setSaveStep('🔄 Refreshing...');
+        await fetchTodos(todoToUpdate.path); // Re-fetch and preserve selection
+      }
       
       setSaveStep('✅ Title updated!');
       setTimeout(() => {
