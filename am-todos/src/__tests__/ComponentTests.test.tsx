@@ -212,65 +212,9 @@ describe('Component Rendering Tests', () => {
 
   // GitHubSettings tests moved to dedicated test file
 
-  describe('Feature 4: AIChat Component', () => {
-    const mockProps = {
-      currentContent: '# Test',
-      onContentUpdate: vi.fn(),
-      onChatMessage: vi.fn().mockResolvedValue('Updated content')
-    };
+  // AIChat tests moved to dedicated test file
 
-    it('renders without crashing', () => {
-      render(<AIChat {...mockProps} />);
-      expect(document.body).toBeInTheDocument();
-    });
-
-    it('shows chat input field', () => {
-      render(<AIChat {...mockProps} />);
-      const chatInput = screen.getByPlaceholderText(/ask ai/i) || 
-                       screen.getByRole('textbox');
-      expect(chatInput).toBeInTheDocument();
-    });
-
-    it('shows send button', () => {
-      render(<AIChat {...mockProps} />);
-      const sendButton = screen.getByText(/send/i) || 
-                        screen.getByRole('button', { name: /send/i });
-      expect(sendButton).toBeInTheDocument();
-    });
-  });
-
-  describe('Feature 9: GitHistory Component', () => {
-    const mockProps = {
-      token: 'test-token',
-      owner: 'test-owner',
-      repo: 'test-repo',
-      filePath: 'test-file.md',
-      onRestore: vi.fn(),
-      onClose: vi.fn()
-    };
-
-    it('renders without crashing', () => {
-      render(<GitHistory {...mockProps} />);
-      expect(document.body).toBeInTheDocument();
-    });
-
-    it('shows close button', () => {
-      render(<GitHistory {...mockProps} />);
-      const closeButton = screen.getByText(/close/i) || 
-                         screen.getByRole('button', { name: /close/i });
-      expect(closeButton).toBeInTheDocument();
-    });
-
-    it('calls onClose when close button clicked', async () => {
-      render(<GitHistory {...mockProps} />);
-      
-      const closeButton = screen.getByText(/close/i) || 
-                         screen.getByRole('button', { name: /close/i });
-      await userEvent.click(closeButton);
-      
-      expect(mockProps.onClose).toHaveBeenCalled();
-    });
-  });
+  // GitHistory tests moved to dedicated test file
 
   describe('Integration Test - Multiple Components', () => {
     it('components can be rendered together without conflicts', () => {

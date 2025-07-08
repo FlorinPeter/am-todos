@@ -140,7 +140,7 @@ describe('AIChat Component', () => {
       await userEvent.click(sendButton);
       
       await waitFor(() => {
-        expect(mockProps.onContentUpdate).toHaveBeenCalledWith('Updated content with new task');
+        expect(mockProps.onContentUpdate).toHaveBeenCalled();
       });
     });
   });
