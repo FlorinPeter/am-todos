@@ -38,6 +38,28 @@ app.get('/api/version', (req, res) => {
   });
 });
 
+// Memory usage endpoint
+app.get('/api/memory', (req, res) => {
+  const memUsage = process.memoryUsage();
+  const formatBytes = (bytes) => {
+    const mb = bytes / 1024 / 1024;
+    return `${mb.toFixed(2)} MB`;
+  };
+  
+  res.status(200).json({
+    timestamp: new Date().toISOString(),
+    memory: {
+      rss: formatBytes(memUsage.rss), // Resident Set Size - total memory allocated
+      heapTotal: formatBytes(memUsage.heapTotal), // Total heap allocated
+      heapUsed: formatBytes(memUsage.heapUsed), // Heap actually used
+      external: formatBytes(memUsage.external), // External memory (C++ objects)
+      arrayBuffers: formatBytes(memUsage.arrayBuffers || 0) // ArrayBuffers
+    },
+    raw: memUsage, // Raw bytes for calculations
+    uptime: process.uptime() + ' seconds'
+  });
+});
+
 // Serve static files from the React app build directory in production
 if (process.env.NODE_ENV === 'production') {
   const buildPath = process.env.FRONTEND_BUILD_PATH || path.join(__dirname, '../build');
