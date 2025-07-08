@@ -37,8 +37,13 @@ const AIChat: React.FC<AIChatProps> = ({
   // Load checkpoints when taskId changes
   useEffect(() => {
     if (taskId) {
-      const loadedCheckpoints = getCheckpoints(taskId);
-      setCheckpoints(loadedCheckpoints);
+      try {
+        const loadedCheckpoints = getCheckpoints(taskId);
+        setCheckpoints(loadedCheckpoints);
+      } catch (error) {
+        console.error('Error loading checkpoints:', error);
+        setCheckpoints([]);
+      }
     } else {
       setCheckpoints([]);
     }
@@ -78,8 +83,12 @@ const AIChat: React.FC<AIChatProps> = ({
 
     // Save checkpoint to localStorage if taskId is available
     if (taskId) {
-      saveCheckpoint(taskId, checkpoint);
-      setCheckpoints(prev => [...prev, checkpoint]);
+      try {
+        saveCheckpoint(taskId, checkpoint);
+        setCheckpoints(prev => [...prev, checkpoint]);
+      } catch (error) {
+        console.error('Error saving checkpoint:', error);
+      }
     }
 
     try {

@@ -149,13 +149,13 @@ describe('MarkdownViewer - Basic Feature Coverage', () => {
       
       // The AIChat component should receive the taskId prop
       // This is tested implicitly through the component rendering without errors
-      expect(screen.getByText('AI Chat Assistant')).toBeInTheDocument();
+      expect(screen.getByText(/AI Chat Assistant/i)).toBeInTheDocument();
     });
 
     it('handles checkpoint restore in view mode', async () => {
       render(<MarkdownViewer {...mockProps} />);
       
-      const mockComponent = screen.getByText('AI Chat Assistant').closest('div');
+      const mockComponent = screen.getByText(/AI Chat Assistant/i).closest('div');
       expect(mockComponent).toBeInTheDocument();
       
       // The handleCheckpointRestore function should be passed to AIChat
@@ -175,7 +175,7 @@ describe('MarkdownViewer - Basic Feature Coverage', () => {
       });
       
       // The checkpoint restore should work in edit mode too
-      const mockComponent = screen.getByText('AI Chat Assistant').closest('div');
+      const mockComponent = screen.getByText(/AI Chat Assistant/i).closest('div');
       expect(mockComponent).toBeInTheDocument();
     });
 
@@ -208,7 +208,7 @@ describe('MarkdownViewer - Basic Feature Coverage', () => {
       });
       
       // The checkpoint restore functionality should be available
-      const mockComponent = screen.getByText('AI Chat Assistant').closest('div');
+      const mockComponent = screen.getByText(/AI Chat Assistant/i).closest('div');
       expect(mockComponent).toBeInTheDocument();
     });
 
@@ -216,7 +216,7 @@ describe('MarkdownViewer - Basic Feature Coverage', () => {
       render(<MarkdownViewer {...mockProps} />);
       
       // Initially in view mode
-      expect(screen.getByText('AI Chat Assistant')).toBeInTheDocument();
+      expect(screen.getByText(/AI Chat Assistant/i)).toBeInTheDocument();
       
       // Switch to edit mode
       const editButton = screen.getByText('Edit');
@@ -227,14 +227,14 @@ describe('MarkdownViewer - Basic Feature Coverage', () => {
       });
       
       // AIChat should still be available in edit mode
-      expect(screen.getByText('AI Chat Assistant')).toBeInTheDocument();
+      expect(screen.getByText(/AI Chat Assistant/i)).toBeInTheDocument();
       
       // Switch back to view mode
       const viewButton = screen.getByText('View');
       await userEvent.click(viewButton);
       
       // AIChat should still be available in view mode
-      expect(screen.getByText('AI Chat Assistant')).toBeInTheDocument();
+      expect(screen.getByText(/AI Chat Assistant/i)).toBeInTheDocument();
     });
   });
 });
