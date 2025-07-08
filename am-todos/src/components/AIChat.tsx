@@ -66,25 +66,25 @@ const AIChat: React.FC<AIChatProps> = ({
     setInputMessage('');
     setIsLoading(true);
 
+    // Create checkpoint BEFORE AI response to capture the state before changes
+    const checkpointId = generateCheckpointId();
+    const checkpoint: Checkpoint = {
+      id: checkpointId,
+      content: currentContent, // Store the content BEFORE AI modification
+      timestamp: new Date().toISOString(),
+      chatMessage: inputMessage.trim(),
+      description: `Before: ${inputMessage.trim().length > 40 ? inputMessage.trim().substring(0, 40) + '...' : inputMessage.trim()}`
+    };
+
+    // Save checkpoint to localStorage if taskId is available
+    if (taskId) {
+      saveCheckpoint(taskId, checkpoint);
+      setCheckpoints(prev => [...prev, checkpoint]);
+    }
+
     try {
       const updatedContent = await onChatMessage(inputMessage.trim(), currentContent);
       
-      // Create checkpoint after successful AI response
-      const checkpointId = generateCheckpointId();
-      const checkpoint: Checkpoint = {
-        id: checkpointId,
-        content: updatedContent,
-        timestamp: new Date().toISOString(),
-        chatMessage: inputMessage.trim(),
-        description: inputMessage.trim().length > 50 ? inputMessage.trim().substring(0, 50) + '...' : inputMessage.trim()
-      };
-
-      // Save checkpoint to localStorage if taskId is available
-      if (taskId) {
-        saveCheckpoint(taskId, checkpoint);
-        setCheckpoints(prev => [...prev, checkpoint]);
-      }
-
       const assistantMessage: ChatMessage = {
         role: 'assistant',
         content: 'Task updated successfully',
@@ -118,7 +118,7 @@ const AIChat: React.FC<AIChatProps> = ({
   const handleCheckpointRestore = (checkpointId: string) => {
     const checkpoint = checkpoints.find(cp => cp.id === checkpointId);
     if (checkpoint && onCheckpointRestore) {
-      if (window.confirm(`Restore to checkpoint: "${checkpoint.description}"?\n\nThis will replace your current content with the state from ${new Date(checkpoint.timestamp).toLocaleString()}. You will need to save manually to persist changes.`)) {
+      if (window.confirm(`Restore to the state before this AI response?\n\nRequest: "${checkpoint.description.replace('Before: ', '')}"\nTimestamp: ${new Date(checkpoint.timestamp).toLocaleString()}\n\nThis will replace your current content with the state from before the AI responded. You will need to save manually to persist changes.`)) {
         onCheckpointRestore(checkpoint.content);
       }
     }
