@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import TodoEditor from '../TodoEditor';
 
 const mockTodo = {
@@ -18,22 +19,27 @@ const mockTodo = {
 
 const mockProps = {
   selectedTodo: mockTodo,
-  onPriorityUpdate: jest.fn(),
-  onArchiveToggle: jest.fn(),
-  onDeleteTodo: jest.fn(),
-  isLoading: false
+  onTodoUpdate: vi.fn(),
+  onTitleUpdate: vi.fn(),
+  onPriorityUpdate: vi.fn(),
+  onArchiveToggle: vi.fn(),
+  onDeleteTodo: vi.fn(),
+  token: 'test-token',
+  owner: 'test-owner',
+  repo: 'test-repo'
 };
 
 describe('TodoEditor - Basic Feature Coverage', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('Feature 5: Task Management System', () => {
     test('renders todo title and metadata', () => {
       render(<TodoEditor {...mockProps} />);
       
-      expect(screen.getByText('Test Todo')).toBeInTheDocument();
+      // Use getAllByText since the title appears in both header and markdown content
+      expect(screen.getAllByText('Test Todo')).toHaveLength(2);
     });
 
     test('shows priority selector with current priority', () => {
@@ -71,25 +77,26 @@ describe('TodoEditor - Basic Feature Coverage', () => {
     test('shows delete button', () => {
       render(<TodoEditor {...mockProps} />);
       
-      const deleteButton = screen.getByText(/delete/i);
+      const deleteButton = screen.getByTitle('Delete task');
       expect(deleteButton).toBeInTheDocument();
     });
 
     test('calls onDeleteTodo when delete button clicked', async () => {
       render(<TodoEditor {...mockProps} />);
       
-      const deleteButton = screen.getByText(/delete/i);
+      const deleteButton = screen.getByTitle('Delete task');
       await userEvent.click(deleteButton);
       
       expect(mockProps.onDeleteTodo).toHaveBeenCalledWith('test-todo-id');
     });
 
-    test('shows loading state when isLoading is true', () => {
-      render(<TodoEditor {...mockProps} isLoading={true} />);
+    test('renders properly with all required props', () => {
+      render(<TodoEditor {...mockProps} />);
       
-      // Check for loading indicators or disabled state
-      const deleteButton = screen.getByText(/delete/i);
-      expect(deleteButton).toBeDisabled();
+      // Check that all buttons are rendered and functional
+      const deleteButton = screen.getByTitle('Delete task');
+      expect(deleteButton).toBeInTheDocument();
+      expect(deleteButton).not.toBeDisabled();
     });
 
     test('displays creation date', () => {
