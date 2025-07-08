@@ -1,96 +1,87 @@
-# Operational Scripts
+# Deployment and Monitoring Scripts
 
-Scripts for AM-Todos development and deployment operations.
+This directory contains scripts for deploying and monitoring the AM-Todos application.
 
-## Development Scripts
+## 🔒 Security Notice
 
-### restart-dev.sh
-Restart development servers (frontend + backend) for local development.
+**IMPORTANT**: Never commit Google Cloud project IDs or other sensitive information to the repository!
 
-```bash
-./hack/restart-dev.sh
-```
+## 🌍 Environment Setup
 
-This will:
-- Stop any existing React and Node.js processes
-- Start backend server on port 3001
-- Start frontend development server on port 3000
-- Show access URLs and log file locations
-
-## Deployment Scripts
-
-Production-ready deployment scripts for AM-Todos to Google Cloud Run with custom domain support.
-
-## Quick Start
+Before using these scripts, set your Google Cloud project:
 
 ```bash
-# Set your project ID and source image
-export GOOGLE_CLOUD_PROJECT="my-project-123"
-export SOURCE_IMAGE="ghcr.io/your-username/am-todos:v1.0.0"
+# Set environment variable (recommended)
+export GOOGLE_CLOUD_PROJECT="your-project-id"
 
-# Optional: Set custom domain (requires domain verification)
-export CUSTOM_DOMAIN="todo.yourdomain.com"
-
-# One-command deployment
-./deploy-all.sh
+# Or configure gcloud
+gcloud config set project your-project-id
 ```
 
-## Environment Variables
+For convenience, you can create a `.env` file (which is gitignored):
 
-### Required
-- `GOOGLE_CLOUD_PROJECT` - Your Google Cloud project ID
-
-### Optional
-- `SOURCE_IMAGE` - Source container image (default: "ghcr.io/your-username/am-todos:v1.0.0")
-- `SERVICE_NAME` - Cloud Run service name (default: "am-todos")
-- `CUSTOM_DOMAIN` - Custom domain for the service (e.g., "todo.yourdomain.com")
-- `MEMORY` - Memory allocation (default: "1Gi")
-- `CPU` - CPU allocation (default: "1")
-- `MIN_INSTANCES` - Minimum instances (default: "0")
-- `MAX_INSTANCES` - Maximum instances (default: "10")
-
-## Deployment Options
-
-### Option 1: Complete deployment (Recommended)
 ```bash
-./deploy-all.sh
-```
-Pulls existing image, retags it, pushes to Artifact Registry, and deploys with optional custom domain.
+# Copy the example
+cp .env.example .env
 
-### Option 2: Step-by-step deployment
+# Edit with your values
+nano .env
+
+# Source it
+source .env
+```
+
+## 📊 Memory Monitoring
+
+### Quick Memory Check
 ```bash
-./pull-and-push.sh      # Pull and retag image
-./deploy-to-cloud-run.sh # Deploy to Cloud Run
+./hack/cloudrun-memory.sh
 ```
 
-### Option 3: Build from source
-```bash
-./build-and-push.sh     # Build from local source
-./deploy-to-cloud-run.sh # Deploy to Cloud Run
-```
+This script provides:
+- Current service configuration
+- Direct links to Cloud Console metrics
+- Command-line monitoring options
+- Health check results
 
-## Custom Domain Setup
+### Monitoring Options
 
-The deployment script automatically handles custom domain configuration:
+1. **Cloud Console** (Recommended)
+   - Real-time graphs and historical data
+   - Multiple metrics in one dashboard
 
-1. **Domain Verification Required**: Verify your domain in [Google Search Console](https://search.google.com/search-console) first
-2. **DNS Configuration**: The script provides the DNS records you need to add to your domain registrar
-3. **SSL Certificate**: Google automatically provisions SSL certificates for custom domains
-4. **Region**: Uses europe-west4 (Netherlands) which supports custom domain mapping
+2. **Command Line** (Advanced)
+   ```bash
+   gcloud monitoring read \
+     --project="$GOOGLE_CLOUD_PROJECT" \
+     --freshness="5m" \
+     --window="5m" \
+     'metric.type="run.googleapis.com/container/memory/utilization" resource.type="cloud_run_revision" resource.label."service_name"="am-todos"'
+   ```
 
-### Example DNS Configuration
-```
-Type: CNAME
-Name: todo (or your subdomain)
-Value: ghs.googlehosted.com.
-```
+3. **Application Endpoint**
+   ```bash
+   curl https://your-service-url/api/memory
+   ```
 
-**Important**: Disable proxy mode in Cloudflare (gray cloud, not orange) to avoid redirect loops.
+## 🚀 Deployment Scripts
 
-## Production Notes
+- `build-with-version.sh` - Local build with version info
+- `build-and-push.sh` - Build and push to Artifact Registry
+- `deploy-to-cloud-run.sh` - Deploy to Cloud Run
+- `deploy-all.sh` - Complete deployment pipeline
 
-- **Region**: europe-west4 (Netherlands) for custom domain support
-- **Registry**: Google Artifact Registry for container storage  
-- **SSL**: Automatic HTTPS with Google-managed certificates
-- **Scaling**: Scales to zero when not in use (min-instances=0)
-- **Environment**: Production builds with optimized React frontend
+## 💾 Memory Usage Interpretation
+
+- **Memory Limit**: 1Gi (1024 MB)
+- **Values**: Shown as decimal (0.0 to 1.0)
+- **Example**: 0.25 = 25% = ~256 MB used
+- **Thresholds**:
+  - Green: < 60% usage
+  - Yellow: 60-80% usage  
+  - Red: > 80% usage (consider scaling)
+
+## 🔧 Development Scripts
+
+- `restart-dev.sh` - Restart development servers
+- `memory-usage.sh` - Local development memory monitoring
