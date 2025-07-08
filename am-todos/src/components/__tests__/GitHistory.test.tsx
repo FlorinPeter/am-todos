@@ -1,18 +1,19 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import GitHistory from '../GitHistory';
 
 // Mock the GitHub service
-jest.mock('../../services/githubService');
+vi.mock('../../services/githubService');
 
 const mockProps = {
   token: 'test-token',
   owner: 'test-owner',
   repo: 'test-repo',
   filePath: 'todos/test-file.md',
-  onRestore: jest.fn(),
-  onClose: jest.fn()
+  onRestore: vi.fn(),
+  onClose: vi.fn()
 };
 
 const mockCommits = [
@@ -40,7 +41,7 @@ const mockCommits = [
 
 describe('GitHistory - Basic Feature Coverage', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     
     // Mock fetch for GitHub API calls
     (fetch as jest.Mock)
@@ -57,7 +58,7 @@ describe('GitHistory - Basic Feature Coverage', () => {
   });
 
   describe('Feature 9: Git History & Version Control', () => {
-    test('renders git history modal', async () => {
+    it('renders git history modal', async () => {
       render(<GitHistory {...mockProps} />);
       
       await waitFor(() => {
@@ -65,7 +66,7 @@ describe('GitHistory - Basic Feature Coverage', () => {
       });
     });
 
-    test('shows close button', () => {
+    it('shows close button', () => {
       render(<GitHistory {...mockProps} />);
       
       const closeButton = screen.getByText(/close/i) || 
@@ -73,7 +74,7 @@ describe('GitHistory - Basic Feature Coverage', () => {
       expect(closeButton).toBeInTheDocument();
     });
 
-    test('calls onClose when close button clicked', async () => {
+    it('calls onClose when close button clicked', async () => {
       render(<GitHistory {...mockProps} />);
       
       const closeButton = screen.getByText(/close/i) || 
@@ -83,7 +84,7 @@ describe('GitHistory - Basic Feature Coverage', () => {
       expect(mockProps.onClose).toHaveBeenCalled();
     });
 
-    test('loads and displays commit history', async () => {
+    it('loads and displays commit history', async () => {
       render(<GitHistory {...mockProps} />);
       
       await waitFor(() => {
@@ -92,7 +93,7 @@ describe('GitHistory - Basic Feature Coverage', () => {
       });
     });
 
-    test('shows commit metadata (author, date)', async () => {
+    it('shows commit metadata (author, date)', async () => {
       render(<GitHistory {...mockProps} />);
       
       await waitFor(() => {
@@ -101,7 +102,7 @@ describe('GitHistory - Basic Feature Coverage', () => {
       });
     });
 
-    test('shows commit SHA (short format)', async () => {
+    it('shows commit SHA (short format)', async () => {
       render(<GitHistory {...mockProps} />);
       
       await waitFor(() => {
@@ -109,7 +110,7 @@ describe('GitHistory - Basic Feature Coverage', () => {
       });
     });
 
-    test('loads file content when commit selected', async () => {
+    it('loads file content when commit selected', async () => {
       render(<GitHistory {...mockProps} />);
       
       await waitFor(() => {
@@ -125,7 +126,7 @@ describe('GitHistory - Basic Feature Coverage', () => {
       });
     });
 
-    test('shows restore button for selected commit', async () => {
+    it('shows restore button for selected commit', async () => {
       render(<GitHistory {...mockProps} />);
       
       await waitFor(() => {
@@ -139,7 +140,7 @@ describe('GitHistory - Basic Feature Coverage', () => {
       });
     });
 
-    test('calls onRestore when restore button clicked', async () => {
+    it('calls onRestore when restore button clicked', async () => {
       render(<GitHistory {...mockProps} />);
       
       await waitFor(() => {
@@ -158,13 +159,13 @@ describe('GitHistory - Basic Feature Coverage', () => {
       );
     });
 
-    test('shows loading state while fetching history', () => {
+    it('shows loading state while fetching history', () => {
       render(<GitHistory {...mockProps} />);
       
       expect(screen.getByText(/loading/i) || screen.getByText(/fetching/i)).toBeInTheDocument();
     });
 
-    test('shows loading state while fetching file content', async () => {
+    it('shows loading state while fetching file content', async () => {
       render(<GitHistory {...mockProps} />);
       
       await waitFor(() => {
@@ -178,7 +179,7 @@ describe('GitHistory - Basic Feature Coverage', () => {
   });
 
   describe('Error Handling', () => {
-    test('handles API errors gracefully', async () => {
+    it('handles API errors gracefully', async () => {
       (fetch as jest.Mock).mockRejectedValueOnce(new Error('API Error'));
       
       render(<GitHistory {...mockProps} />);
@@ -188,7 +189,7 @@ describe('GitHistory - Basic Feature Coverage', () => {
       });
     });
 
-    test('handles empty commit history', async () => {
+    it('handles empty commit history', async () => {
       (fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve([])
@@ -201,7 +202,7 @@ describe('GitHistory - Basic Feature Coverage', () => {
       });
     });
 
-    test('handles file not found in commit', async () => {
+    it('handles file not found in commit', async () => {
       (fetch as jest.Mock)
         .mockResolvedValueOnce({
           ok: true,
@@ -226,7 +227,7 @@ describe('GitHistory - Basic Feature Coverage', () => {
   });
 
   describe('UI and UX', () => {
-    test('displays commits in chronological order', async () => {
+    it('displays commits in chronological order', async () => {
       render(<GitHistory {...mockProps} />);
       
       await waitFor(() => {
@@ -239,7 +240,7 @@ describe('GitHistory - Basic Feature Coverage', () => {
       });
     });
 
-    test('highlights selected commit', async () => {
+    it('highlights selected commit', async () => {
       render(<GitHistory {...mockProps} />);
       
       await waitFor(() => {
@@ -251,7 +252,7 @@ describe('GitHistory - Basic Feature Coverage', () => {
       expect(selectedCommit).toHaveClass('bg-blue-600');
     });
 
-    test('shows file diff or content preview', async () => {
+    it('shows file diff or content preview', async () => {
       render(<GitHistory {...mockProps} />);
       
       await waitFor(() => {
@@ -267,7 +268,7 @@ describe('GitHistory - Basic Feature Coverage', () => {
       });
     });
 
-    test('handles modal keyboard navigation', async () => {
+    it('handles modal keyboard navigation', async () => {
       render(<GitHistory {...mockProps} />);
       
       // Test Escape key closes modal
