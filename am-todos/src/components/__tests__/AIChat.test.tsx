@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import AIChat from '../AIChat';
+import * as localStorage from '../../utils/localStorage';
 
 // Mock scrollIntoView
 Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
@@ -10,10 +11,25 @@ Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
   writable: true
 });
 
+// Mock localStorage functions
+vi.mock('../../utils/localStorage', () => ({
+  saveCheckpoint: vi.fn(),
+  getCheckpoints: vi.fn(() => []),
+  clearCheckpoints: vi.fn(),
+  generateCheckpointId: vi.fn(() => 'test-checkpoint-id'),
+  saveSettings: vi.fn(),
+  loadSettings: vi.fn(),
+  encodeSettingsToUrl: vi.fn(),
+  decodeSettingsFromUrl: vi.fn(),
+  getUrlConfig: vi.fn()
+}));
+
 const mockProps = {
   currentContent: '# Test Todo\n\n- [ ] Task 1\n- [ ] Task 2',
   onContentUpdate: vi.fn(),
-  onChatMessage: vi.fn().mockResolvedValue('Updated content with new task')
+  onChatMessage: vi.fn().mockResolvedValue('Updated content with new task'),
+  taskId: 'test-task-id',
+  onCheckpointRestore: vi.fn()
 };
 
 describe('AIChat Component', () => {
@@ -167,6 +183,253 @@ describe('AIChat Component', () => {
       // Should not crash the component
       await waitFor(() => {
         expect(mockProps.onChatMessage).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('Checkpoint Functionality', () => {
+    const mockCheckpoint = {
+      id: 'test-checkpoint-id',
+      content: '# Original content before AI response',
+      timestamp: '2023-01-01T12:00:00.000Z',
+      chatMessage: 'Add a new task',
+      description: 'Before: Add a new task'
+    };
+
+    beforeEach(() => {
+      vi.mocked(localStorage.getCheckpoints).mockReturnValue([]);
+      vi.mocked(localStorage.generateCheckpointId).mockReturnValue('test-checkpoint-id');
+    });
+
+    it('loads existing checkpoints on component mount', () => {
+      render(<AIChat {...mockProps} taskId="test-task-id" />);
+      
+      expect(localStorage.getCheckpoints).toHaveBeenCalledWith('test-task-id');
+    });
+
+    it('creates checkpoint before AI response', async () => {
+      render(<AIChat {...mockProps} />);
+      const toggleButton = screen.getByText(/AI Chat Assistant/i);
+      await userEvent.click(toggleButton);
+      
+      const input = screen.getByPlaceholderText(/ask me to modify/i);
+      const sendButton = screen.getByRole('button', { name: '' });
+      
+      await userEvent.type(input, 'Add a new task');
+      await userEvent.click(sendButton);
+      
+      await waitFor(() => {
+        expect(localStorage.saveCheckpoint).toHaveBeenCalledWith('test-task-id', {
+          id: 'test-checkpoint-id',
+          content: mockProps.currentContent,
+          timestamp: expect.any(String),
+          chatMessage: 'Add a new task',
+          description: 'Before: Add a new task'
+        });
+      });
+    });
+
+    it('does not create checkpoint when taskId is missing', async () => {
+      render(<AIChat {...mockProps} taskId={undefined} />);
+      const toggleButton = screen.getByText(/AI Chat Assistant/i);
+      await userEvent.click(toggleButton);
+      
+      const input = screen.getByPlaceholderText(/ask me to modify/i);
+      const sendButton = screen.getByRole('button', { name: '' });
+      
+      await userEvent.type(input, 'Add a new task');
+      await userEvent.click(sendButton);
+      
+      await waitFor(() => {
+        expect(mockProps.onChatMessage).toHaveBeenCalled();
+      });
+      
+      expect(localStorage.saveCheckpoint).not.toHaveBeenCalled();
+    });
+
+    it('shows checkpoint count in UI', () => {
+      const checkpoints = [mockCheckpoint];
+      vi.mocked(localStorage.getCheckpoints).mockReturnValue(checkpoints);
+      
+      render(<AIChat {...mockProps} />);
+      const toggleButton = screen.getByText(/AI Chat Assistant/i);
+      userEvent.click(toggleButton);
+      
+      waitFor(() => {
+        expect(screen.getByText('1 checkpoint')).toBeInTheDocument();
+      });
+    });
+
+    it('shows plural checkpoints count', () => {
+      const checkpoints = [mockCheckpoint, { ...mockCheckpoint, id: 'checkpoint-2' }];
+      vi.mocked(localStorage.getCheckpoints).mockReturnValue(checkpoints);
+      
+      render(<AIChat {...mockProps} />);
+      const toggleButton = screen.getByText(/AI Chat Assistant/i);
+      userEvent.click(toggleButton);
+      
+      waitFor(() => {
+        expect(screen.getByText('2 checkpoints')).toBeInTheDocument();
+      });
+    });
+
+    it('shows restore button for assistant messages with checkpoints', async () => {
+      render(<AIChat {...mockProps} />);
+      const toggleButton = screen.getByText(/AI Chat Assistant/i);
+      await userEvent.click(toggleButton);
+      
+      const input = screen.getByPlaceholderText(/ask me to modify/i);
+      const sendButton = screen.getByRole('button', { name: '' });
+      
+      await userEvent.type(input, 'Test message');
+      await userEvent.click(sendButton);
+      
+      await waitFor(() => {
+        expect(screen.getByText('Task updated successfully')).toBeInTheDocument();
+      });
+      
+      expect(screen.getByText('Restore')).toBeInTheDocument();
+    });
+
+    it('calls onCheckpointRestore when restore button is clicked', async () => {
+      vi.mocked(localStorage.getCheckpoints).mockReturnValue([mockCheckpoint]);
+      window.confirm = vi.fn().mockReturnValue(true);
+      
+      render(<AIChat {...mockProps} />);
+      const toggleButton = screen.getByText(/AI Chat Assistant/i);
+      await userEvent.click(toggleButton);
+      
+      const input = screen.getByPlaceholderText(/ask me to modify/i);
+      const sendButton = screen.getByRole('button', { name: '' });
+      
+      await userEvent.type(input, 'Test message');
+      await userEvent.click(sendButton);
+      
+      await waitFor(() => {
+        expect(screen.getByText('Restore')).toBeInTheDocument();
+      });
+      
+      const restoreButton = screen.getByText('Restore');
+      await userEvent.click(restoreButton);
+      
+      expect(window.confirm).toHaveBeenCalledWith(
+        expect.stringContaining('Restore to the state before this AI response?')
+      );
+      expect(mockProps.onCheckpointRestore).toHaveBeenCalledWith(mockCheckpoint.content);
+    });
+
+    it('does not restore when user cancels confirmation', async () => {
+      vi.mocked(localStorage.getCheckpoints).mockReturnValue([mockCheckpoint]);
+      window.confirm = vi.fn().mockReturnValue(false);
+      
+      render(<AIChat {...mockProps} />);
+      const toggleButton = screen.getByText(/AI Chat Assistant/i);
+      await userEvent.click(toggleButton);
+      
+      const input = screen.getByPlaceholderText(/ask me to modify/i);
+      const sendButton = screen.getByRole('button', { name: '' });
+      
+      await userEvent.type(input, 'Test message');
+      await userEvent.click(sendButton);
+      
+      await waitFor(() => {
+        expect(screen.getByText('Restore')).toBeInTheDocument();
+      });
+      
+      const restoreButton = screen.getByText('Restore');
+      await userEvent.click(restoreButton);
+      
+      expect(window.confirm).toHaveBeenCalled();
+      expect(mockProps.onCheckpointRestore).not.toHaveBeenCalled();
+    });
+
+    it('shows clear checkpoints button when checkpoints exist', async () => {
+      vi.mocked(localStorage.getCheckpoints).mockReturnValue([mockCheckpoint]);
+      
+      render(<AIChat {...mockProps} />);
+      const toggleButton = screen.getByText(/AI Chat Assistant/i);
+      await userEvent.click(toggleButton);
+      
+      await waitFor(() => {
+        expect(screen.getByText('Clear Checkpoints')).toBeInTheDocument();
+      });
+    });
+
+    it('clears checkpoints when clear button is clicked', async () => {
+      vi.mocked(localStorage.getCheckpoints).mockReturnValue([mockCheckpoint]);
+      window.confirm = vi.fn().mockReturnValue(true);
+      
+      render(<AIChat {...mockProps} />);
+      const toggleButton = screen.getByText(/AI Chat Assistant/i);
+      await userEvent.click(toggleButton);
+      
+      await waitFor(() => {
+        expect(screen.getByText('Clear Checkpoints')).toBeInTheDocument();
+      });
+      
+      const clearButton = screen.getByText('Clear Checkpoints');
+      await userEvent.click(clearButton);
+      
+      expect(window.confirm).toHaveBeenCalledWith(
+        'Clear all checkpoints for this task? This cannot be undone.'
+      );
+      expect(localStorage.clearCheckpoints).toHaveBeenCalledWith('test-task-id');
+    });
+
+    it('does not clear checkpoints when user cancels', async () => {
+      vi.mocked(localStorage.getCheckpoints).mockReturnValue([mockCheckpoint]);
+      window.confirm = vi.fn().mockReturnValue(false);
+      
+      render(<AIChat {...mockProps} />);
+      const toggleButton = screen.getByText(/AI Chat Assistant/i);
+      await userEvent.click(toggleButton);
+      
+      await waitFor(() => {
+        expect(screen.getByText('Clear Checkpoints')).toBeInTheDocument();
+      });
+      
+      const clearButton = screen.getByText('Clear Checkpoints');
+      await userEvent.click(clearButton);
+      
+      expect(window.confirm).toHaveBeenCalled();
+      expect(localStorage.clearCheckpoints).not.toHaveBeenCalled();
+    });
+
+    it('clears chat history when taskId changes', () => {
+      const { rerender } = render(<AIChat {...mockProps} taskId="task-1" />);
+      
+      // Simulate user interaction to create chat history
+      const toggleButton = screen.getByText(/AI Chat Assistant/i);
+      userEvent.click(toggleButton);
+      
+      // Change taskId
+      rerender(<AIChat {...mockProps} taskId="task-2" />);
+      
+      // Should load checkpoints for new task
+      expect(localStorage.getCheckpoints).toHaveBeenCalledWith('task-2');
+    });
+
+    it('truncates long descriptions in checkpoint creation', async () => {
+      const longMessage = 'This is a very long message that should be truncated when creating checkpoint description';
+      
+      render(<AIChat {...mockProps} />);
+      const toggleButton = screen.getByText(/AI Chat Assistant/i);
+      await userEvent.click(toggleButton);
+      
+      const input = screen.getByPlaceholderText(/ask me to modify/i);
+      const sendButton = screen.getByRole('button', { name: '' });
+      
+      await userEvent.type(input, longMessage);
+      await userEvent.click(sendButton);
+      
+      await waitFor(() => {
+        expect(localStorage.saveCheckpoint).toHaveBeenCalledWith('test-task-id', {
+          id: 'test-checkpoint-id',
+          content: mockProps.currentContent,
+          timestamp: expect.any(String),
+          chatMessage: longMessage,
+          description: `Before: ${longMessage.substring(0, 40)}...`
+        });
       });
     });
   });
