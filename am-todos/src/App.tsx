@@ -401,6 +401,63 @@ function App() {
     }
   };
 
+  const handleTitleUpdate = async (id: string, newTitle: string) => {
+    if (!settings) return;
+    try {
+      setIsSavingTask(true);
+      setSaveStep('📝 Updating title...');
+      
+      const todoToUpdate = todos.find(todo => todo.id === id);
+      if (!todoToUpdate) {
+        setIsSavingTask(false);
+        setSaveStep('');
+        return;
+      }
+
+      setSaveStep('🔄 Getting latest file version...');
+      // Get the latest SHA to avoid conflicts (same pattern as handleTodoUpdate)
+      let latestSha = todoToUpdate.sha;
+      try {
+        const latestMetadata = await getFileMetadata(settings.pat, settings.owner, settings.repo, todoToUpdate.path);
+        latestSha = latestMetadata.sha;
+        console.log('Title update: Latest SHA retrieved:', latestSha);
+      } catch (shaError) {
+        console.log('Title update: Could not fetch latest SHA, using existing:', latestSha);
+      }
+
+      setSaveStep('📝 Preparing content...');
+      const updatedFrontmatter = {
+        ...todoToUpdate.frontmatter,
+        title: newTitle
+      };
+      const fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, todoToUpdate.content);
+      
+      // Simple clear commit message without AI generation
+      const commitMessage = `docs: Update title to "${newTitle}"`;
+
+      setSaveStep('💾 Saving to GitHub...');
+      await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, latestSha);
+      
+      setSaveStep('🔄 Refreshing...');
+      await fetchTodos();
+      
+      setSaveStep('✅ Title updated!');
+      setTimeout(() => {
+        setIsSavingTask(false);
+        setSaveStep('');
+      }, 1000);
+      
+    } catch (error) {
+      console.error("Error updating title:", error);
+      setSaveStep('❌ Title update failed!');
+      setTimeout(() => {
+        setIsSavingTask(false);
+        setSaveStep('');
+        alert(`Failed to update title: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }, 1000);
+    }
+  };
+
   const handleArchiveToggle = async (id: string) => {
     if (!settings) return;
     try {
@@ -760,6 +817,7 @@ function App() {
           <TodoEditor
             selectedTodo={selectedTodo}
             onTodoUpdate={handleTodoUpdate}
+            onTitleUpdate={handleTitleUpdate}
             onPriorityUpdate={handlePriorityUpdate}
             onArchiveToggle={handleArchiveToggle}
             onDeleteTodo={handleDeleteTodo}
