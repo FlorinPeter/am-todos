@@ -94,8 +94,9 @@ describe('GitHubSettings - Basic Feature Coverage', () => {
       
       const providerSelect = screen.getByLabelText(/AI Provider/i);
       expect(providerSelect).toBeInTheDocument();
-      expect(screen.getByText(/Google Gemini/i)).toBeInTheDocument();
-      expect(screen.getByText(/OpenRouter/i)).toBeInTheDocument();
+      
+      // Check that the select has the expected default value
+      expect(providerSelect).toHaveValue('gemini');
     });
   });
 

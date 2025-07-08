@@ -5,10 +5,8 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import NewTodoInput from '../NewTodoInput';
 
 const mockProps = {
-  isOpen: true,
-  onClose: vi.fn(),
-  onSubmit: vi.fn(),
-  isGenerating: false
+  onGoalSubmit: vi.fn(),
+  onCancel: vi.fn()
 };
 
 describe('NewTodoInput - Basic Feature Coverage', () => {
@@ -33,7 +31,7 @@ describe('NewTodoInput - Basic Feature Coverage', () => {
     it('shows goal input field', () => {
       render(<NewTodoInput {...mockProps} />);
       
-      const goalInput = screen.getByPlaceholderText(/describe your goal/i);
+      const goalInput = screen.getByPlaceholderText(/enter a new high-level goal/i);
       expect(goalInput).toBeInTheDocument();
     });
 
@@ -47,7 +45,7 @@ describe('NewTodoInput - Basic Feature Coverage', () => {
     it('calls onSubmit when form submitted with goal', async () => {
       render(<NewTodoInput {...mockProps} />);
       
-      const goalInput = screen.getByPlaceholderText(/describe your goal/i);
+      const goalInput = screen.getByPlaceholderText(/enter a new high-level goal/i);
       const generateButton = screen.getByText(/generate/i);
       
       await userEvent.type(goalInput, 'Deploy web application');
@@ -72,46 +70,52 @@ describe('NewTodoInput - Basic Feature Coverage', () => {
       const closeButton = screen.getByText(/cancel/i) || screen.getByRole('button', { name: /close/i });
       await userEvent.click(closeButton);
       
-      expect(mockProps.onClose).toHaveBeenCalled();
+      expect(mockProps.onCancel).toHaveBeenCalled();
     });
 
-    it('calls onClose when escape key pressed', async () => {
+    it('calls onCancel when escape key pressed', async () => {
       render(<NewTodoInput {...mockProps} />);
       
-      fireEvent.keyDown(document, { key: 'Escape' });
+      const input = screen.getByPlaceholderText(/enter a new high-level goal/i);
+      fireEvent.keyPress(input, { key: 'Escape' });
       
-      expect(mockProps.onClose).toHaveBeenCalled();
+      expect(mockProps.onCancel).toHaveBeenCalled();
     });
   });
 
   describe('Feature 3: Progress Tracking UI', () => {
-    it('shows loading state when isGenerating is true', () => {
-      render(<NewTodoInput {...mockProps} isGenerating={true} />);
+    it('enables submit button when goal is entered', async () => {
+      render(<NewTodoInput {...mockProps} />);
       
-      // Check for loading indicator
-      const loadingText = screen.getByText(/generating/i);
-      expect(loadingText).toBeInTheDocument();
+      const input = screen.getByPlaceholderText(/enter a new high-level goal/i);
+      const submitButton = screen.getByText(/generate todo list/i);
       
-      // Generate button should be disabled
-      const generateButton = screen.getByText(/generating/i);
-      expect(generateButton).toBeDisabled();
+      // Button should be disabled initially
+      expect(submitButton).toBeDisabled();
+      
+      // Type in goal
+      await userEvent.type(input, 'Test goal');
+      
+      // Button should be enabled
+      expect(submitButton).toBeEnabled();
     });
 
-    it('disables input during generation', () => {
-      render(<NewTodoInput {...mockProps} isGenerating={true} />);
+    it('calls onGoalSubmit when form is submitted', async () => {
+      render(<NewTodoInput {...mockProps} />);
       
-      const goalInput = screen.getByPlaceholderText(/describe your goal/i);
-      expect(goalInput).toBeDisabled();
+      const input = screen.getByPlaceholderText(/enter a new high-level goal/i);
+      const submitButton = screen.getByText(/generate todo list/i);
+      
+      await userEvent.type(input, 'Test goal');
+      await userEvent.click(submitButton);
+      
+      expect(mockProps.onGoalSubmit).toHaveBeenCalledWith('Test goal');
     });
 
-    it('enables input when not generating', () => {
-      render(<NewTodoInput {...mockProps} isGenerating={false} />);
+    it('shows cancel button when onCancel prop is provided', () => {
+      render(<NewTodoInput {...mockProps} />);
       
-      const goalInput = screen.getByPlaceholderText(/describe your goal/i);
-      expect(goalInput).not.toBeDisabled();
-      
-      const generateButton = screen.getByText(/generate/i);
-      expect(generateButton).not.toBeDisabled();
+      expect(screen.getByText(/cancel/i)).toBeInTheDocument();
     });
   });
 
@@ -119,7 +123,7 @@ describe('NewTodoInput - Basic Feature Coverage', () => {
     it('handles input changes correctly', async () => {
       render(<NewTodoInput {...mockProps} />);
       
-      const goalInput = screen.getByPlaceholderText(/describe your goal/i);
+      const goalInput = screen.getByPlaceholderText(/enter a new high-level goal/i);
       
       await userEvent.type(goalInput, 'Test goal');
       
@@ -129,13 +133,13 @@ describe('NewTodoInput - Basic Feature Coverage', () => {
     it('resets input on close', async () => {
       render(<NewTodoInput {...mockProps} />);
       
-      const goalInput = screen.getByPlaceholderText(/describe your goal/i);
+      const goalInput = screen.getByPlaceholderText(/enter a new high-level goal/i);
       await userEvent.type(goalInput, 'Test goal');
       
       const closeButton = screen.getByText(/cancel/i);
       await userEvent.click(closeButton);
       
-      expect(mockProps.onClose).toHaveBeenCalled();
+      expect(mockProps.onCancel).toHaveBeenCalled();
     });
 
     it('shows proper modal styling', () => {
@@ -149,7 +153,7 @@ describe('NewTodoInput - Basic Feature Coverage', () => {
     it('handles form submission on Enter key', async () => {
       render(<NewTodoInput {...mockProps} />);
       
-      const goalInput = screen.getByPlaceholderText(/describe your goal/i);
+      const goalInput = screen.getByPlaceholderText(/enter a new high-level goal/i);
       
       await userEvent.type(goalInput, 'Test goal');
       fireEvent.keyDown(goalInput, { key: 'Enter' });

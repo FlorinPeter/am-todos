@@ -46,11 +46,8 @@ const mockTodos = [
 const mockProps = {
   todos: mockTodos,
   selectedTodoId: 'todo-1',
-  onSelectTodo: vi.fn(),
-  onNewTodo: vi.fn(),
-  showArchived: false,
-  isOpen: true,
-  onClose: vi.fn()
+  onTodoSelect: vi.fn(),
+  onNewTodo: vi.fn()
 };
 
 describe('TodoSidebar - Basic Feature Coverage', () => {
@@ -102,26 +99,23 @@ describe('TodoSidebar - Basic Feature Coverage', () => {
       const todoItem = screen.getByText('Medium Priority Task');
       await userEvent.click(todoItem);
       
-      expect(mockProps.onSelectTodo).toHaveBeenCalledWith('todo-2');
+      expect(mockProps.onTodoSelect).toHaveBeenCalledWith('todo-2');
     });
 
     it('highlights selected todo', () => {
       render(<TodoSidebar {...mockProps} selectedTodoId="todo-1" />);
       
-      // Check for selected styling (implementation specific)
-      const selectedTodo = screen.getByText('High Priority Task').closest('div');
-      expect(selectedTodo).toHaveClass('bg-blue-600');
+      // Check for selected styling - find the todo container div
+      const selectedTodo = screen.getByText('High Priority Task').closest('.bg-blue-600');
+      expect(selectedTodo).toBeInTheDocument();
     });
 
-    it('closes sidebar when onClose called', async () => {
+    it('shows todo priorities correctly', () => {
       render(<TodoSidebar {...mockProps} />);
       
-      // Look for close button (mobile)
-      const closeButton = document.querySelector('[aria-label="Close sidebar"]');
-      if (closeButton) {
-        await userEvent.click(closeButton);
-        expect(mockProps.onClose).toHaveBeenCalled();
-      }
+      // Check for priority badges
+      expect(screen.getByText('P1')).toBeInTheDocument(); // High priority
+      expect(screen.getByText('P3')).toBeInTheDocument(); // Medium priority
     });
   });
 
