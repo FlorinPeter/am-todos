@@ -97,3 +97,55 @@ export const getUrlConfig = (): GitHubSettings | null => {
   
   return decodeSettingsFromUrl(configParam);
 };
+
+// Checkpoint Management
+export interface Checkpoint {
+  id: string;
+  content: string;
+  timestamp: string;
+  chatMessage: string; // The user message that led to this checkpoint
+  description: string; // AI-generated description or user message
+}
+
+const CHECKPOINTS_KEY_PREFIX = 'checkpoints_';
+
+export const saveCheckpoint = (taskId: string, checkpoint: Checkpoint): void => {
+  try {
+    const key = `${CHECKPOINTS_KEY_PREFIX}${taskId}`;
+    const existingCheckpoints = getCheckpoints(taskId);
+    const updatedCheckpoints = [...existingCheckpoints, checkpoint];
+    
+    // Keep only last 20 checkpoints to prevent localStorage bloat
+    const trimmedCheckpoints = updatedCheckpoints.slice(-20);
+    
+    localStorage.setItem(key, JSON.stringify(trimmedCheckpoints));
+  } catch (error) {
+    console.error("Error saving checkpoint to localStorage", error);
+  }
+};
+
+export const getCheckpoints = (taskId: string): Checkpoint[] => {
+  try {
+    const key = `${CHECKPOINTS_KEY_PREFIX}${taskId}`;
+    const checkpointsString = localStorage.getItem(key);
+    if (!checkpointsString) return [];
+    
+    return JSON.parse(checkpointsString);
+  } catch (error) {
+    console.error("Error loading checkpoints from localStorage", error);
+    return [];
+  }
+};
+
+export const clearCheckpoints = (taskId: string): void => {
+  try {
+    const key = `${CHECKPOINTS_KEY_PREFIX}${taskId}`;
+    localStorage.removeItem(key);
+  } catch (error) {
+    console.error("Error clearing checkpoints from localStorage", error);
+  }
+};
+
+export const generateCheckpointId = (): string => {
+  return `checkpoint_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+};
