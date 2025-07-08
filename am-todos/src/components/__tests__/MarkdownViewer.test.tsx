@@ -55,7 +55,7 @@ describe('MarkdownViewer - Basic Feature Coverage', () => {
       });
       
       await waitFor(() => {
-        expect(screen.getByText(/unsaved changes/i)).toBeInTheDocument();
+        expect(screen.getByText('• Unsaved')).toBeInTheDocument();
       });
     });
 
