@@ -26,6 +26,7 @@ interface Todo {
 interface TodoEditorProps {
   selectedTodo: Todo | null;
   onTodoUpdate: (id: string, newContent: string, newChatHistory?: ChatMessage[]) => void;
+  onTitleUpdate: (id: string, newTitle: string) => void;
   onPriorityUpdate: (id: string, newPriority: number) => void;
   onArchiveToggle: (id: string) => void;
   onDeleteTodo: (id: string) => void;
@@ -48,6 +49,7 @@ const getPriorityLabel = (priority: number): string => {
 const TodoEditor: React.FC<TodoEditorProps> = ({ 
   selectedTodo, 
   onTodoUpdate, 
+  onTitleUpdate,
   onPriorityUpdate, 
   onArchiveToggle,
   onDeleteTodo,
@@ -79,8 +81,7 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
 
   const handleTitleSave = () => {
     if (titleInput.trim() && titleInput !== selectedTodo.frontmatter?.title) {
-      // This would need to be handled by updating the frontmatter
-      // For now, we'll just close the edit mode
+      onTitleUpdate(selectedTodo.id, titleInput.trim());
     }
     setIsEditingTitle(false);
   };
