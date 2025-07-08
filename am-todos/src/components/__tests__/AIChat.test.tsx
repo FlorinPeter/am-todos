@@ -4,6 +4,12 @@ import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import AIChat from '../AIChat';
 
+// Mock scrollIntoView
+Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+  value: vi.fn(),
+  writable: true
+});
+
 const mockProps = {
   currentContent: '# Test Todo\n\n- [ ] Task 1\n- [ ] Task 2',
   onContentUpdate: vi.fn(),
