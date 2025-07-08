@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import NewTodoInput from '../NewTodoInput';
@@ -9,94 +9,50 @@ const mockProps = {
   onCancel: vi.fn()
 };
 
-describe('NewTodoInput - Basic Feature Coverage', () => {
+describe('NewTodoInput Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe('Feature 1: AI-Powered Task Generation UI', () => {
-    it('renders modal when isOpen is true', () => {
-      render(<NewTodoInput {...mockProps} />);
-      
-      // Check for modal content
-      expect(screen.getByText(/create new task/i)).toBeInTheDocument();
-    });
-
-    it('does not render when isOpen is false', () => {
-      render(<NewTodoInput {...mockProps} isOpen={false} />);
-      
-      expect(screen.queryByText(/create new task/i)).not.toBeInTheDocument();
-    });
-
-    it('shows goal input field', () => {
+  describe('Basic Rendering', () => {
+    it('renders goal input field', () => {
       render(<NewTodoInput {...mockProps} />);
       
       const goalInput = screen.getByPlaceholderText(/enter a new high-level goal/i);
       expect(goalInput).toBeInTheDocument();
     });
 
-    it('shows generate button', () => {
+    it('renders generate button', () => {
       render(<NewTodoInput {...mockProps} />);
       
-      const generateButton = screen.getByText(/generate/i);
+      const generateButton = screen.getByText(/generate todo list/i);
       expect(generateButton).toBeInTheDocument();
     });
 
-    it('calls onSubmit when form submitted with goal', async () => {
+    it('renders cancel button when onCancel provided', () => {
       render(<NewTodoInput {...mockProps} />);
       
-      const goalInput = screen.getByPlaceholderText(/enter a new high-level goal/i);
-      const generateButton = screen.getByText(/generate/i);
-      
-      await userEvent.type(goalInput, 'Deploy web application');
-      await userEvent.click(generateButton);
-      
-      expect(mockProps.onSubmit).toHaveBeenCalledWith('Deploy web application');
+      const cancelButton = screen.getByText(/cancel/i);
+      expect(cancelButton).toBeInTheDocument();
     });
 
-    it('prevents submission with empty goal', async () => {
+    it('submit button is disabled when input is empty', () => {
       render(<NewTodoInput {...mockProps} />);
       
-      const generateButton = screen.getByText(/generate/i);
-      await userEvent.click(generateButton);
-      
-      // Should not call onSubmit with empty goal
-      expect(mockProps.onSubmit).not.toHaveBeenCalled();
-    });
-
-    it('calls onClose when close button clicked', async () => {
-      render(<NewTodoInput {...mockProps} />);
-      
-      const closeButton = screen.getByText(/cancel/i) || screen.getByRole('button', { name: /close/i });
-      await userEvent.click(closeButton);
-      
-      expect(mockProps.onCancel).toHaveBeenCalled();
-    });
-
-    it('calls onCancel when escape key pressed', async () => {
-      render(<NewTodoInput {...mockProps} />);
-      
-      const input = screen.getByPlaceholderText(/enter a new high-level goal/i);
-      fireEvent.keyPress(input, { key: 'Escape' });
-      
-      expect(mockProps.onCancel).toHaveBeenCalled();
+      const submitButton = screen.getByText(/generate todo list/i);
+      expect(submitButton).toBeDisabled();
     });
   });
 
-  describe('Feature 3: Progress Tracking UI', () => {
+  describe('User Interactions', () => {
     it('enables submit button when goal is entered', async () => {
       render(<NewTodoInput {...mockProps} />);
       
       const input = screen.getByPlaceholderText(/enter a new high-level goal/i);
       const submitButton = screen.getByText(/generate todo list/i);
       
-      // Button should be disabled initially
-      expect(submitButton).toBeDisabled();
-      
-      // Type in goal
       await userEvent.type(input, 'Test goal');
       
-      // Button should be enabled
       expect(submitButton).toBeEnabled();
     });
 
@@ -106,59 +62,65 @@ describe('NewTodoInput - Basic Feature Coverage', () => {
       const input = screen.getByPlaceholderText(/enter a new high-level goal/i);
       const submitButton = screen.getByText(/generate todo list/i);
       
+      await userEvent.type(input, 'Deploy web application');
+      await userEvent.click(submitButton);
+      
+      expect(mockProps.onGoalSubmit).toHaveBeenCalledWith('Deploy web application');
+    });
+
+    it('calls onCancel when cancel button is clicked', async () => {
+      render(<NewTodoInput {...mockProps} />);
+      
+      const cancelButton = screen.getByText(/cancel/i);
+      await userEvent.click(cancelButton);
+      
+      expect(mockProps.onCancel).toHaveBeenCalled();
+    });
+
+    it('calls onCancel when escape key is pressed', async () => {
+      render(<NewTodoInput {...mockProps} />);
+      
+      const input = screen.getByPlaceholderText(/enter a new high-level goal/i);
+      fireEvent.keyPress(input, { key: 'Escape' });
+      
+      expect(mockProps.onCancel).toHaveBeenCalled();
+    });
+
+    it('submits form when Enter key is pressed', async () => {
+      render(<NewTodoInput {...mockProps} />);
+      
+      const input = screen.getByPlaceholderText(/enter a new high-level goal/i);
+      
       await userEvent.type(input, 'Test goal');
+      fireEvent.submit(input.closest('form'));
+      
+      expect(mockProps.onGoalSubmit).toHaveBeenCalledWith('Test goal');
+    });
+  });
+
+  describe('Form Validation', () => {
+    it('trims whitespace from goal input', async () => {
+      render(<NewTodoInput {...mockProps} />);
+      
+      const input = screen.getByPlaceholderText(/enter a new high-level goal/i);
+      const submitButton = screen.getByText(/generate todo list/i);
+      
+      await userEvent.type(input, '  Test goal  ');
       await userEvent.click(submitButton);
       
       expect(mockProps.onGoalSubmit).toHaveBeenCalledWith('Test goal');
     });
 
-    it('shows cancel button when onCancel prop is provided', () => {
+    it('does not submit empty or whitespace-only goals', async () => {
       render(<NewTodoInput {...mockProps} />);
       
-      expect(screen.getByText(/cancel/i)).toBeInTheDocument();
-    });
-  });
-
-  describe('Modal Behavior', () => {
-    it('handles input changes correctly', async () => {
-      render(<NewTodoInput {...mockProps} />);
+      const input = screen.getByPlaceholderText(/enter a new high-level goal/i);
+      const submitButton = screen.getByText(/generate todo list/i);
       
-      const goalInput = screen.getByPlaceholderText(/enter a new high-level goal/i);
+      await userEvent.type(input, '   ');
+      await userEvent.click(submitButton);
       
-      await userEvent.type(goalInput, 'Test goal');
-      
-      expect(goalInput).toHaveValue('Test goal');
-    });
-
-    it('resets input on close', async () => {
-      render(<NewTodoInput {...mockProps} />);
-      
-      const goalInput = screen.getByPlaceholderText(/enter a new high-level goal/i);
-      await userEvent.type(goalInput, 'Test goal');
-      
-      const closeButton = screen.getByText(/cancel/i);
-      await userEvent.click(closeButton);
-      
-      expect(mockProps.onCancel).toHaveBeenCalled();
-    });
-
-    it('shows proper modal styling', () => {
-      render(<NewTodoInput {...mockProps} />);
-      
-      // Check for modal overlay
-      const modal = document.querySelector('.fixed.inset-0');
-      expect(modal).toBeInTheDocument();
-    });
-
-    it('handles form submission on Enter key', async () => {
-      render(<NewTodoInput {...mockProps} />);
-      
-      const goalInput = screen.getByPlaceholderText(/enter a new high-level goal/i);
-      
-      await userEvent.type(goalInput, 'Test goal');
-      fireEvent.keyDown(goalInput, { key: 'Enter' });
-      
-      expect(mockProps.onSubmit).toHaveBeenCalledWith('Test goal');
+      expect(mockProps.onGoalSubmit).not.toHaveBeenCalled();
     });
   });
 });
