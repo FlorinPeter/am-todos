@@ -107,7 +107,7 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
                 value={titleInput}
                 onChange={(e) => setTitleInput(e.target.value)}
                 onBlur={handleTitleSave}
-                onKeyPress={handleTitleKeyPress}
+                onKeyDown={handleTitleKeyPress}
                 className="text-lg sm:text-xl font-bold bg-gray-700 text-white px-3 py-1 rounded border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
                 autoFocus
               />
