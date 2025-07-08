@@ -1,11 +1,12 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import App from './App';
 
 // Mock the services
-jest.mock('./services/githubService');
-jest.mock('./services/aiService');
+vi.mock('./services/githubService');
+vi.mock('./services/aiService');
 
 describe('App Component - Basic Feature Coverage', () => {
   beforeEach(() => {
@@ -13,19 +14,19 @@ describe('App Component - Basic Feature Coverage', () => {
     (localStorage.getItem as jest.Mock).mockReturnValue(null);
   });
 
-  test('renders without crashing', () => {
+  it('renders without crashing', () => {
     render(<App />);
     expect(document.body).toBeInTheDocument();
   });
 
-  test('shows GitHub settings when not configured', async () => {
+  it('shows GitHub settings when not configured', async () => {
     render(<App />);
     await waitFor(() => {
       expect(screen.getByText(/github settings/i)).toBeInTheDocument();
     });
   });
 
-  test('renders main layout components', () => {
+  it('renders main layout components', () => {
     render(<App />);
     
     // Check for main structural elements
@@ -33,7 +34,7 @@ describe('App Component - Basic Feature Coverage', () => {
     expect(appContainer).toBeInTheDocument();
   });
 
-  test('handles mobile sidebar toggle', async () => {
+  it('handles mobile sidebar toggle', async () => {
     render(<App />);
     
     // Look for hamburger menu button (mobile)

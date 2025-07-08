@@ -1,24 +1,25 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import AIChat from '../AIChat';
 
 // Mock the AI service
-jest.mock('../../services/aiService');
+vi.mock('../../services/aiService');
 
 const mockProps = {
   currentContent: '# Test Todo\n\n- [ ] Task 1\n- [ ] Task 2',
-  onContentUpdate: jest.fn(),
-  onChatMessage: jest.fn().mockResolvedValue('Updated content with new task')
+  onContentUpdate: vi.fn(),
+  onChatMessage: vi.fn().mockResolvedValue('Updated content with new task')
 };
 
 describe('AIChat - Basic Feature Coverage', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('Feature 4: AI Chat Assistant', () => {
-    test('renders chat interface', () => {
+    it('renders chat interface', () => {
       render(<AIChat {...mockProps} />);
       
       // Look for chat input or toggle button
@@ -28,7 +29,7 @@ describe('AIChat - Basic Feature Coverage', () => {
       expect(chatElement).toBeInTheDocument();
     });
 
-    test('shows chat input field', () => {
+    it('shows chat input field', () => {
       render(<AIChat {...mockProps} />);
       
       const chatInput = screen.getByPlaceholderText(/ask ai/i) || 
@@ -37,7 +38,7 @@ describe('AIChat - Basic Feature Coverage', () => {
       expect(chatInput).toBeInTheDocument();
     });
 
-    test('shows send button', () => {
+    it('shows send button', () => {
       render(<AIChat {...mockProps} />);
       
       const sendButton = screen.getByText(/send/i) || 
@@ -45,7 +46,7 @@ describe('AIChat - Basic Feature Coverage', () => {
       expect(sendButton).toBeInTheDocument();
     });
 
-    test('expands and collapses chat interface', async () => {
+    it('expands and collapses chat interface', async () => {
       render(<AIChat {...mockProps} />);
       
       // Look for expand/collapse button
@@ -59,7 +60,7 @@ describe('AIChat - Basic Feature Coverage', () => {
       }
     });
 
-    test('sends chat message and updates content', async () => {
+    it('sends chat message and updates content', async () => {
       render(<AIChat {...mockProps} />);
       
       const chatInput = screen.getByPlaceholderText(/ask ai/i) || 
@@ -78,7 +79,7 @@ describe('AIChat - Basic Feature Coverage', () => {
       });
     });
 
-    test('shows loading state during AI processing', async () => {
+    it('shows loading state during AI processing', async () => {
       // Mock delayed response
       mockProps.onChatMessage.mockImplementation(() => 
         new Promise(resolve => setTimeout(() => resolve('Updated content'), 100))
@@ -97,7 +98,7 @@ describe('AIChat - Basic Feature Coverage', () => {
       expect(screen.getByText(/thinking/i) || screen.getByText(/processing/i)).toBeInTheDocument();
     });
 
-    test('clears input after sending message', async () => {
+    it('clears input after sending message', async () => {
       render(<AIChat {...mockProps} />);
       
       const chatInput = screen.getByRole('textbox');
@@ -112,7 +113,7 @@ describe('AIChat - Basic Feature Coverage', () => {
       });
     });
 
-    test('prevents sending empty messages', async () => {
+    it('prevents sending empty messages', async () => {
       render(<AIChat {...mockProps} />);
       
       const sendButton = screen.getByText(/send/i) || 
@@ -124,7 +125,7 @@ describe('AIChat - Basic Feature Coverage', () => {
       expect(mockProps.onChatMessage).not.toHaveBeenCalled();
     });
 
-    test('handles Enter key to send message', async () => {
+    it('handles Enter key to send message', async () => {
       render(<AIChat {...mockProps} />);
       
       const chatInput = screen.getByRole('textbox');
@@ -138,7 +139,7 @@ describe('AIChat - Basic Feature Coverage', () => {
       );
     });
 
-    test('handles Shift+Enter for new line', async () => {
+    it('handles Shift+Enter for new line', async () => {
       render(<AIChat {...mockProps} />);
       
       const chatInput = screen.getByRole('textbox');
@@ -154,7 +155,7 @@ describe('AIChat - Basic Feature Coverage', () => {
   });
 
   describe('Chat History and Context', () => {
-    test('displays previous chat messages', () => {
+    it('displays previous chat messages', () => {
       render(<AIChat {...mockProps} />);
       
       // Look for chat history display
@@ -165,7 +166,7 @@ describe('AIChat - Basic Feature Coverage', () => {
       expect(true).toBe(true);
     });
 
-    test('maintains context with current content', async () => {
+    it('maintains context with current content', async () => {
       render(<AIChat {...mockProps} />);
       
       const chatInput = screen.getByRole('textbox');
@@ -182,7 +183,7 @@ describe('AIChat - Basic Feature Coverage', () => {
       );
     });
 
-    test('calls onContentUpdate when AI responds', async () => {
+    it('calls onContentUpdate when AI responds', async () => {
       render(<AIChat {...mockProps} />);
       
       const chatInput = screen.getByRole('textbox');
@@ -201,7 +202,7 @@ describe('AIChat - Basic Feature Coverage', () => {
   });
 
   describe('Error Handling', () => {
-    test('handles AI service errors gracefully', async () => {
+    it('handles AI service errors gracefully', async () => {
       mockProps.onChatMessage.mockRejectedValueOnce(new Error('AI service error'));
       
       render(<AIChat {...mockProps} />);
@@ -219,7 +220,7 @@ describe('AIChat - Basic Feature Coverage', () => {
       });
     });
 
-    test('disables input during processing', async () => {
+    it('disables input during processing', async () => {
       mockProps.onChatMessage.mockImplementation(() => 
         new Promise(resolve => setTimeout(() => resolve('Updated'), 100))
       );
