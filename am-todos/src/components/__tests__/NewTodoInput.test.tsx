@@ -81,7 +81,7 @@ describe('NewTodoInput Component', () => {
       render(<NewTodoInput {...mockProps} />);
       
       const input = screen.getByPlaceholderText(/enter a new high-level goal/i);
-      fireEvent.keyPress(input, { key: 'Escape' });
+      fireEvent.keyDown(input, { key: 'Escape' });
       
       expect(mockProps.onCancel).toHaveBeenCalled();
     });
