@@ -16,7 +16,7 @@ const NewTodoInput: React.FC<NewTodoInputProps> = ({ onGoalSubmit, onCancel }) =
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape' && onCancel) {
       onCancel();
     }
@@ -28,7 +28,7 @@ const NewTodoInput: React.FC<NewTodoInputProps> = ({ onGoalSubmit, onCancel }) =
         type="text"
         value={goal}
         onChange={(e) => setGoal(e.target.value)}
-        onKeyPress={handleKeyPress}
+        onKeyDown={handleKeyDown}
         placeholder="Enter a new high-level goal..."
         className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
         autoFocus
