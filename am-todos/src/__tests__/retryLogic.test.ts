@@ -1,5 +1,11 @@
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { getTodos, createOrUpdateTodo } from '../services/githubService';
 import { generateCommitMessage } from '../services/aiService';
+
+// Mock the AI service to prevent settings errors
+vi.mock('../services/aiService', () => ({
+  generateCommitMessage: vi.fn().mockResolvedValue('test: Add retry test file')
+}));
 
 // Test configuration
 const TEST_CONFIG = {

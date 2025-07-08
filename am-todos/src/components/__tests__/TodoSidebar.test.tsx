@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import TodoSidebar from '../TodoSidebar';
 
 const mockTodos = [
@@ -45,27 +46,27 @@ const mockTodos = [
 const mockProps = {
   todos: mockTodos,
   selectedTodoId: 'todo-1',
-  onSelectTodo: jest.fn(),
-  onNewTodo: jest.fn(),
+  onSelectTodo: vi.fn(),
+  onNewTodo: vi.fn(),
   showArchived: false,
   isOpen: true,
-  onClose: jest.fn()
+  onClose: vi.fn()
 };
 
 describe('TodoSidebar - Basic Feature Coverage', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('Feature 10: Mobile-First Responsive Design', () => {
-    test('renders todo list', () => {
+    it('renders todo list', () => {
       render(<TodoSidebar {...mockProps} />);
       
       expect(screen.getByText('High Priority Task')).toBeInTheDocument();
       expect(screen.getByText('Medium Priority Task')).toBeInTheDocument();
     });
 
-    test('shows only active todos when showArchived is false', () => {
+    it('shows only active todos when showArchived is false', () => {
       render(<TodoSidebar {...mockProps} showArchived={false} />);
       
       expect(screen.getByText('High Priority Task')).toBeInTheDocument();
@@ -73,20 +74,20 @@ describe('TodoSidebar - Basic Feature Coverage', () => {
       expect(screen.queryByText('Archived Task')).not.toBeInTheDocument();
     });
 
-    test('shows archived todos when showArchived is true', () => {
+    it('shows archived todos when showArchived is true', () => {
       render(<TodoSidebar {...mockProps} showArchived={true} />);
       
       expect(screen.getByText('Archived Task')).toBeInTheDocument();
     });
 
-    test('shows new todo button', () => {
+    it('shows new todo button', () => {
       render(<TodoSidebar {...mockProps} />);
       
       const newTodoButton = screen.getByText(/new task/i);
       expect(newTodoButton).toBeInTheDocument();
     });
 
-    test('calls onNewTodo when new task button clicked', async () => {
+    it('calls onNewTodo when new task button clicked', async () => {
       render(<TodoSidebar {...mockProps} />);
       
       const newTodoButton = screen.getByText(/new task/i);
@@ -95,7 +96,7 @@ describe('TodoSidebar - Basic Feature Coverage', () => {
       expect(mockProps.onNewTodo).toHaveBeenCalled();
     });
 
-    test('calls onSelectTodo when todo item clicked', async () => {
+    it('calls onSelectTodo when todo item clicked', async () => {
       render(<TodoSidebar {...mockProps} />);
       
       const todoItem = screen.getByText('Medium Priority Task');
@@ -104,7 +105,7 @@ describe('TodoSidebar - Basic Feature Coverage', () => {
       expect(mockProps.onSelectTodo).toHaveBeenCalledWith('todo-2');
     });
 
-    test('highlights selected todo', () => {
+    it('highlights selected todo', () => {
       render(<TodoSidebar {...mockProps} selectedTodoId="todo-1" />);
       
       // Check for selected styling (implementation specific)
@@ -112,7 +113,7 @@ describe('TodoSidebar - Basic Feature Coverage', () => {
       expect(selectedTodo).toHaveClass('bg-blue-600');
     });
 
-    test('closes sidebar when onClose called', async () => {
+    it('closes sidebar when onClose called', async () => {
       render(<TodoSidebar {...mockProps} />);
       
       // Look for close button (mobile)
@@ -125,7 +126,7 @@ describe('TodoSidebar - Basic Feature Coverage', () => {
   });
 
   describe('Priority System Visual Indicators', () => {
-    test('displays priority badges with correct colors', () => {
+    it('displays priority badges with correct colors', () => {
       render(<TodoSidebar {...mockProps} />);
       
       // Check for priority indicators
@@ -140,7 +141,7 @@ describe('TodoSidebar - Basic Feature Coverage', () => {
       expect(p3Badge).toHaveClass('bg-yellow-600');
     });
 
-    test('sorts todos by priority', () => {
+    it('sorts todos by priority', () => {
       render(<TodoSidebar {...mockProps} />);
       
       const todoItems = screen.getAllByRole('button').filter(btn => 
@@ -154,7 +155,7 @@ describe('TodoSidebar - Basic Feature Coverage', () => {
   });
 
   describe('Archive System', () => {
-    test('filters todos correctly based on archive status', () => {
+    it('filters todos correctly based on archive status', () => {
       // Test active todos
       render(<TodoSidebar {...mockProps} showArchived={false} />);
       expect(screen.getAllByText(/Priority Task/)).toHaveLength(2);
@@ -166,7 +167,7 @@ describe('TodoSidebar - Basic Feature Coverage', () => {
   });
 
   describe('Mobile Responsive Behavior', () => {
-    test('renders with mobile-friendly classes', () => {
+    it('renders with mobile-friendly classes', () => {
       render(<TodoSidebar {...mockProps} />);
       
       // Check for responsive classes
@@ -174,7 +175,7 @@ describe('TodoSidebar - Basic Feature Coverage', () => {
       expect(sidebar).toBeInTheDocument();
     });
 
-    test('handles sidebar open/close state', () => {
+    it('handles sidebar open/close state', () => {
       const { rerender } = render(<TodoSidebar {...mockProps} isOpen={false} />);
       
       // When closed, might have different styling

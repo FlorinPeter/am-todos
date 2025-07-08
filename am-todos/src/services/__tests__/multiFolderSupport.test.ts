@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { 
   getTodos,
   createOrUpdateTodo,
@@ -15,8 +16,8 @@ global.TextEncoder = require('util').TextEncoder;
 global.btoa = (str: string) => Buffer.from(str).toString('base64');
 
 // Mock fetch globally
-global.fetch = jest.fn();
-const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
 
 // Test configuration
 const TEST_CONFIG = {
@@ -27,11 +28,11 @@ const TEST_CONFIG = {
 
 describe('Multi-Folder Support', () => {
   beforeEach(() => {
-    mockFetch.mockClear();
+    vi.clearAllMocks();
   });
 
   describe('Dynamic Folder Operations', () => {
-    test('getTodos works with custom folder', async () => {
+    it('getTodos works with custom folder', async () => {
       const mockTodos = [
         {
           name: 'work-task.md',
@@ -62,7 +63,7 @@ describe('Multi-Folder Support', () => {
       expect(result).toEqual(mockTodos);
     });
 
-    test('getTodos fetches archived tasks from custom folder', async () => {
+    it('getTodos fetches archived tasks from custom folder', async () => {
       const mockArchivedTodos = [
         {
           name: 'completed-work.md',
@@ -93,7 +94,7 @@ describe('Multi-Folder Support', () => {
       expect(result).toEqual(mockArchivedTodos);
     });
 
-    test('ensureDirectory creates custom folder', async () => {
+    it('ensureDirectory creates custom folder', async () => {
       // Mock directory doesn't exist
       mockFetch
         .mockResolvedValueOnce({
@@ -126,7 +127,7 @@ describe('Multi-Folder Support', () => {
       expect(requestBody.body.message).toContain('personal-tasks');
     });
 
-    test('ensureArchiveDirectory creates archive for custom folder', async () => {
+    it('ensureArchiveDirectory creates archive for custom folder', async () => {
       // Mock directory doesn't exist
       mockFetch
         .mockResolvedValueOnce({
@@ -161,7 +162,7 @@ describe('Multi-Folder Support', () => {
   });
 
   describe('Archive Operations with Custom Folders', () => {
-    test('moveTaskToArchive works with custom folder', async () => {
+    it('moveTaskToArchive works with custom folder', async () => {
       const testContent = '# Work Task\n\n- [x] Complete project';
       const mockFileData = {
         content: btoa(testContent),
@@ -229,7 +230,7 @@ describe('Multi-Folder Support', () => {
       expect(mockFetch).toHaveBeenCalledTimes(5);
     });
 
-    test('moveTaskFromArchive works with custom folder', async () => {
+    it('moveTaskFromArchive works with custom folder', async () => {
       const testContent = '# Archived Task\n\n- [x] Completed';
       const mockFileData = {
         content: btoa(testContent),
@@ -291,7 +292,7 @@ describe('Multi-Folder Support', () => {
   });
 
   describe('Project Management Functions', () => {
-    test('listProjectFolders discovers existing project folders', async () => {
+    it('listProjectFolders discovers existing project folders', async () => {
       const mockContents = [
         { name: 'todos', type: 'dir' },
         { name: 'work-tasks', type: 'dir' },
@@ -319,7 +320,7 @@ describe('Multi-Folder Support', () => {
       expect(result).not.toContain('README.md');
     });
 
-    test('listProjectFolders handles empty repository', async () => {
+    it('listProjectFolders handles empty repository', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 404,
@@ -333,7 +334,7 @@ describe('Multi-Folder Support', () => {
       expect(result).toEqual(['todos']); // Default fallback
     });
 
-    test('createProjectFolder creates new project with folder structure', async () => {
+    it('createProjectFolder creates new project with folder structure', async () => {
       mockFetch
         // Check if main file exists (for createOrUpdateTodo)
         .mockResolvedValueOnce({
@@ -395,7 +396,7 @@ describe('Multi-Folder Support', () => {
       expect(secondBody.body.message).toContain('client-beta/archive directory');
     });
 
-    test('createProjectFolder validates folder names', async () => {
+    it('createProjectFolder validates folder names', async () => {
       // Test invalid folder names
       const invalidNames = [
         '', // Empty
@@ -412,7 +413,7 @@ describe('Multi-Folder Support', () => {
       }
     });
 
-    test('createProjectFolder accepts valid folder names', async () => {
+    it('createProjectFolder accepts valid folder names', async () => {
       mockFetch
         .mockResolvedValue({
           ok: true,
@@ -434,7 +435,7 @@ describe('Multi-Folder Support', () => {
       ];
 
       for (const validName of validNames) {
-        mockFetch.mockClear();
+        vi.clearAllMocks();
         await expect(
           createProjectFolder(TEST_CONFIG.token, TEST_CONFIG.owner, TEST_CONFIG.repo, validName)
         ).resolves.not.toThrow();
@@ -443,7 +444,7 @@ describe('Multi-Folder Support', () => {
   });
 
   describe('Integration with Settings and UI', () => {
-    test('folder parameter flows through entire system', async () => {
+    it('folder parameter flows through entire system', async () => {
       const customFolder = 'integration-test';
       
       // Step 1: Create project folder
@@ -541,7 +542,7 @@ describe('Multi-Folder Support', () => {
   });
 
   describe('Backward Compatibility', () => {
-    test('defaults to todos folder when no folder specified', async () => {
+    it('defaults to todos folder when no folder specified', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -557,7 +558,7 @@ describe('Multi-Folder Support', () => {
       expect(requestBody.path).toContain('/contents/todos');
     });
 
-    test('ensureTodosDirectory wrapper still works', async () => {
+    it('ensureTodosDirectory wrapper still works', async () => {
       const { ensureTodosDirectory } = require('../githubService');
       
       mockFetch.mockResolvedValueOnce({
@@ -576,7 +577,7 @@ describe('Multi-Folder Support', () => {
   });
 
   describe('Error Handling', () => {
-    test('handles GitHub API errors gracefully for custom folders', async () => {
+    it('handles GitHub API errors gracefully for custom folders', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 403,
@@ -590,7 +591,7 @@ describe('Multi-Folder Support', () => {
       ).rejects.toThrow();
     });
 
-    test('handles network errors during project creation', async () => {
+    it('handles network errors during project creation', async () => {
       // Mock the first check (file exists) to throw a network error
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 

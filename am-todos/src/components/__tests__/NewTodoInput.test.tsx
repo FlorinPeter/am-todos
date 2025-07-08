@@ -1,49 +1,50 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import NewTodoInput from '../NewTodoInput';
 
 const mockProps = {
   isOpen: true,
-  onClose: jest.fn(),
-  onSubmit: jest.fn(),
+  onClose: vi.fn(),
+  onSubmit: vi.fn(),
   isGenerating: false
 };
 
 describe('NewTodoInput - Basic Feature Coverage', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('Feature 1: AI-Powered Task Generation UI', () => {
-    test('renders modal when isOpen is true', () => {
+    it('renders modal when isOpen is true', () => {
       render(<NewTodoInput {...mockProps} />);
       
       // Check for modal content
       expect(screen.getByText(/create new task/i)).toBeInTheDocument();
     });
 
-    test('does not render when isOpen is false', () => {
+    it('does not render when isOpen is false', () => {
       render(<NewTodoInput {...mockProps} isOpen={false} />);
       
       expect(screen.queryByText(/create new task/i)).not.toBeInTheDocument();
     });
 
-    test('shows goal input field', () => {
+    it('shows goal input field', () => {
       render(<NewTodoInput {...mockProps} />);
       
       const goalInput = screen.getByPlaceholderText(/describe your goal/i);
       expect(goalInput).toBeInTheDocument();
     });
 
-    test('shows generate button', () => {
+    it('shows generate button', () => {
       render(<NewTodoInput {...mockProps} />);
       
       const generateButton = screen.getByText(/generate/i);
       expect(generateButton).toBeInTheDocument();
     });
 
-    test('calls onSubmit when form submitted with goal', async () => {
+    it('calls onSubmit when form submitted with goal', async () => {
       render(<NewTodoInput {...mockProps} />);
       
       const goalInput = screen.getByPlaceholderText(/describe your goal/i);
@@ -55,7 +56,7 @@ describe('NewTodoInput - Basic Feature Coverage', () => {
       expect(mockProps.onSubmit).toHaveBeenCalledWith('Deploy web application');
     });
 
-    test('prevents submission with empty goal', async () => {
+    it('prevents submission with empty goal', async () => {
       render(<NewTodoInput {...mockProps} />);
       
       const generateButton = screen.getByText(/generate/i);
@@ -65,7 +66,7 @@ describe('NewTodoInput - Basic Feature Coverage', () => {
       expect(mockProps.onSubmit).not.toHaveBeenCalled();
     });
 
-    test('calls onClose when close button clicked', async () => {
+    it('calls onClose when close button clicked', async () => {
       render(<NewTodoInput {...mockProps} />);
       
       const closeButton = screen.getByText(/cancel/i) || screen.getByRole('button', { name: /close/i });
@@ -74,7 +75,7 @@ describe('NewTodoInput - Basic Feature Coverage', () => {
       expect(mockProps.onClose).toHaveBeenCalled();
     });
 
-    test('calls onClose when escape key pressed', async () => {
+    it('calls onClose when escape key pressed', async () => {
       render(<NewTodoInput {...mockProps} />);
       
       fireEvent.keyDown(document, { key: 'Escape' });
@@ -84,7 +85,7 @@ describe('NewTodoInput - Basic Feature Coverage', () => {
   });
 
   describe('Feature 3: Progress Tracking UI', () => {
-    test('shows loading state when isGenerating is true', () => {
+    it('shows loading state when isGenerating is true', () => {
       render(<NewTodoInput {...mockProps} isGenerating={true} />);
       
       // Check for loading indicator
@@ -96,14 +97,14 @@ describe('NewTodoInput - Basic Feature Coverage', () => {
       expect(generateButton).toBeDisabled();
     });
 
-    test('disables input during generation', () => {
+    it('disables input during generation', () => {
       render(<NewTodoInput {...mockProps} isGenerating={true} />);
       
       const goalInput = screen.getByPlaceholderText(/describe your goal/i);
       expect(goalInput).toBeDisabled();
     });
 
-    test('enables input when not generating', () => {
+    it('enables input when not generating', () => {
       render(<NewTodoInput {...mockProps} isGenerating={false} />);
       
       const goalInput = screen.getByPlaceholderText(/describe your goal/i);
@@ -115,7 +116,7 @@ describe('NewTodoInput - Basic Feature Coverage', () => {
   });
 
   describe('Modal Behavior', () => {
-    test('handles input changes correctly', async () => {
+    it('handles input changes correctly', async () => {
       render(<NewTodoInput {...mockProps} />);
       
       const goalInput = screen.getByPlaceholderText(/describe your goal/i);
@@ -125,7 +126,7 @@ describe('NewTodoInput - Basic Feature Coverage', () => {
       expect(goalInput).toHaveValue('Test goal');
     });
 
-    test('resets input on close', async () => {
+    it('resets input on close', async () => {
       render(<NewTodoInput {...mockProps} />);
       
       const goalInput = screen.getByPlaceholderText(/describe your goal/i);
@@ -137,7 +138,7 @@ describe('NewTodoInput - Basic Feature Coverage', () => {
       expect(mockProps.onClose).toHaveBeenCalled();
     });
 
-    test('shows proper modal styling', () => {
+    it('shows proper modal styling', () => {
       render(<NewTodoInput {...mockProps} />);
       
       // Check for modal overlay
@@ -145,7 +146,7 @@ describe('NewTodoInput - Basic Feature Coverage', () => {
       expect(modal).toBeInTheDocument();
     });
 
-    test('handles form submission on Enter key', async () => {
+    it('handles form submission on Enter key', async () => {
       render(<NewTodoInput {...mockProps} />);
       
       const goalInput = screen.getByPlaceholderText(/describe your goal/i);

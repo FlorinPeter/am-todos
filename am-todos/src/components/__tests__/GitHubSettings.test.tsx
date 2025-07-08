@@ -1,10 +1,11 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import GitHubSettings from '../GitHubSettings';
 
 const mockProps = {
-  onSave: jest.fn(),
+  onSave: vi.fn(),
   initialSettings: {
     pat: '',
     owner: '',
@@ -14,17 +15,17 @@ const mockProps = {
 
 describe('GitHubSettings - Basic Feature Coverage', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('GitHub Integration Configuration', () => {
-    test('renders GitHub settings form', () => {
+    it('renders GitHub settings form', () => {
       render(<GitHubSettings {...mockProps} />);
       
       expect(screen.getByText(/github settings/i)).toBeInTheDocument();
     });
 
-    test('shows PAT input field', () => {
+    it('shows PAT input field', () => {
       render(<GitHubSettings {...mockProps} />);
       
       const patInput = screen.getByLabelText(/personal access token/i) || 
@@ -32,7 +33,7 @@ describe('GitHubSettings - Basic Feature Coverage', () => {
       expect(patInput).toBeInTheDocument();
     });
 
-    test('shows repository owner input', () => {
+    it('shows repository owner input', () => {
       render(<GitHubSettings {...mockProps} />);
       
       const ownerInput = screen.getByLabelText(/repository owner/i) || 
@@ -40,7 +41,7 @@ describe('GitHubSettings - Basic Feature Coverage', () => {
       expect(ownerInput).toBeInTheDocument();
     });
 
-    test('shows repository name input', () => {
+    it('shows repository name input', () => {
       render(<GitHubSettings {...mockProps} />);
       
       const repoInput = screen.getByLabelText(/repository name/i) || 
@@ -48,14 +49,14 @@ describe('GitHubSettings - Basic Feature Coverage', () => {
       expect(repoInput).toBeInTheDocument();
     });
 
-    test('shows save button', () => {
+    it('shows save button', () => {
       render(<GitHubSettings {...mockProps} />);
       
       const saveButton = screen.getByText(/save/i);
       expect(saveButton).toBeInTheDocument();
     });
 
-    test('populates initial values', () => {
+    it('populates initial values', () => {
       const initialSettings = {
         pat: 'test-token',
         owner: 'test-owner',
@@ -69,7 +70,7 @@ describe('GitHubSettings - Basic Feature Coverage', () => {
       expect(screen.getByDisplayValue('test-repo')).toBeInTheDocument();
     });
 
-    test('calls onSave with form data when submitted', async () => {
+    it('calls onSave with form data when submitted', async () => {
       render(<GitHubSettings {...mockProps} />);
       
       const patInput = screen.getByLabelText(/personal access token/i) || 
@@ -92,7 +93,7 @@ describe('GitHubSettings - Basic Feature Coverage', () => {
       });
     });
 
-    test('validates required fields', async () => {
+    it('validates required fields', async () => {
       render(<GitHubSettings {...mockProps} />);
       
       const saveButton = screen.getByText(/save/i);
@@ -103,7 +104,7 @@ describe('GitHubSettings - Basic Feature Coverage', () => {
       expect(true).toBe(true); // Basic test passes
     });
 
-    test('handles input changes correctly', async () => {
+    it('handles input changes correctly', async () => {
       render(<GitHubSettings {...mockProps} />);
       
       const patInput = screen.getByLabelText(/personal access token/i) || 
@@ -114,7 +115,7 @@ describe('GitHubSettings - Basic Feature Coverage', () => {
       expect(patInput).toHaveValue('test-token');
     });
 
-    test('shows security information about PAT', () => {
+    it('shows security information about PAT', () => {
       render(<GitHubSettings {...mockProps} />);
       
       // Look for security notice or fine-grained PAT information
@@ -124,7 +125,7 @@ describe('GitHubSettings - Basic Feature Coverage', () => {
       expect(securityText).toBeInTheDocument();
     });
 
-    test('masks PAT input for security', () => {
+    it('masks PAT input for security', () => {
       render(<GitHubSettings {...mockProps} />);
       
       const patInput = screen.getByLabelText(/personal access token/i) || 
@@ -136,7 +137,7 @@ describe('GitHubSettings - Basic Feature Coverage', () => {
   });
 
   describe('Form Validation and UX', () => {
-    test('disables save button when form is invalid', () => {
+    it('disables save button when form is invalid', () => {
       render(<GitHubSettings {...mockProps} />);
       
       const saveButton = screen.getByText(/save/i);
@@ -146,7 +147,7 @@ describe('GitHubSettings - Basic Feature Coverage', () => {
       expect(saveButton).toBeInTheDocument();
     });
 
-    test('shows help text for GitHub configuration', () => {
+    it('shows help text for GitHub configuration', () => {
       render(<GitHubSettings {...mockProps} />);
       
       // Should show instructions or help text
@@ -156,7 +157,7 @@ describe('GitHubSettings - Basic Feature Coverage', () => {
       expect(helpText).toBeInTheDocument();
     });
 
-    test('handles form reset correctly', () => {
+    it('handles form reset correctly', () => {
       render(<GitHubSettings {...mockProps} />);
       
       // Test form reset functionality if available
