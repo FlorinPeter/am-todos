@@ -31,8 +31,8 @@ $SCRIPT_DIR/pull-and-push.sh
 
 # Extract the tag from SOURCE_IMAGE to use for deployment
 if [ -z "$TAG" ]; then
-    TAG=$(echo ${SOURCE_IMAGE:-ghcr.io/your-username/am-todos:v1.0.0} | cut -d':' -f2)
-    if [ "$TAG" = "${SOURCE_IMAGE:-ghcr.io/your-username/am-todos:v1.0.0}" ]; then
+    TAG=$(echo ${SOURCE_IMAGE:-ghcr.io/your-username/am-todos:v1.1.0} | cut -d':' -f2)
+    if [ "$TAG" = "${SOURCE_IMAGE:-ghcr.io/your-username/am-todos:v1.1.0}" ]; then
         TAG="latest"
     fi
 fi
