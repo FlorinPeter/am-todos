@@ -1,31 +1,61 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { saveCheckpoint, getCheckpoints, clearCheckpoints, generateCheckpointId, Checkpoint } from '../utils/localStorage';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
+  checkpointId?: string; // Link to checkpoint for AI responses
 }
 
 interface AIChatProps {
   currentContent: string;
   onContentUpdate: (newContent: string) => void;
   onChatMessage: (message: string, currentContent: string) => Promise<string>;
+  taskId?: string; // Unique identifier for the current task
+  onCheckpointRestore?: (content: string) => void; // Callback for checkpoint restore
 }
 
 const AIChat: React.FC<AIChatProps> = ({ 
   currentContent, 
   onContentUpdate, 
-  onChatMessage 
+  onChatMessage,
+  taskId,
+  onCheckpointRestore
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [localChatHistory, setLocalChatHistory] = useState<ChatMessage[]>([]);
+  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [localChatHistory]);
+
+  // Load checkpoints when taskId changes
+  useEffect(() => {
+    if (taskId) {
+      try {
+        const loadedCheckpoints = getCheckpoints(taskId);
+        setCheckpoints(loadedCheckpoints);
+      } catch (error) {
+        console.error('Error loading checkpoints:', error);
+        setCheckpoints([]);
+      }
+    } else {
+      setCheckpoints([]);
+    }
+  }, [taskId]);
+
+  // Clear checkpoints when task changes
+  useEffect(() => {
+    if (taskId) {
+      // Clear chat history when switching tasks
+      setLocalChatHistory([]);
+    }
+  }, [taskId]);
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
@@ -41,13 +71,34 @@ const AIChat: React.FC<AIChatProps> = ({
     setInputMessage('');
     setIsLoading(true);
 
+    // Create checkpoint BEFORE AI response to capture the state before changes
+    const checkpointId = generateCheckpointId();
+    const checkpoint: Checkpoint = {
+      id: checkpointId,
+      content: currentContent, // Store the content BEFORE AI modification
+      timestamp: new Date().toISOString(),
+      chatMessage: inputMessage.trim(),
+      description: `Before: ${inputMessage.trim().length > 40 ? inputMessage.trim().substring(0, 40) + '...' : inputMessage.trim()}`
+    };
+
+    // Save checkpoint to localStorage if taskId is available
+    if (taskId) {
+      try {
+        saveCheckpoint(taskId, checkpoint);
+        setCheckpoints(prev => [...prev, checkpoint]);
+      } catch (error) {
+        console.error('Error saving checkpoint:', error);
+      }
+    }
+
     try {
       const updatedContent = await onChatMessage(inputMessage.trim(), currentContent);
       
       const assistantMessage: ChatMessage = {
         role: 'assistant',
         content: 'Task updated successfully',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        checkpointId: checkpointId
       };
 
       const finalLocalHistory = [...newLocalHistory, assistantMessage];
@@ -70,6 +121,22 @@ const AIChat: React.FC<AIChatProps> = ({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  const handleCheckpointRestore = (checkpointId: string) => {
+    const checkpoint = checkpoints.find(cp => cp.id === checkpointId);
+    if (checkpoint && onCheckpointRestore) {
+      if (window.confirm(`Restore to the state before this AI response?\n\nRequest: "${checkpoint.description.replace('Before: ', '')}"\nTimestamp: ${new Date(checkpoint.timestamp).toLocaleString()}\n\nThis will replace your current content with the state from before the AI responded. You will need to save manually to persist changes.`)) {
+        onCheckpointRestore(checkpoint.content);
+      }
+    }
+  };
+
+  const handleClearCheckpoints = () => {
+    if (taskId && window.confirm('Clear all checkpoints for this task? This cannot be undone.')) {
+      clearCheckpoints(taskId);
+      setCheckpoints([]);
     }
   };
 
@@ -122,9 +189,20 @@ const AIChat: React.FC<AIChatProps> = ({
                       : 'bg-gray-700 text-gray-200'
                   }`}>
                     <p>{message.content}</p>
-                    <p className="text-xs opacity-70 mt-1">
-                      {new Date(message.timestamp).toLocaleTimeString()}
-                    </p>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xs opacity-70">
+                        {new Date(message.timestamp).toLocaleTimeString()}
+                      </p>
+                      {message.role === 'assistant' && message.checkpointId && onCheckpointRestore && (
+                        <button
+                          onClick={() => handleCheckpointRestore(message.checkpointId!)}
+                          className="text-xs text-blue-300 hover:text-blue-200 underline ml-2"
+                          title="Restore to this checkpoint"
+                        >
+                          Restore
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))
@@ -144,15 +222,34 @@ const AIChat: React.FC<AIChatProps> = ({
 
           {/* Input Area */}
           <div className="p-3 sm:p-4 border-t border-gray-700">
-            {localChatHistory.length > 0 && (
+            {(localChatHistory.length > 0 || checkpoints.length > 0) && (
               <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-600">
-                <span className="text-xs text-gray-400">Session chat (not saved)</span>
-                <button
-                  onClick={() => setLocalChatHistory([])}
-                  className="text-xs text-gray-400 hover:text-red-400 transition-colors"
-                >
-                  Clear
-                </button>
+                <div className="flex items-center space-x-4">
+                  <span className="text-xs text-gray-400">Session chat (not saved)</span>
+                  {checkpoints.length > 0 && (
+                    <span className="text-xs text-green-400">
+                      {checkpoints.length} checkpoint{checkpoints.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center space-x-2">
+                  {checkpoints.length > 0 && (
+                    <button
+                      onClick={handleClearCheckpoints}
+                      className="text-xs text-gray-400 hover:text-red-400 transition-colors"
+                    >
+                      Clear Checkpoints
+                    </button>
+                  )}
+                  {localChatHistory.length > 0 && (
+                    <button
+                      onClick={() => setLocalChatHistory([])}
+                      className="text-xs text-gray-400 hover:text-red-400 transition-colors"
+                    >
+                      Clear Chat
+                    </button>
+                  )}
+                </div>
               </div>
             )}
             <div className="flex space-x-2">

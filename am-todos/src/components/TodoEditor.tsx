@@ -186,6 +186,7 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
           token={token}
           owner={owner}
           repo={repo}
+          taskId={selectedTodo.id}
         />
       </div>
     </div>

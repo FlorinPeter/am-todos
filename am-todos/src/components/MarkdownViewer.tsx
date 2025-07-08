@@ -20,6 +20,7 @@ interface MarkdownViewerProps {
   token?: string;
   owner?: string;
   repo?: string;
+  taskId?: string; // Add taskId for checkpoint management
 }
 
 const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ 
@@ -30,7 +31,8 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   filePath,
   token,
   owner,
-  repo
+  repo,
+  taskId
 }) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editContent, setEditContent] = useState(content);
@@ -155,6 +157,16 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
       onMarkdownChange(restoredContent);
       setHasUnsavedChanges(false);
     }
+  };
+
+  const handleCheckpointRestore = (restoredContent: string) => {
+    // Set the restored content (always mark as unsaved for manual save)
+    if (isEditMode) {
+      setEditContent(restoredContent);
+    } else {
+      setViewContent(restoredContent);
+    }
+    setHasUnsavedChanges(true); // Mark as unsaved since user needs to save manually
   };
 
   return (
@@ -402,6 +414,8 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
           currentContent={isEditMode ? editContent : viewContent}
           onContentUpdate={handleContentUpdate}
           onChatMessage={handleChatMessage}
+          taskId={taskId}
+          onCheckpointRestore={handleCheckpointRestore}
         />
       </div>
       
