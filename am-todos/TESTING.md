@@ -41,11 +41,11 @@
 | **9. Conventional Commits** | AI service + commit message format validation | ✅ PASS |
 | **10. Git History & Version Control** | GitHistory component + service functions | ✅ PASS |
 | **11. Mobile-First Responsive Design** | TodoSidebar + responsive pattern validation | ✅ PASS |
-| **12. Testing Infrastructure** | Jest framework + dependency validation | ✅ PASS |
+| **12. Testing Infrastructure** | Vitest framework + dependency validation | ✅ PASS |
 | **13. Markdown Rendering** | react-markdown integration + custom components | ✅ PASS |
 
-### **2. Multi-Folder Support Tests** (`npm test -- --testPathPattern=multiFolderSupport`)
-**Command**: `npm test -- --testPathPattern=multiFolderSupport.test.ts`  
+### **2. Multi-Folder Support Tests** (`npm test -- --run src/services/__tests__/multiFolderSupport.test.ts`)
+**Command**: `npm test -- --run src/services/__tests__/multiFolderSupport.test.ts`  
 **Files**: `src/services/__tests__/multiFolderSupport.test.ts`  
 **Status**: ✅ **13/16 tests passing** (Core functionality validated)
 
@@ -115,21 +115,18 @@ describe('Multi-Folder Support', () => {
 
 ## 🛠 **Test Infrastructure**
 
-### **Jest Configuration** (`jest.config.js`)
+### **Vitest Configuration** (`vitest.config.mjs`)
 ```javascript
-module.exports = {
-  preset: 'react-scripts',
-  transformIgnorePatterns: [
-    'node_modules/(?!(react-markdown|remark-gfm|micromark|decode-named-character-reference|character-entities|property-information|hast-util-whitespace|space-separated-tokens|comma-separated-tokens)/)'
-  ],
-  moduleNameMapper: {
-    '^react-markdown$': '<rootDir>/src/__mocks__/react-markdown.js',
-    '^remark-gfm$': '<rootDir>/src/__mocks__/remark-gfm.js'
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/setupTests.ts'],
+    globals: true,
+    css: false,
   },
-  setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts'],
-  testEnvironment: 'jsdom',
-  testTimeout: 30000
-};
+})
 ```
 
 ### **Mock Infrastructure**
@@ -140,9 +137,9 @@ module.exports = {
 ### **Test Scripts** (`package.json`)
 ```json
 {
-  "test": "react-scripts test",
-  "test:basic": "react-scripts test --testPathPattern='(FeatureValidation|ComponentBasics)\\.test\\.(ts|tsx)' --watchAll=false",
-  "test:integration": "INTEGRATION_TEST=true react-scripts test --testPathPattern=githubService.test.ts --watchAll=false",
+  "test": "vitest",
+  "test:basic": "vitest run src/__tests__/FeatureValidation.test.ts src/__tests__/ComponentBasics.test.tsx",
+  "test:integration": "INTEGRATION_TEST=true vitest run src/services/__tests__/githubService.test.ts",
   "test:github-basic": "node test-github-integration.js",
   "test:github-stress": "node test-stress-github.js"
 }
@@ -153,11 +150,11 @@ module.exports = {
 ## 🔧 **Resolved Testing Issues**
 
 ### **✅ Issue 1: ES Module Compatibility**
-**Problem**: `react-markdown` ES module syntax causing Jest failures  
+**Problem**: `react-markdown` ES module syntax causing test failures  
 **Solution**: 
-- Created custom Jest configuration with `transformIgnorePatterns`
+- Migrated from Jest to Vitest for better ES module support
 - Built mock implementations for `react-markdown` and `remark-gfm`
-- Configured module name mapping for seamless testing
+- Configured Vitest with jsdom environment for React component testing
 
 ### **✅ Issue 2: Component Rendering Failures**
 **Problem**: Complex component dependencies and state management causing crashes  
@@ -204,12 +201,12 @@ npm run test:basic && npm run test:github-basic
 
 ### **Development Testing**
 ```bash
-# Interactive Jest test runner
+# Interactive Vitest test runner
 npm test
 
 # Specific test patterns
-npm test -- --testPathPattern=FeatureValidation
-npm test -- --testPathPattern=ComponentBasics
+npm test -- --run src/__tests__/FeatureValidation.test.ts
+npm test -- --run src/__tests__/ComponentBasics.test.tsx
 ```
 
 ### **Stress Testing** (Optional)
