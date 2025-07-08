@@ -50,8 +50,8 @@ describe('Component Rendering Tests', () => {
     it('shows markdown content in view mode', () => {
       render(<MarkdownViewer {...mockProps} />);
       
-      // Should render markdown content (mocked)
-      expect(screen.getByTestId('markdown-content')).toBeInTheDocument();
+      // Should render markdown content - check for actual content
+      expect(screen.getByText('Test Content')).toBeInTheDocument();
     });
 
     it('shows git history button when props provided', () => {
@@ -218,17 +218,17 @@ describe('Component Rendering Tests', () => {
 
     it('renders when isOpen is true', () => {
       render(<NewTodoInput {...mockProps} />);
-      expect(screen.getByText(/create new task/i)).toBeInTheDocument();
+      expect(screen.getByText(/generate todo list/i)).toBeInTheDocument();
     });
 
     it('does not render when isOpen is false', () => {
       render(<NewTodoInput {...mockProps} isOpen={false} />);
-      expect(screen.queryByText(/create new task/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/generate todo list/i)).not.toBeInTheDocument();
     });
 
     it('shows goal input field', () => {
       render(<NewTodoInput {...mockProps} />);
-      expect(screen.getByPlaceholderText(/describe your goal/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/enter a new high-level goal/i)).toBeInTheDocument();
     });
 
     it('shows generate button', () => {

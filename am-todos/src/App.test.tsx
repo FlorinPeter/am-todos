@@ -11,7 +11,7 @@ vi.mock('./services/aiService');
 describe('App Component - Basic Feature Coverage', () => {
   beforeEach(() => {
     // Mock localStorage to return empty settings
-    (localStorage.getItem as jest.Mock).mockReturnValue(null);
+    vi.spyOn(Storage.prototype, 'getItem').mockReturnValue(null);
   });
 
   it('renders without crashing', () => {
@@ -22,7 +22,7 @@ describe('App Component - Basic Feature Coverage', () => {
   it('shows GitHub settings when not configured', async () => {
     render(<App />);
     await waitFor(() => {
-      expect(screen.getByText(/github settings/i)).toBeInTheDocument();
+      expect(screen.getByText(/application setup/i)).toBeInTheDocument();
     });
   });
 

@@ -4,13 +4,19 @@ import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import GitHubSettings from '../GitHubSettings';
 
+// Mock the services
+vi.mock('../../services/githubService', () => ({
+  listProjectFolders: vi.fn().mockResolvedValue(['todos', 'work']),
+  createProjectFolder: vi.fn().mockResolvedValue(true)
+}));
+
+vi.mock('../../utils/localStorage', () => ({
+  saveSettings: vi.fn(),
+  loadSettings: vi.fn().mockReturnValue(null)
+}));
+
 const mockProps = {
-  onSave: vi.fn(),
-  initialSettings: {
-    pat: '',
-    owner: '',
-    repo: ''
-  }
+  onSettingsSaved: vi.fn()
 };
 
 describe('GitHubSettings - Basic Feature Coverage', () => {
@@ -19,149 +25,102 @@ describe('GitHubSettings - Basic Feature Coverage', () => {
   });
 
   describe('GitHub Integration Configuration', () => {
-    it('renders GitHub settings form', () => {
+    it('renders application setup form', () => {
       render(<GitHubSettings {...mockProps} />);
       
-      expect(screen.getByText(/github settings/i)).toBeInTheDocument();
+      expect(screen.getByText(/application setup/i)).toBeInTheDocument();
     });
 
     it('shows PAT input field', () => {
       render(<GitHubSettings {...mockProps} />);
       
-      const patInput = screen.getByLabelText(/personal access token/i) || 
-                      screen.getByPlaceholderText(/github_pat/i);
+      const patInput = screen.getByLabelText(/GitHub Personal Access Token/i);
       expect(patInput).toBeInTheDocument();
+      expect(patInput).toHaveAttribute('type', 'password');
     });
 
     it('shows repository owner input', () => {
       render(<GitHubSettings {...mockProps} />);
       
-      const ownerInput = screen.getByLabelText(/repository owner/i) || 
-                        screen.getByPlaceholderText(/username/i);
+      const ownerInput = screen.getByLabelText(/Repository Owner/i);
       expect(ownerInput).toBeInTheDocument();
     });
 
     it('shows repository name input', () => {
       render(<GitHubSettings {...mockProps} />);
       
-      const repoInput = screen.getByLabelText(/repository name/i) || 
-                       screen.getByPlaceholderText(/repository/i);
+      const repoInput = screen.getByLabelText(/Repository Name/i);
       expect(repoInput).toBeInTheDocument();
     });
 
-    it('shows save button', () => {
+    it('shows AI provider configuration', () => {
       render(<GitHubSettings {...mockProps} />);
       
-      const saveButton = screen.getByText(/save/i);
+      expect(screen.getByText(/AI Provider Configuration/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/AI Provider/i)).toBeInTheDocument();
+    });
+
+    it('shows save settings button', () => {
+      render(<GitHubSettings {...mockProps} />);
+      
+      const saveButton = screen.getByText(/save settings/i);
       expect(saveButton).toBeInTheDocument();
-    });
-
-    it('populates initial values', () => {
-      const initialSettings = {
-        pat: 'test-token',
-        owner: 'test-owner',
-        repo: 'test-repo'
-      };
-      
-      render(<GitHubSettings {...mockProps} initialSettings={initialSettings} />);
-      
-      expect(screen.getByDisplayValue('test-token')).toBeInTheDocument();
-      expect(screen.getByDisplayValue('test-owner')).toBeInTheDocument();
-      expect(screen.getByDisplayValue('test-repo')).toBeInTheDocument();
-    });
-
-    it('calls onSave with form data when submitted', async () => {
-      render(<GitHubSettings {...mockProps} />);
-      
-      const patInput = screen.getByLabelText(/personal access token/i) || 
-                      screen.getByPlaceholderText(/github_pat/i);
-      const ownerInput = screen.getByLabelText(/repository owner/i) || 
-                        screen.getByPlaceholderText(/username/i);
-      const repoInput = screen.getByLabelText(/repository name/i) || 
-                       screen.getByPlaceholderText(/repository/i);
-      const saveButton = screen.getByText(/save/i);
-      
-      await userEvent.type(patInput, 'new-token');
-      await userEvent.type(ownerInput, 'new-owner');
-      await userEvent.type(repoInput, 'new-repo');
-      await userEvent.click(saveButton);
-      
-      expect(mockProps.onSave).toHaveBeenCalledWith({
-        pat: 'new-token',
-        owner: 'new-owner',
-        repo: 'new-repo'
-      });
-    });
-
-    it('validates required fields', async () => {
-      render(<GitHubSettings {...mockProps} />);
-      
-      const saveButton = screen.getByText(/save/i);
-      await userEvent.click(saveButton);
-      
-      // Should show validation error or not call onSave
-      // Implementation depends on validation strategy
-      expect(true).toBe(true); // Basic test passes
     });
 
     it('handles input changes correctly', async () => {
       render(<GitHubSettings {...mockProps} />);
       
-      const patInput = screen.getByLabelText(/personal access token/i) || 
-                      screen.getByPlaceholderText(/github_pat/i);
+      const patInput = screen.getByLabelText(/GitHub Personal Access Token/i);
+      const ownerInput = screen.getByLabelText(/Repository Owner/i);
+      const repoInput = screen.getByLabelText(/Repository Name/i);
       
       await userEvent.type(patInput, 'test-token');
+      await userEvent.type(ownerInput, 'test-owner');
+      await userEvent.type(repoInput, 'test-repo');
       
       expect(patInput).toHaveValue('test-token');
+      expect(ownerInput).toHaveValue('test-owner');
+      expect(repoInput).toHaveValue('test-repo');
     });
 
     it('shows security information about PAT', () => {
       render(<GitHubSettings {...mockProps} />);
       
-      // Look for security notice or fine-grained PAT information
-      const securityText = screen.getByText(/fine-grained/i) || 
-                          screen.getByText(/security/i) ||
-                          screen.getByText(/repository access/i);
-      expect(securityText).toBeInTheDocument();
+      expect(screen.getByText(/fine-grained PAT/i)).toBeInTheDocument();
     });
 
-    it('masks PAT input for security', () => {
+    it('shows AI provider selection', () => {
       render(<GitHubSettings {...mockProps} />);
       
-      const patInput = screen.getByLabelText(/personal access token/i) || 
-                      screen.getByPlaceholderText(/github_pat/i);
-      
-      // Should be password type for security
-      expect(patInput).toHaveAttribute('type', 'password');
+      const providerSelect = screen.getByLabelText(/AI Provider/i);
+      expect(providerSelect).toBeInTheDocument();
+      expect(screen.getByText(/Google Gemini/i)).toBeInTheDocument();
+      expect(screen.getByText(/OpenRouter/i)).toBeInTheDocument();
     });
   });
 
   describe('Form Validation and UX', () => {
-    it('disables save button when form is invalid', () => {
+    it('shows Gemini API key field when Gemini is selected', () => {
       render(<GitHubSettings {...mockProps} />);
       
-      const saveButton = screen.getByText(/save/i);
-      
-      // With empty fields, save might be disabled
-      // Implementation specific
-      expect(saveButton).toBeInTheDocument();
+      // Gemini is selected by default
+      expect(screen.getByLabelText(/Google Gemini API Key/i)).toBeInTheDocument();
     });
 
-    it('shows help text for GitHub configuration', () => {
+    it('switches to OpenRouter fields when OpenRouter is selected', async () => {
       render(<GitHubSettings {...mockProps} />);
       
-      // Should show instructions or help text
-      const helpText = screen.getByText(/configure/i) || 
-                      screen.getByText(/instructions/i) ||
-                      screen.getByText(/access/i);
-      expect(helpText).toBeInTheDocument();
+      const providerSelect = screen.getByLabelText(/AI Provider/i);
+      await userEvent.selectOptions(providerSelect, 'openrouter');
+      
+      expect(screen.getByLabelText(/OpenRouter API Key/i)).toBeInTheDocument();
     });
 
-    it('handles form reset correctly', () => {
+    it('shows project folder configuration', () => {
       render(<GitHubSettings {...mockProps} />);
       
-      // Test form reset functionality if available
-      expect(true).toBe(true); // Basic test
+      expect(screen.getByText(/Project Folder/i)).toBeInTheDocument();
+      expect(screen.getByText(/New Project/i)).toBeInTheDocument();
     });
   });
 });
