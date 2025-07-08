@@ -208,90 +208,9 @@ describe('Component Rendering Tests', () => {
     });
   });
 
-  describe('Feature 1: NewTodoInput Component', () => {
-    const mockProps = {
-      isOpen: true,
-      onClose: vi.fn(),
-      onSubmit: vi.fn(),
-      isGenerating: false
-    };
+  // NewTodoInput tests moved to dedicated test file
 
-    it('renders when isOpen is true', () => {
-      render(<NewTodoInput {...mockProps} />);
-      expect(screen.getByText(/generate todo list/i)).toBeInTheDocument();
-    });
-
-    it('does not render when isOpen is false', () => {
-      render(<NewTodoInput {...mockProps} isOpen={false} />);
-      expect(screen.queryByText(/generate todo list/i)).not.toBeInTheDocument();
-    });
-
-    it('shows goal input field', () => {
-      render(<NewTodoInput {...mockProps} />);
-      expect(screen.getByPlaceholderText(/enter a new high-level goal/i)).toBeInTheDocument();
-    });
-
-    it('shows generate button', () => {
-      render(<NewTodoInput {...mockProps} />);
-      expect(screen.getByText(/generate/i)).toBeInTheDocument();
-    });
-
-    it('calls onSubmit when form submitted', async () => {
-      render(<NewTodoInput {...mockProps} />);
-      
-      const goalInput = screen.getByPlaceholderText(/describe your goal/i);
-      const generateButton = screen.getByText(/generate/i);
-      
-      await userEvent.type(goalInput, 'Test goal');
-      await userEvent.click(generateButton);
-      
-      expect(mockProps.onSubmit).toHaveBeenCalledWith('Test goal');
-    });
-
-    it('shows loading state when generating', () => {
-      render(<NewTodoInput {...mockProps} isGenerating={true} />);
-      expect(screen.getByText(/generating/i)).toBeInTheDocument();
-    });
-  });
-
-  describe('Feature 2: GitHubSettings Component', () => {
-    const mockProps = {
-      onSave: vi.fn(),
-      initialSettings: { pat: '', owner: '', repo: '' }
-    };
-
-    it('renders without crashing', () => {
-      render(<GitHubSettings {...mockProps} />);
-      expect(document.body).toBeInTheDocument();
-    });
-
-    it('shows GitHub settings form', () => {
-      render(<GitHubSettings {...mockProps} />);
-      expect(screen.getByText(/github settings/i)).toBeInTheDocument();
-    });
-
-    it('shows PAT input field', () => {
-      render(<GitHubSettings {...mockProps} />);
-      const patInput = screen.getByLabelText(/personal access token/i) || 
-                      screen.getByPlaceholderText(/github_pat/i);
-      expect(patInput).toBeInTheDocument();
-    });
-
-    it('shows save button', () => {
-      render(<GitHubSettings {...mockProps} />);
-      expect(screen.getByText(/save/i)).toBeInTheDocument();
-    });
-
-    it('populates initial values', () => {
-      const settingsWithValues = {
-        onSave: vi.fn(),
-        initialSettings: { pat: 'test-token', owner: 'test-owner', repo: 'test-repo' }
-      };
-      
-      render(<GitHubSettings {...settingsWithValues} />);
-      expect(screen.getByDisplayValue('test-token')).toBeInTheDocument();
-    });
-  });
+  // GitHubSettings tests moved to dedicated test file
 
   describe('Feature 4: AIChat Component', () => {
     const mockProps = {
