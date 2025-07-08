@@ -28,8 +28,8 @@ fi
 # Configuration
 REGION="europe-west4"  # Netherlands (supports custom domains)
 IMAGE="${IMAGE:-europe-west4-docker.pkg.dev/$GOOGLE_CLOUD_PROJECT/am-todos/app:v1.0.0}"
-MEMORY="1Gi"
-CPU="1"
+MEMORY="256Mi"
+CPU="500m"
 MIN_INSTANCES="0"
 MAX_INSTANCES="10"
 CUSTOM_DOMAIN="${CUSTOM_DOMAIN:-}"
