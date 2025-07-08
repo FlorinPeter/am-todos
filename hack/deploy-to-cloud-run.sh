@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Deploy AM-Todos to Google Cloud Run (Frankfurt region)
+# Deploy AM-Todos to Google Cloud Run (Netherlands region)
 # This script uses the GitHub container image v1.1.0
+# Optimized for gen2 execution environment with 1 CPU and 512Mi memory
 
 set -e
 
@@ -28,8 +29,8 @@ fi
 # Configuration
 REGION="europe-west4"  # Netherlands (supports custom domains)
 IMAGE="${IMAGE:-europe-west4-docker.pkg.dev/$GOOGLE_CLOUD_PROJECT/am-todos/app:v1.1.0}"
-MEMORY="256Mi"
-CPU="500m"
+MEMORY="512Mi"
+CPU="1000m"
 MIN_INSTANCES="0"
 MAX_INSTANCES="10"
 CUSTOM_DOMAIN="${CUSTOM_DOMAIN:-}"
@@ -88,7 +89,6 @@ gcloud run deploy $SERVICE_NAME \
   --allow-unauthenticated \
   --memory $MEMORY \
   --cpu $CPU \
-  --concurrency 1 \
   --min-instances $MIN_INSTANCES \
   --max-instances $MAX_INSTANCES \
   --timeout 300 \
