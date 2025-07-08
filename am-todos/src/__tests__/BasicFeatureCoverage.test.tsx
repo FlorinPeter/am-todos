@@ -1,9 +1,10 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 // Mock all services to avoid API calls
-jest.mock('../services/githubService');
-jest.mock('../services/aiService');
+vi.mock('../services/githubService');
+vi.mock('../services/aiService');
 
 // Import components for testing
 import App from '../App';
@@ -18,11 +19,11 @@ import GitHistory from '../components/GitHistory';
 describe('Basic Feature Coverage - All 12 Features', () => {
   
   describe('Feature 1: AI-Powered Task Generation', () => {
-    test('NewTodoInput component renders for task creation', () => {
+    it('NewTodoInput component renders for task creation', () => {
       const mockProps = {
         isOpen: true,
-        onClose: jest.fn(),
-        onSubmit: jest.fn(),
+        onClose: vi.fn(),
+        onSubmit: vi.fn(),
         isGenerating: false
       };
       
@@ -32,9 +33,9 @@ describe('Basic Feature Coverage - All 12 Features', () => {
   });
 
   describe('Feature 2: GitHub Integration & CRUD Operations', () => {
-    test('GitHubSettings component renders configuration interface', () => {
+    it('GitHubSettings component renders configuration interface', () => {
       const mockProps = {
-        onSave: jest.fn(),
+        onSave: vi.fn(),
         initialSettings: { pat: '', owner: '', repo: '' }
       };
       
@@ -44,12 +45,12 @@ describe('Basic Feature Coverage - All 12 Features', () => {
   });
 
   describe('Feature 3: Interactive Markdown Editor with Progress Tracking', () => {
-    test('MarkdownViewer component renders markdown content', () => {
+    it('MarkdownViewer component renders markdown content', () => {
       const mockProps = {
         content: '# Test Content\n\n- [ ] Test task',
         chatHistory: [],
-        onMarkdownChange: jest.fn(),
-        onChatHistoryChange: jest.fn()
+        onMarkdownChange: vi.fn(),
+        onChatHistoryChange: vi.fn()
       };
       
       render(<MarkdownViewer {...mockProps} />);
@@ -58,11 +59,11 @@ describe('Basic Feature Coverage - All 12 Features', () => {
   });
 
   describe('Feature 4: AI Chat Assistant', () => {
-    test('AIChat component renders chat interface', () => {
+    it('AIChat component renders chat interface', () => {
       const mockProps = {
         currentContent: '# Test',
-        onContentUpdate: jest.fn(),
-        onChatMessage: jest.fn().mockResolvedValue('Updated content')
+        onContentUpdate: vi.fn(),
+        onChatMessage: vi.fn().mockResolvedValue('Updated content')
       };
       
       render(<AIChat {...mockProps} />);
@@ -71,7 +72,7 @@ describe('Basic Feature Coverage - All 12 Features', () => {
   });
 
   describe('Feature 5: Task Management System', () => {
-    test('TodoEditor component renders task management interface', () => {
+    it('TodoEditor component renders task management interface', () => {
       const mockTodo = {
         id: 'test-id',
         filename: 'test.md',
@@ -87,9 +88,9 @@ describe('Basic Feature Coverage - All 12 Features', () => {
       
       const mockProps = {
         selectedTodo: mockTodo,
-        onPriorityUpdate: jest.fn(),
-        onArchiveToggle: jest.fn(),
-        onDeleteTodo: jest.fn(),
+        onPriorityUpdate: vi.fn(),
+        onArchiveToggle: vi.fn(),
+        onDeleteTodo: vi.fn(),
         isLoading: false
       };
       
@@ -99,7 +100,7 @@ describe('Basic Feature Coverage - All 12 Features', () => {
   });
 
   describe('Feature 6: Smart File Naming System', () => {
-    test('File naming functionality exists in codebase', () => {
+    it('File naming functionality exists in codebase', () => {
       // This feature is implemented in App.tsx logic
       // Testing by verifying component structure
       expect(true).toBe(true);
@@ -107,7 +108,7 @@ describe('Basic Feature Coverage - All 12 Features', () => {
   });
 
   describe('Feature 7: Auto-Directory Setup', () => {
-    test('Directory setup functionality exists in service layer', () => {
+    it('Directory setup functionality exists in service layer', () => {
       // This feature is implemented in githubService.ts
       // Testing by verifying service is mockable
       expect(true).toBe(true);
@@ -115,7 +116,7 @@ describe('Basic Feature Coverage - All 12 Features', () => {
   });
 
   describe('Feature 8: Conventional Commits with AI', () => {
-    test('Commit message generation functionality exists', () => {
+    it('Commit message generation functionality exists', () => {
       // This feature is implemented in aiService.ts
       // Testing by verifying service is mockable
       expect(true).toBe(true);
@@ -123,14 +124,14 @@ describe('Basic Feature Coverage - All 12 Features', () => {
   });
 
   describe('Feature 9: Git History & Version Control', () => {
-    test('GitHistory component renders version control interface', () => {
+    it('GitHistory component renders version control interface', () => {
       const mockProps = {
         token: 'test-token',
         owner: 'test-owner',
         repo: 'test-repo',
         filePath: 'test-file.md',
-        onRestore: jest.fn(),
-        onClose: jest.fn()
+        onRestore: vi.fn(),
+        onClose: vi.fn()
       };
       
       render(<GitHistory {...mockProps} />);
@@ -139,7 +140,7 @@ describe('Basic Feature Coverage - All 12 Features', () => {
   });
 
   describe('Feature 10: Mobile-First Responsive Design', () => {
-    test('TodoSidebar component renders responsive navigation', () => {
+    it('TodoSidebar component renders responsive navigation', () => {
       const mockTodos = [
         {
           id: 'test-1',
@@ -158,24 +159,24 @@ describe('Basic Feature Coverage - All 12 Features', () => {
       const mockProps = {
         todos: mockTodos,
         selectedTodoId: 'test-1',
-        onSelectTodo: jest.fn(),
-        onNewTodo: jest.fn(),
+        onSelectTodo: vi.fn(),
+        onNewTodo: vi.fn(),
         showArchived: false,
         isOpen: true,
-        onClose: jest.fn()
+        onClose: vi.fn()
       };
       
       render(<TodoSidebar {...mockProps} />);
       expect(document.body).toBeInTheDocument();
     });
 
-    test('App component renders main responsive layout', () => {
+    it('App component renders main responsive layout', () => {
       // Mock localStorage
       Object.defineProperty(window, 'localStorage', {
         value: {
-          getItem: jest.fn(() => null),
-          setItem: jest.fn(),
-          removeItem: jest.fn(),
+          getItem: vi.fn(() => null),
+          setItem: vi.fn(),
+          removeItem: vi.fn(),
         },
         writable: true,
       });
@@ -186,16 +187,16 @@ describe('Basic Feature Coverage - All 12 Features', () => {
   });
 
   describe('Feature 11: Comprehensive Testing Infrastructure', () => {
-    test('Test infrastructure exists and functions', () => {
+    it('Test infrastructure exists and functions', () => {
       // This test itself validates the testing infrastructure
-      expect(jest).toBeDefined();
+      expect(vi).toBeDefined();
       expect(render).toBeDefined();
       expect(screen).toBeDefined();
     });
   });
 
   describe('Feature 12: Markdown Rendering with Custom Components', () => {
-    test('MarkdownViewer renders markdown with custom styling', () => {
+    it('MarkdownViewer renders markdown with custom styling', () => {
       const contentWithMarkdown = `
 # Heading 1
 ## Heading 2
@@ -213,8 +214,8 @@ const code = "sample";
       const mockProps = {
         content: contentWithMarkdown,
         chatHistory: [],
-        onMarkdownChange: jest.fn(),
-        onChatHistoryChange: jest.fn()
+        onMarkdownChange: vi.fn(),
+        onChatHistoryChange: vi.fn()
       };
       
       render(<MarkdownViewer {...mockProps} />);
@@ -223,7 +224,7 @@ const code = "sample";
   });
 
   describe('Known Missing Implementation', () => {
-    test('Interactive Checkbox Functionality - Known Gap', () => {
+    it('Interactive Checkbox Functionality - Known Gap', () => {
       // This feature is documented as missing in FEATURES.md
       // Checkboxes are currently rendered as disabled
       const contentWithCheckboxes = '- [ ] Task 1\n- [x] Task 2';
@@ -231,8 +232,8 @@ const code = "sample";
       const mockProps = {
         content: contentWithCheckboxes,
         chatHistory: [],
-        onMarkdownChange: jest.fn(),
-        onChatHistoryChange: jest.fn()
+        onMarkdownChange: vi.fn(),
+        onChatHistoryChange: vi.fn()
       };
       
       const { container } = render(<MarkdownViewer {...mockProps} />);
@@ -246,7 +247,7 @@ const code = "sample";
   });
 
   describe('Priority System Coverage', () => {
-    test('Priority levels P1-P5 are supported', () => {
+    it('Priority levels P1-P5 are supported', () => {
       const priorities = [1, 2, 3, 4, 5];
       
       priorities.forEach(priority => {
@@ -265,9 +266,9 @@ const code = "sample";
         
         const mockProps = {
           selectedTodo: mockTodo,
-          onPriorityUpdate: jest.fn(),
-          onArchiveToggle: jest.fn(),
-          onDeleteTodo: jest.fn(),
+          onPriorityUpdate: vi.fn(),
+          onArchiveToggle: vi.fn(),
+          onDeleteTodo: vi.fn(),
           isLoading: false
         };
         
@@ -279,7 +280,7 @@ const code = "sample";
   });
 
   describe('Archive System Coverage', () => {
-    test('Archive and unarchive functionality supported', () => {
+    it('Archive and unarchive functionality supported', () => {
       const archivedTodo = {
         id: 'archived-test',
         filename: 'archived-test.md',
@@ -295,9 +296,9 @@ const code = "sample";
       
       const mockProps = {
         selectedTodo: archivedTodo,
-        onPriorityUpdate: jest.fn(),
-        onArchiveToggle: jest.fn(),
-        onDeleteTodo: jest.fn(),
+        onPriorityUpdate: vi.fn(),
+        onArchiveToggle: vi.fn(),
+        onDeleteTodo: vi.fn(),
         isLoading: false
       };
       
@@ -308,7 +309,7 @@ const code = "sample";
 });
 
 describe('Integration Points Coverage', () => {
-  test('Components integrate without runtime errors', () => {
+  it('Components integrate without runtime errors', () => {
     // Test that components can be rendered together without crashes
     const mockTodos = [
       {
@@ -328,26 +329,26 @@ describe('Integration Points Coverage', () => {
     const sidebarProps = {
       todos: mockTodos,
       selectedTodoId: 'integration-test',
-      onSelectTodo: jest.fn(),
-      onNewTodo: jest.fn(),
+      onSelectTodo: vi.fn(),
+      onNewTodo: vi.fn(),
       showArchived: false,
       isOpen: true,
-      onClose: jest.fn()
+      onClose: vi.fn()
     };
     
     const editorProps = {
       selectedTodo: mockTodos[0],
-      onPriorityUpdate: jest.fn(),
-      onArchiveToggle: jest.fn(),
-      onDeleteTodo: jest.fn(),
+      onPriorityUpdate: vi.fn(),
+      onArchiveToggle: vi.fn(),
+      onDeleteTodo: vi.fn(),
       isLoading: false
     };
     
     const viewerProps = {
       content: mockTodos[0].content,
       chatHistory: [],
-      onMarkdownChange: jest.fn(),
-      onChatHistoryChange: jest.fn()
+      onMarkdownChange: vi.fn(),
+      onChatHistoryChange: vi.fn()
     };
     
     // Render multiple components
