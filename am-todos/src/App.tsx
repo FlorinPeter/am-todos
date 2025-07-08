@@ -51,7 +51,7 @@ function App() {
     fetchTodos(); // Fetch todos after settings are saved
   };
 
-  const fetchTodosWithSettings = useCallback(async (useSettings?: any, useViewMode?: 'active' | 'archived') => {
+  const fetchTodosWithSettings = useCallback(async (useSettings?: any, useViewMode?: 'active' | 'archived', preserveTodoPath?: string) => {
     const currentSettings = useSettings || settings;
     const currentViewMode = useViewMode || viewMode;
     console.log('Fetching todos with settings...', currentSettings ? 'Settings available' : 'No settings');
@@ -117,8 +117,18 @@ function App() {
       console.log(`Filtered todos for ${currentViewMode} view:`, filteredTodos.length);
       setTodos(filteredTodos);
       
-      // Auto-select first todo if none selected or if the previously selected todo no longer exists
+      // Auto-select logic with preserve path support
       setSelectedTodoId(currentSelectedId => {
+        // If we're trying to preserve a specific todo path, find it first
+        if (preserveTodoPath) {
+          const preservedTodo = filteredTodos.find((todo: any) => todo.path === preserveTodoPath);
+          if (preservedTodo) {
+            console.log('Re-selected preserved todo:', preservedTodo.title);
+            return preservedTodo.id;
+          }
+        }
+        
+        // Otherwise, use the normal auto-selection logic
         const currentTodoExists = filteredTodos.some((todo: any) => todo.id === currentSelectedId);
         if (filteredTodos.length > 0 && (!currentSelectedId || !currentTodoExists)) {
           const firstTodo = filteredTodos[0];
@@ -136,8 +146,8 @@ function App() {
     }
   }, [settings, viewMode]);
 
-  const fetchTodos = useCallback(async () => {
-    await fetchTodosWithSettings();
+  const fetchTodos = useCallback(async (preserveTodoPath?: string) => {
+    await fetchTodosWithSettings(undefined, undefined, preserveTodoPath);
   }, [fetchTodosWithSettings]);
 
   useEffect(() => {
@@ -324,7 +334,7 @@ function App() {
       }
       
       setSaveStep('🔄 Refreshing task list...');
-      await fetchTodos(); // Re-fetch to get updated SHA and content
+      await fetchTodos(todoToUpdate.path); // Re-fetch and preserve selection
       
       setSaveStep('✅ Save completed!');
       setTimeout(() => {
@@ -382,7 +392,7 @@ function App() {
       await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, latestSha);
       
       setSaveStep('🔄 Refreshing...');
-      await fetchTodos();
+      await fetchTodos(todoToUpdate.path); // Re-fetch and preserve selection
       
       setSaveStep('✅ Priority updated!');
       setTimeout(() => {
@@ -439,7 +449,7 @@ function App() {
       await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, latestSha);
       
       setSaveStep('🔄 Refreshing...');
-      await fetchTodos();
+      await fetchTodos(todoToUpdate.path); // Re-fetch and preserve selection
       
       setSaveStep('✅ Title updated!');
       setTimeout(() => {
