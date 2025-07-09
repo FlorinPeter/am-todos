@@ -4,8 +4,8 @@ import TodoSidebar from './components/TodoSidebar';
 import TodoEditor from './components/TodoEditor';
 import GitHubSettings from './components/GitHubSettings';
 import ProjectManager from './components/ProjectManager';
-import { loadSettings, getUrlConfig, saveSettings } from './utils/localStorage';
-import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDirectory, moveTaskToArchive, moveTaskFromArchive } from './services/githubService';
+import { loadSettings, getUrlConfig, saveSettings, saveSelectedTodoId, loadSelectedTodoId, clearSelectedTodoId } from './utils/localStorage';
+import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDirectory, moveTaskToArchive, moveTaskFromArchive, deleteFile } from './services/githubService';
 import { generateInitialPlan, generateCommitMessage } from './services/aiService';
 import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, TodoFrontmatter } from './utils/markdown';
 
@@ -31,7 +31,7 @@ function App() {
   
 
   const [todos, setTodos] = useState<any[]>([]);
-  const [selectedTodoId, setSelectedTodoId] = useState<string | null>(null);
+  const [selectedTodoId, setSelectedTodoId] = useState<string | null>(loadSelectedTodoId());
   const [showNewTodoInput, setShowNewTodoInput] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
@@ -83,6 +83,7 @@ function App() {
         setAllTodos([]);
         setTodos([]);
         setSelectedTodoId(null);
+        clearSelectedTodoId(); // Clear persisted selection when no todos exist
         return;
       }
       
@@ -117,7 +118,7 @@ function App() {
       console.log(`Filtered todos for ${currentViewMode} view:`, filteredTodos.length);
       setTodos(filteredTodos);
       
-      // Auto-select logic with preserve path support
+      // Auto-select logic with preserve path support and localStorage persistence
       setSelectedTodoId(currentSelectedId => {
         // If we're trying to preserve a specific todo path, find it first
         if (preserveTodoPath) {
@@ -128,14 +129,31 @@ function App() {
           }
         }
         
-        // Otherwise, use the normal auto-selection logic
+        // Check if current selection still exists in the filtered todos
         const currentTodoExists = filteredTodos.some((todo: any) => todo.id === currentSelectedId);
-        if (filteredTodos.length > 0 && (!currentSelectedId || !currentTodoExists)) {
+        if (currentTodoExists) {
+          console.log('Keeping current selection:', filteredTodos.find((todo: any) => todo.id === currentSelectedId)?.title);
+          return currentSelectedId;
+        }
+        
+        // If current selection doesn't exist, try to restore from localStorage
+        const persistedTodoId = loadSelectedTodoId();
+        if (persistedTodoId && filteredTodos.length > 0) {
+          const persistedTodo = filteredTodos.find((todo: any) => todo.id === persistedTodoId);
+          if (persistedTodo) {
+            console.log('Restored todo from localStorage:', persistedTodo.title);
+            return persistedTodoId;
+          }
+        }
+        
+        // Finally, fall back to first todo if no selection or persisted todo exists
+        if (filteredTodos.length > 0) {
           const firstTodo = filteredTodos[0];
-          console.log('Auto-selected todo:', firstTodo.title);
+          console.log('Auto-selected first todo:', firstTodo.title);
           return firstTodo.id;
         }
-        return currentSelectedId;
+        
+        return null;
       });
       
     } catch (error) {
@@ -156,10 +174,16 @@ function App() {
     }
   }, [fetchTodos, settings]);
 
+  // Persist selected todo ID to localStorage
+  useEffect(() => {
+    saveSelectedTodoId(selectedTodoId);
+  }, [selectedTodoId]);
+
   const handleProjectChanged = (newSettings?: any) => {
     const settingsToUse = newSettings || loadSettings();
     setSettings(settingsToUse);
     setSelectedTodoId(null); // Clear selection when switching projects
+    clearSelectedTodoId(); // Clear persisted selection since it's a different project
     
     // Fetch todos immediately with the new settings
     fetchTodosWithSettings(settingsToUse);
@@ -213,17 +237,42 @@ function App() {
           .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
           .replace(/\s+/g, '-') // Replace spaces with hyphens
           .replace(/-+/g, '-') // Replace multiple hyphens with single
+          .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
           .trim()
           .substring(0, 50); // Limit length
       };
       
       const slug = createSlug(goal);
       const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-      const filename = `${settings.folder || 'todos'}/${timestamp}-${slug}.md`;
+      const folder = settings.folder || 'todos';
+      
+      // Check for filename conflicts and generate unique filename
+      setCreationStep('🔍 Checking for filename conflicts...');
+      let filename = `${folder}/${timestamp}-${slug}.md`;
+      let finalFilename = filename;
+      
+      // Check if file already exists and generate unique name if needed
+      let counter = 1;
+      while (true) {
+        try {
+          await getFileMetadata(settings.pat, settings.owner, settings.repo, finalFilename);
+          // File exists, try next number
+          const pathParts = filename.split('.');
+          const extension = pathParts.pop();
+          const basePath = pathParts.join('.');
+          finalFilename = `${basePath}-${counter}.${extension}`;
+          counter++;
+          console.log(`File conflict detected, trying: ${finalFilename}`);
+        } catch (error) {
+          // File doesn't exist, we can use this filename
+          console.log(`Using filename: ${finalFilename}`);
+          break;
+        }
+      }
       
       setCreationStep('💾 Saving to GitHub...');
-      console.log('Creating file on GitHub:', filename);
-      const createResult = await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, filename, fullContent, commitMessage);
+      console.log('Creating file on GitHub:', finalFilename);
+      const createResult = await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, finalFilename, fullContent, commitMessage);
       console.log('File created successfully on GitHub');
 
       // 5. Wait for GitHub to process, then refresh
@@ -232,7 +281,7 @@ function App() {
       
       // Wait for GitHub processing
       await new Promise(resolve => setTimeout(resolve, 2000));
-      await fetchTodos();
+      await fetchTodos(finalFilename);
       
       // Auto-select the newly created task
       if (createResult?.content?.sha) {
@@ -415,7 +464,7 @@ function App() {
     if (!settings) return;
     try {
       setIsSavingTask(true);
-      setSaveStep('📝 Updating title...');
+      setSaveStep('📝 Analyzing changes... (1/6)');
       
       const todoToUpdate = todos.find(todo => todo.id === id);
       if (!todoToUpdate) {
@@ -424,7 +473,14 @@ function App() {
         return;
       }
 
-      setSaveStep('🔄 Getting latest file version...');
+      // Check if title actually changed
+      if (todoToUpdate.frontmatter?.title === newTitle) {
+        setIsSavingTask(false);
+        setSaveStep('');
+        return;
+      }
+
+      setSaveStep('🔄 Getting latest version... (2/6)');
       // Get the latest SHA to avoid conflicts (same pattern as handleTodoUpdate)
       let latestSha = todoToUpdate.sha;
       try {
@@ -435,23 +491,81 @@ function App() {
         console.log('Title update: Could not fetch latest SHA, using existing:', latestSha);
       }
 
-      setSaveStep('📝 Preparing content...');
+      setSaveStep('📝 Preparing content... (3/6)');
       const updatedFrontmatter = {
         ...todoToUpdate.frontmatter,
         title: newTitle
       };
       const fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, todoToUpdate.content);
       
-      // Simple clear commit message without AI generation
-      const commitMessage = `docs: Update title to "${newTitle}"`;
-
-      setSaveStep('💾 Saving to GitHub...');
-      await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, latestSha);
+      // Generate new filename based on new title
+      const createSlug = (title: string) => {
+        return title
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+          .replace(/\s+/g, '-') // Replace spaces with hyphens
+          .replace(/-+/g, '-') // Replace multiple hyphens with single
+          .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
+          .trim()
+          .substring(0, 50); // Limit length
+      };
       
-      setSaveStep('🔄 Refreshing...');
-      await fetchTodos(todoToUpdate.path); // Re-fetch and preserve selection
+      const newSlug = createSlug(newTitle);
+      const timestamp = todoToUpdate.path.match(/\d{4}-\d{2}-\d{2}/)?.[0] || new Date().toISOString().split('T')[0];
+      const folder = settings.folder || 'todos';
+      const newPath = `${folder}/${timestamp}-${newSlug}.md`;
       
-      setSaveStep('✅ Title updated!');
+      const oldPath = todoToUpdate.path;
+      const needsRename = oldPath !== newPath;
+      
+      setSaveStep('🔍 Resolving filename... (4/6)');
+      let finalPath = newPath;
+      
+      // Handle file name conflicts if renaming is needed
+      if (needsRename) {
+        let counter = 1;
+        let conflictFreePath = newPath;
+        
+        while (true) {
+          try {
+            await getFileMetadata(settings.pat, settings.owner, settings.repo, conflictFreePath);
+            // File exists, try next number
+            const pathParts = newPath.split('.');
+            const extension = pathParts.pop();
+            const basePath = pathParts.join('.');
+            conflictFreePath = `${basePath}-${counter}.${extension}`;
+            counter++;
+          } catch (error) {
+            // File doesn't exist, we can use this path
+            finalPath = conflictFreePath;
+            break;
+          }
+        }
+      }
+      
+      if (needsRename) {
+        setSaveStep('📁 Updating files... (5/6)');
+        
+        // Create new file with new name
+        const commitMessage = `docs: Rename task to "${newTitle}"`;
+        await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, finalPath, fullContent, commitMessage);
+        
+        // Delete old file (combine these steps visually)
+        await deleteFile(settings.pat, settings.owner, settings.repo, oldPath, latestSha, `docs: Remove old file after renaming to "${newTitle}"`);
+        
+        setSaveStep('🔄 Refreshing list... (6/6)');
+        await fetchTodos(finalPath); // Re-fetch and select the new file
+      } else {
+        // Just update the existing file
+        const commitMessage = `docs: Update title to "${newTitle}"`;
+        setSaveStep('💾 Saving changes... (5/6)');
+        await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, latestSha);
+        
+        setSaveStep('🔄 Refreshing list... (6/6)');
+        await fetchTodos(todoToUpdate.path); // Re-fetch and preserve selection
+      }
+      
+      setSaveStep('✅ Title updated successfully!');
       setTimeout(() => {
         setIsSavingTask(false);
         setSaveStep('');
@@ -635,16 +749,25 @@ function App() {
 
   const getProgressWidth = () => {
     if (!creationStep) return '0%';
-    if (creationStep.includes('Generating task plan')) return '20%';
-    if (creationStep.includes('Preparing task content')) return '40%';
-    if (creationStep.includes('Generating commit message')) return '60%';
-    if (creationStep.includes('Setting up repository')) return '70%';
+    
+    // Task creation steps in chronological order with smooth progression
+    if (creationStep.includes('Starting')) return '5%';
+    if (creationStep.includes('Generating task plan')) return '15%';
+    if (creationStep.includes('Preparing task content')) return '30%';
+    if (creationStep.includes('Generating commit message')) return '45%';
+    if (creationStep.includes('Setting up repository')) return '60%';
+    if (creationStep.includes('Checking for filename conflicts')) return '70%';
     if (creationStep.includes('Saving to GitHub')) return '80%';
-    if (creationStep.includes('Refreshing task list')) return '85%';
-    if (creationStep.includes('Waiting for GitHub')) return '90%';
+    if (creationStep.includes('Refreshing task list')) return '90%';
+    if (creationStep.includes('Task created successfully') || creationStep.includes('✅')) return '100%';
+    
+    // Error and retry states
+    if (creationStep.includes('Waiting for GitHub')) return '85%';
     if (creationStep.includes('Task found')) return '95%';
     if (creationStep.includes('Taking longer than expected')) return '95%';
-    if (creationStep.includes('Error, retrying')) return '90%';
+    if (creationStep.includes('Error, retrying')) return '75%';
+    if (creationStep.includes('failed') || creationStep.includes('❌')) return '100%';
+    
     return '100%';
   };
 
@@ -662,20 +785,33 @@ function App() {
 
   const getSaveProgressWidth = () => {
     if (!saveStep) return '0%';
+    
+    // New unified title update steps (with proper percentage progression)
+    if (saveStep.includes('Analyzing changes') || saveStep.includes('(1/6)')) return '17%';
+    if (saveStep.includes('Getting latest version') || saveStep.includes('(2/6)')) return '33%';
+    if (saveStep.includes('Preparing content') && saveStep.includes('(3/6)')) return '50%';
+    if (saveStep.includes('Resolving filename') || saveStep.includes('(4/6)')) return '67%';
+    if (saveStep.includes('Updating files') || saveStep.includes('Saving changes') || saveStep.includes('(5/6)')) return '83%';
+    if (saveStep.includes('Refreshing list') || saveStep.includes('(6/6)')) return '90%';
+    if (saveStep.includes('Title updated successfully') || saveStep.includes('✅')) return '100%';
+    if (saveStep.includes('Title update failed') || saveStep.includes('❌')) return '100%';
+    
     // Priority update steps - in chronological order
     if (saveStep.includes('Updating priority')) return '20%';
     if (saveStep.includes('Getting latest file version')) return '40%';
-    if (saveStep.includes('Preparing content')) return '60%';
+    if (saveStep.includes('Preparing content') && !saveStep.includes('(3/6)')) return '60%';
     if (saveStep.includes('Saving to GitHub')) return '80%';
-    if (saveStep.includes('Refreshing')) return '90%';
+    if (saveStep.includes('Refreshing') && !saveStep.includes('(6/6)')) return '90%';
     if (saveStep.includes('Priority updated')) return '100%';
     if (saveStep.includes('Priority update failed')) return '100%';
+    
     // Regular save steps
     if (saveStep.includes('Preparing to save')) return '20%';
     if (saveStep.includes('Generating commit message')) return '40%';
     if (saveStep.includes('Refreshing task list')) return '90%';
     if (saveStep.includes('Save completed')) return '100%';
     if (saveStep.includes('Save failed')) return '100%';
+    
     return '0%';
   };
 
