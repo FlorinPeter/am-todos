@@ -96,16 +96,16 @@ describe('Multi-Folder Support', () => {
 **Status:** ✅ **FULLY FUNCTIONAL**
 
 **Evidence:**
-- **Frontend Service:** `src/services/aiService.ts` lines 3-36
-- **Backend Endpoint:** `server/server.js` lines 97-108 (`/api/gemini`)
-- **Integration:** `App.tsx` lines 162-167 during task creation
+- **Frontend Service:** `src/services/aiService.ts` lines 37-67
+- **Backend Endpoint:** `server/server.js` lines 148-221 (`/api/ai`)
+- **Integration:** `App.tsx` line 189 during task creation
 - **AI Model:** Google Gemini 2.5 Flash with specialized system prompts
 - **Workflow:** User goal → AI analysis → Detailed markdown checklist
 - **Error Handling:** Comprehensive try-catch blocks and user feedback
 
 **Code References:**
 ```typescript
-// src/services/aiService.ts:3-36
+// src/services/aiService.ts:37-67
 export const generateInitialPlan = async (goal: string): Promise<string> => {
   // Implementation details...
 }

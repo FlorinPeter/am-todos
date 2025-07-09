@@ -44,9 +44,9 @@
 | **12. Testing Infrastructure** | Vitest framework + dependency validation | ✅ PASS |
 | **13. Markdown Rendering** | react-markdown integration + custom components | ✅ PASS |
 
-### **2. Multi-Folder Support Tests** (`npm test -- --run src/services/__tests__/multiFolderSupport.test.ts`)
-**Command**: `npm test -- --run src/services/__tests__/multiFolderSupport.test.ts`  
-**Files**: `src/services/__tests__/multiFolderSupport.test.ts`  
+### **2. Multi-Folder Support Tests**
+**Command**: `npm test -- run src/services/__tests__/multiFolderSupport.test.ts` (Run specific test file with Vitest)
+**Files**: `src/services/__tests__/multiFolderSupport.test.ts`
 **Status**: ✅ **13/16 tests passing** (Core functionality validated)
 
 **Multi-Folder Feature Testing**:
@@ -87,9 +87,9 @@ describe('Multi-Folder Support', () => {
 });
 ```
 
-### **3. Production Integration Tests** (`npm run test:github-basic`)
-**Command**: `npm run test:github-basic`  
-**Files**: `test-github-integration.js`, `test-stress-github.js`  
+### **3. Production Integration Tests** (`npm run test:github-basic` and `npm run test:github-stress`)
+**Commands**: `npm run test:github-basic`, `npm run test:github-stress`
+**Files**: `test-github-integration.js`, `test-stress-github.js`
 **Status**: ✅ **Production-ready real API validation**
 
 **Real-World Testing**:
