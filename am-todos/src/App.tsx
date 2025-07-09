@@ -725,16 +725,25 @@ function App() {
 
   const getProgressWidth = () => {
     if (!creationStep) return '0%';
-    if (creationStep.includes('Generating task plan')) return '20%';
-    if (creationStep.includes('Preparing task content')) return '40%';
-    if (creationStep.includes('Generating commit message')) return '60%';
-    if (creationStep.includes('Setting up repository')) return '70%';
+    
+    // Task creation steps in chronological order with smooth progression
+    if (creationStep.includes('Starting')) return '5%';
+    if (creationStep.includes('Generating task plan')) return '15%';
+    if (creationStep.includes('Preparing task content')) return '30%';
+    if (creationStep.includes('Generating commit message')) return '45%';
+    if (creationStep.includes('Setting up repository')) return '60%';
+    if (creationStep.includes('Checking for filename conflicts')) return '70%';
     if (creationStep.includes('Saving to GitHub')) return '80%';
-    if (creationStep.includes('Refreshing task list')) return '85%';
-    if (creationStep.includes('Waiting for GitHub')) return '90%';
+    if (creationStep.includes('Refreshing task list')) return '90%';
+    if (creationStep.includes('Task created successfully') || creationStep.includes('✅')) return '100%';
+    
+    // Error and retry states
+    if (creationStep.includes('Waiting for GitHub')) return '85%';
     if (creationStep.includes('Task found')) return '95%';
     if (creationStep.includes('Taking longer than expected')) return '95%';
-    if (creationStep.includes('Error, retrying')) return '90%';
+    if (creationStep.includes('Error, retrying')) return '75%';
+    if (creationStep.includes('failed') || creationStep.includes('❌')) return '100%';
+    
     return '100%';
   };
 
