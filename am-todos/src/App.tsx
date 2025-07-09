@@ -4,7 +4,7 @@ import TodoSidebar from './components/TodoSidebar';
 import TodoEditor from './components/TodoEditor';
 import GitHubSettings from './components/GitHubSettings';
 import ProjectManager from './components/ProjectManager';
-import { loadSettings, getUrlConfig, saveSettings } from './utils/localStorage';
+import { loadSettings, getUrlConfig, saveSettings, saveSelectedTodoId, loadSelectedTodoId, clearSelectedTodoId } from './utils/localStorage';
 import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDirectory, moveTaskToArchive, moveTaskFromArchive, deleteFile } from './services/githubService';
 import { generateInitialPlan, generateCommitMessage } from './services/aiService';
 import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, TodoFrontmatter } from './utils/markdown';
@@ -31,7 +31,7 @@ function App() {
   
 
   const [todos, setTodos] = useState<any[]>([]);
-  const [selectedTodoId, setSelectedTodoId] = useState<string | null>(null);
+  const [selectedTodoId, setSelectedTodoId] = useState<string | null>(loadSelectedTodoId());
   const [showNewTodoInput, setShowNewTodoInput] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
@@ -83,6 +83,7 @@ function App() {
         setAllTodos([]);
         setTodos([]);
         setSelectedTodoId(null);
+        clearSelectedTodoId(); // Clear persisted selection when no todos exist
         return;
       }
       
@@ -117,7 +118,7 @@ function App() {
       console.log(`Filtered todos for ${currentViewMode} view:`, filteredTodos.length);
       setTodos(filteredTodos);
       
-      // Auto-select logic with preserve path support
+      // Auto-select logic with preserve path support and localStorage persistence
       setSelectedTodoId(currentSelectedId => {
         // If we're trying to preserve a specific todo path, find it first
         if (preserveTodoPath) {
@@ -128,14 +129,31 @@ function App() {
           }
         }
         
-        // Otherwise, use the normal auto-selection logic
+        // Check if current selection still exists in the filtered todos
         const currentTodoExists = filteredTodos.some((todo: any) => todo.id === currentSelectedId);
-        if (filteredTodos.length > 0 && (!currentSelectedId || !currentTodoExists)) {
+        if (currentTodoExists) {
+          console.log('Keeping current selection:', filteredTodos.find((todo: any) => todo.id === currentSelectedId)?.title);
+          return currentSelectedId;
+        }
+        
+        // If current selection doesn't exist, try to restore from localStorage
+        const persistedTodoId = loadSelectedTodoId();
+        if (persistedTodoId && filteredTodos.length > 0) {
+          const persistedTodo = filteredTodos.find((todo: any) => todo.id === persistedTodoId);
+          if (persistedTodo) {
+            console.log('Restored todo from localStorage:', persistedTodo.title);
+            return persistedTodoId;
+          }
+        }
+        
+        // Finally, fall back to first todo if no selection or persisted todo exists
+        if (filteredTodos.length > 0) {
           const firstTodo = filteredTodos[0];
-          console.log('Auto-selected todo:', firstTodo.title);
+          console.log('Auto-selected first todo:', firstTodo.title);
           return firstTodo.id;
         }
-        return currentSelectedId;
+        
+        return null;
       });
       
     } catch (error) {
@@ -156,10 +174,16 @@ function App() {
     }
   }, [fetchTodos, settings]);
 
+  // Persist selected todo ID to localStorage
+  useEffect(() => {
+    saveSelectedTodoId(selectedTodoId);
+  }, [selectedTodoId]);
+
   const handleProjectChanged = (newSettings?: any) => {
     const settingsToUse = newSettings || loadSettings();
     setSettings(settingsToUse);
     setSelectedTodoId(null); // Clear selection when switching projects
+    clearSelectedTodoId(); // Clear persisted selection since it's a different project
     
     // Fetch todos immediately with the new settings
     fetchTodosWithSettings(settingsToUse);
