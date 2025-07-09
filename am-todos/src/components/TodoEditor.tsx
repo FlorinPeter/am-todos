@@ -168,6 +168,7 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
             formatDate(selectedTodo.frontmatter.createdAt) : 
             'Unknown'
           }</span>
+          <span>File: {selectedTodo.path ? selectedTodo.path.split('/').pop() : 'Unknown'}</span>
           <span className="hidden sm:inline">Priority: {getPriorityLabel(selectedTodo.frontmatter?.priority || 3)}</span>
           {selectedTodo.frontmatter?.chatHistory?.length > 0 && (
             <span>Chat: {selectedTodo.frontmatter.chatHistory.length} messages</span>

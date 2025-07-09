@@ -149,3 +149,35 @@ export const clearCheckpoints = (taskId: string): void => {
 export const generateCheckpointId = (): string => {
   return `checkpoint_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 };
+
+// Selected Todo Persistence
+const SELECTED_TODO_KEY = 'selectedTodoId';
+
+export const saveSelectedTodoId = (todoId: string | null): void => {
+  try {
+    if (todoId) {
+      localStorage.setItem(SELECTED_TODO_KEY, todoId);
+    } else {
+      localStorage.removeItem(SELECTED_TODO_KEY);
+    }
+  } catch (error) {
+    console.error("Error saving selected todo ID to localStorage", error);
+  }
+};
+
+export const loadSelectedTodoId = (): string | null => {
+  try {
+    return localStorage.getItem(SELECTED_TODO_KEY);
+  } catch (error) {
+    console.error("Error loading selected todo ID from localStorage", error);
+    return null;
+  }
+};
+
+export const clearSelectedTodoId = (): void => {
+  try {
+    localStorage.removeItem(SELECTED_TODO_KEY);
+  } catch (error) {
+    console.error("Error clearing selected todo ID from localStorage", error);
+  }
+};
