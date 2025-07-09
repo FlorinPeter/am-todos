@@ -80,7 +80,7 @@ describe('Checkpoint System Edge Cases', () => {
       
       rerender(<AIChat {...mockProps} taskId="task-2" />);
 
-      expect(localStorage.getCheckpoints).toHaveBeenCalledWith('task-2');
+      expect(localStorage.clearCheckpoints).toHaveBeenCalledWith('task-2');
     });
 
     it('handles component unmounting', () => {

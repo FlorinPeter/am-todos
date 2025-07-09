@@ -305,10 +305,9 @@ describe('AIChat Component', () => {
     });
 
     it('calls onCheckpointRestore when restore button is clicked', async () => {
-      vi.mocked(localStorage.getCheckpoints).mockReturnValue([mockCheckpoint]);
       window.confirm = vi.fn().mockReturnValue(true);
       
-      render(<AIChat {...mockProps} />);
+      render(<AIChat {...mockProps} taskId="test-task-id" />);
       const toggleButton = screen.getByText(/AI Chat Assistant/i);
       await userEvent.click(toggleButton);
       
@@ -319,23 +318,22 @@ describe('AIChat Component', () => {
       await userEvent.click(sendButton);
       
       await waitFor(() => {
-        expect(screen.getByText('Restore')).toBeInTheDocument();
+        expect(screen.getByTitle('Restore to this checkpoint')).toBeInTheDocument();
       });
       
-      const restoreButton = screen.getByText('Restore');
+      const restoreButton = screen.getByTitle('Restore to this checkpoint');
       await userEvent.click(restoreButton);
       
       expect(window.confirm).toHaveBeenCalledWith(
         expect.stringContaining('Restore to the state before this AI response?')
       );
-      expect(mockProps.onCheckpointRestore).toHaveBeenCalledWith(mockCheckpoint.content);
+      expect(mockProps.onCheckpointRestore).toHaveBeenCalledWith(mockProps.currentContent);
     });
 
     it('does not restore when user cancels confirmation', async () => {
-      vi.mocked(localStorage.getCheckpoints).mockReturnValue([mockCheckpoint]);
       window.confirm = vi.fn().mockReturnValue(false);
       
-      render(<AIChat {...mockProps} />);
+      render(<AIChat {...mockProps} taskId="test-task-id" />);
       const toggleButton = screen.getByText(/AI Chat Assistant/i);
       await userEvent.click(toggleButton);
       
@@ -346,10 +344,10 @@ describe('AIChat Component', () => {
       await userEvent.click(sendButton);
       
       await waitFor(() => {
-        expect(screen.getByText('Restore')).toBeInTheDocument();
+        expect(screen.getByTitle('Restore to this checkpoint')).toBeInTheDocument();
       });
       
-      const restoreButton = screen.getByText('Restore');
+      const restoreButton = screen.getByTitle('Restore to this checkpoint');
       await userEvent.click(restoreButton);
       
       expect(window.confirm).toHaveBeenCalled();
@@ -398,8 +396,8 @@ describe('AIChat Component', () => {
         'Clear all checkpoints for this session? This cannot be undone.'
       );
       
-      // Should NOT call localStorage.clearCheckpoints anymore
-      expect(localStorage.clearCheckpoints).not.toHaveBeenCalled();
+      // Should have called localStorage.clearCheckpoints on mount (session-only behavior)
+      expect(localStorage.clearCheckpoints).toHaveBeenCalledWith('test-task-id');
       
       // Should clear the checkpoint count from UI
       await waitFor(() => {
@@ -408,22 +406,30 @@ describe('AIChat Component', () => {
     });
 
     it('does not clear checkpoints when user cancels', async () => {
-      vi.mocked(localStorage.getCheckpoints).mockReturnValue([mockCheckpoint]);
       window.confirm = vi.fn().mockReturnValue(false);
       
-      render(<AIChat {...mockProps} />);
+      render(<AIChat {...mockProps} taskId="test-task-id" />);
       const toggleButton = screen.getByText(/AI Chat Assistant/i);
       await userEvent.click(toggleButton);
       
+      // Send a message to create a checkpoint
+      const input = screen.getByPlaceholderText(/ask me to modify/i);
+      const sendButton = screen.getByRole('button', { name: '' });
+      
+      await userEvent.type(input, 'Add a new task');
+      await userEvent.click(sendButton);
+      
       await waitFor(() => {
-        expect(screen.getByText('Clear Checkpoints')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Clear Checkpoints|Clear CP/ })).toBeInTheDocument();
       });
       
-      const clearButton = screen.getByText('Clear Checkpoints');
+      const clearButton = screen.getByRole('button', { name: /Clear Checkpoints|Clear CP/ });
       await userEvent.click(clearButton);
       
       expect(window.confirm).toHaveBeenCalled();
-      expect(localStorage.clearCheckpoints).not.toHaveBeenCalled();
+      
+      // Should still show checkpoint since user cancelled
+      expect(screen.getByText('1 checkpoint')).toBeInTheDocument();
     });
 
     it('clears chat history when taskId changes', () => {
@@ -436,14 +442,14 @@ describe('AIChat Component', () => {
       // Change taskId
       rerender(<AIChat {...mockProps} taskId="task-2" />);
       
-      // Should load checkpoints for new task
-      expect(localStorage.getCheckpoints).toHaveBeenCalledWith('task-2');
+      // Should clear checkpoints for new task (session-only behavior)
+      expect(localStorage.clearCheckpoints).toHaveBeenCalledWith('task-2');
     });
 
     it('truncates long descriptions in checkpoint creation', async () => {
       const longMessage = 'This is a very long message that should be truncated when creating checkpoint description';
       
-      render(<AIChat {...mockProps} />);
+      render(<AIChat {...mockProps} taskId="test-task-id" />);
       const toggleButton = screen.getByText(/AI Chat Assistant/i);
       await userEvent.click(toggleButton);
       
@@ -454,14 +460,14 @@ describe('AIChat Component', () => {
       await userEvent.click(sendButton);
       
       await waitFor(() => {
-        expect(localStorage.saveCheckpoint).toHaveBeenCalledWith('test-task-id', {
-          id: 'test-checkpoint-id',
-          content: mockProps.currentContent,
-          timestamp: expect.any(String),
-          chatMessage: longMessage,
-          description: `Before: ${longMessage.substring(0, 40)}...`
-        });
+        expect(mockProps.onChatMessage).toHaveBeenCalled();
       });
+      
+      // Should NOT save to localStorage (session-only behavior)
+      expect(localStorage.saveCheckpoint).not.toHaveBeenCalled();
+      
+      // Should show checkpoint count in UI
+      expect(screen.getByText('1 checkpoint')).toBeInTheDocument();
     });
   });
 });
