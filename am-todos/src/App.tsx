@@ -220,11 +220,35 @@ function App() {
       
       const slug = createSlug(goal);
       const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-      const filename = `${settings.folder || 'todos'}/${timestamp}-${slug}.md`;
+      const folder = settings.folder || 'todos';
+      
+      // Check for filename conflicts and generate unique filename
+      setCreationStep('🔍 Checking for filename conflicts...');
+      let filename = `${folder}/${timestamp}-${slug}.md`;
+      let finalFilename = filename;
+      
+      // Check if file already exists and generate unique name if needed
+      let counter = 1;
+      while (true) {
+        try {
+          await getFileMetadata(settings.pat, settings.owner, settings.repo, finalFilename);
+          // File exists, try next number
+          const pathParts = filename.split('.');
+          const extension = pathParts.pop();
+          const basePath = pathParts.join('.');
+          finalFilename = `${basePath}-${counter}.${extension}`;
+          counter++;
+          console.log(`File conflict detected, trying: ${finalFilename}`);
+        } catch (error) {
+          // File doesn't exist, we can use this filename
+          console.log(`Using filename: ${finalFilename}`);
+          break;
+        }
+      }
       
       setCreationStep('💾 Saving to GitHub...');
-      console.log('Creating file on GitHub:', filename);
-      const createResult = await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, filename, fullContent, commitMessage);
+      console.log('Creating file on GitHub:', finalFilename);
+      const createResult = await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, finalFilename, fullContent, commitMessage);
       console.log('File created successfully on GitHub');
 
       // 5. Wait for GitHub to process, then refresh
@@ -233,7 +257,7 @@ function App() {
       
       // Wait for GitHub processing
       await new Promise(resolve => setTimeout(resolve, 2000));
-      await fetchTodos();
+      await fetchTodos(finalFilename);
       
       // Auto-select the newly created task
       if (createResult?.content?.sha) {
