@@ -393,30 +393,7 @@ npm run test:last-file # Run last file deletion test
 
 ## 📋 Releases
 
-### Latest Release: v1.0.0
-
-**Container Images:**
-- `ghcr.io/florinpeter/am-todos:v1.0.0` - Specific version
-- `ghcr.io/florinpeter/am-todos:latest` - Latest stable
-
-**Features:**
-- ✅ Multi-AI provider support (Gemini + OpenRouter with 400+ models)
-- ✅ Production-ready container deployment
-- ✅ Multi-platform support (linux/amd64, linux/arm64)
-- ✅ Complete multi-folder project organization
-- ✅ Mobile-responsive design with touch support
-- ✅ Real-time GitHub synchronization
-- ✅ Configuration sharing with QR codes
-
-**Deployment:**
-```bash
-docker run -p 3001:3001 ghcr.io/florinpeter/am-todos:v1.0.0
-```
-
-### Release Notes
-- [View all releases](https://github.com/FlorinPeter/am-todos/releases)
-- [Container registry](https://github.com/FlorinPeter/am-todos/pkgs/container/am-todos)
-- [Deployment guide](DEPLOYMENT.md)
+[View all releases](https://github.com/FlorinPeter/am-todos/releases)
 
 ## 🤝 Contributing
 
@@ -432,15 +409,10 @@ docker run -p 3001:3001 ghcr.io/florinpeter/am-todos:v1.0.0
 
 This project is open source and available under the MIT License.
 
-## 🔗 Related Projects
 
-- **Obsidian**: Note-taking with markdown files
-- **Notion**: All-in-one workspace with AI features
-- **GitHub Issues**: Native GitHub task management
-- **Linear**: Modern issue tracking with AI
 
 ---
 
-**Made with ❤️ using React, TypeScript, TailwindCSS, and Google Gemini AI**
+**Made with ❤️ using React, TypeScript, TailwindCSS, Google Gemini AI, and Claude Code**
 
 *Transform your repository into an intelligent task management system today!*
