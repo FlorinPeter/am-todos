@@ -752,20 +752,33 @@ function App() {
 
   const getSaveProgressWidth = () => {
     if (!saveStep) return '0%';
+    
+    // New unified title update steps (with proper percentage progression)
+    if (saveStep.includes('Analyzing changes') || saveStep.includes('(1/6)')) return '17%';
+    if (saveStep.includes('Getting latest version') || saveStep.includes('(2/6)')) return '33%';
+    if (saveStep.includes('Preparing content') && saveStep.includes('(3/6)')) return '50%';
+    if (saveStep.includes('Resolving filename') || saveStep.includes('(4/6)')) return '67%';
+    if (saveStep.includes('Updating files') || saveStep.includes('Saving changes') || saveStep.includes('(5/6)')) return '83%';
+    if (saveStep.includes('Refreshing list') || saveStep.includes('(6/6)')) return '90%';
+    if (saveStep.includes('Title updated successfully') || saveStep.includes('✅')) return '100%';
+    if (saveStep.includes('Title update failed') || saveStep.includes('❌')) return '100%';
+    
     // Priority update steps - in chronological order
     if (saveStep.includes('Updating priority')) return '20%';
     if (saveStep.includes('Getting latest file version')) return '40%';
-    if (saveStep.includes('Preparing content')) return '60%';
+    if (saveStep.includes('Preparing content') && !saveStep.includes('(3/6)')) return '60%';
     if (saveStep.includes('Saving to GitHub')) return '80%';
-    if (saveStep.includes('Refreshing')) return '90%';
+    if (saveStep.includes('Refreshing') && !saveStep.includes('(6/6)')) return '90%';
     if (saveStep.includes('Priority updated')) return '100%';
     if (saveStep.includes('Priority update failed')) return '100%';
+    
     // Regular save steps
     if (saveStep.includes('Preparing to save')) return '20%';
     if (saveStep.includes('Generating commit message')) return '40%';
     if (saveStep.includes('Refreshing task list')) return '90%';
     if (saveStep.includes('Save completed')) return '100%';
     if (saveStep.includes('Save failed')) return '100%';
+    
     return '0%';
   };
 
