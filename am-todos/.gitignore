@@ -26,3 +26,15 @@ yarn-error.log*
 app.log
 server/server.log
 console.log
+
+# Sensitive files - API keys, tokens, and credentials
+.env
+.env.*
+!.env.example
+**/config.local.js
+**/secrets.json
+**/*secret*
+**/*token*
+**/*key*
+**/*pat*
+**/credentials.*

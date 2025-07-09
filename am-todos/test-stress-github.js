@@ -3,13 +3,18 @@
 // Stress test for GitHub API eventual consistency
 // Creates multiple files rapidly to potentially trigger consistency delays
 
-const fetch = require('cross-fetch');
+const MockGitHubAPI = require('./test-utils/mock-github-api');
 
 const TEST_CONFIG = {
-  token: '***REMOVED***',
-  owner: 'FlorinPeter',
-  repo: 'todo-test'
+  token: 'mock_token', // Not used in mock
+  owner: 'test-owner',
+  repo: 'test-repo'
 };
+
+// Initialize mock GitHub API with consistency delay for stress testing
+const mockGitHub = new MockGitHubAPI();
+mockGitHub.setConsistencyDelay(200); // Simulate eventual consistency
+const fetch = mockGitHub.mockFetch.bind(mockGitHub);
 
 const GITHUB_API_URL = 'https://api.github.com';
 const getApiUrl = (path) => `${GITHUB_API_URL}${path}`;
@@ -335,8 +340,9 @@ async function testConcurrentOperations() {
 
 // Main test runner
 async function runStressTests() {
-  console.log('🔥 Starting GitHub Stress Tests');
+  console.log('🔥 Starting GitHub Stress Tests (Using Mock API)');
   console.log(`Repository: ${TEST_CONFIG.owner}/${TEST_CONFIG.repo}`);
+  console.log('Using mock GitHub API with simulated consistency delays');
   
   try {
     const stressResults = await stressTestCreation();

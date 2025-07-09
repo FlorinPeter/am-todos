@@ -3,14 +3,18 @@
 // Direct Node.js test script for GitHub integration
 // This bypasses Jest/JSDOM issues and runs directly in Node.js environment
 
-const fetch = require('cross-fetch');
+const MockGitHubAPI = require('./test-utils/mock-github-api');
 
-// Test configuration
+// Test configuration - no real API key needed!
 const TEST_CONFIG = {
-  token: '***REMOVED***',
-  owner: 'FlorinPeter',
-  repo: 'todo-test'
+  token: 'mock_token', // Not used in mock
+  owner: 'test-owner',
+  repo: 'test-repo'
 };
+
+// Initialize mock GitHub API
+const mockGitHub = new MockGitHubAPI();
+const fetch = mockGitHub.mockFetch.bind(mockGitHub);
 
 const GITHUB_API_URL = 'https://api.github.com';
 
@@ -393,9 +397,9 @@ async function testPerformance() {
 
 // Main test runner
 async function runTests() {
-  console.log('🚀 Starting GitHub Integration Tests');
+  console.log('🚀 Starting GitHub Integration Tests (Using Mock API)');
   console.log(`Repository: ${TEST_CONFIG.owner}/${TEST_CONFIG.repo}`);
-  console.log(`Token: ${TEST_CONFIG.token.substring(0, 20)}...`);
+  console.log('Using mock GitHub API - no real API key needed');
   
   try {
     await testBasicOperations();

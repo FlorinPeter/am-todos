@@ -3,13 +3,18 @@
 // Test specifically for the "last file deletion" scenario
 // This test reproduces the exact issue the user experienced
 
-const fetch = require('cross-fetch');
+const MockGitHubAPI = require('./test-utils/mock-github-api');
 
 const TEST_CONFIG = {
-  token: '***REMOVED***',
-  owner: 'FlorinPeter',
-  repo: 'todo-test'
+  token: 'mock_token', // Not used in mock
+  owner: 'test-owner',
+  repo: 'test-repo'
 };
+
+// Initialize mock GitHub API with consistency delay for testing
+const mockGitHub = new MockGitHubAPI();
+mockGitHub.setConsistencyDelay(500); // Simulate eventual consistency delays
+const fetch = mockGitHub.mockFetch.bind(mockGitHub);
 
 const GITHUB_API_URL = 'https://api.github.com';
 const getApiUrl = (path) => `${GITHUB_API_URL}${path}`;
@@ -352,8 +357,9 @@ async function testLastFileDeletion() {
 }
 
 // Run the test
-console.log('🚀 Starting Last File Deletion Test');
-console.log('This test reproduces and validates the fix for the deletion verification issue.\n');
+console.log('🚀 Starting Last File Deletion Test (Using Mock API)');
+console.log('This test reproduces and validates the fix for the deletion verification issue.');
+console.log('Using mock GitHub API with simulated consistency delays\n');
 
 testLastFileDeletion()
   .then(results => {
