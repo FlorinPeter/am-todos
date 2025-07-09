@@ -34,14 +34,15 @@ const AIChat: React.FC<AIChatProps> = ({
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [localChatHistory]);
 
-  // Load checkpoints when taskId changes
+  // Clear checkpoints on component mount (page refresh) and load only session checkpoints
   useEffect(() => {
     if (taskId) {
       try {
-        const loadedCheckpoints = getCheckpoints(taskId);
-        setCheckpoints(loadedCheckpoints);
+        // Clear any persisted checkpoints on page load to make them session-only
+        clearCheckpoints(taskId);
+        setCheckpoints([]);
       } catch (error) {
-        console.error('Error loading checkpoints:', error);
+        console.error('Error clearing checkpoints on load:', error);
         setCheckpoints([]);
       }
     } else {
@@ -49,11 +50,12 @@ const AIChat: React.FC<AIChatProps> = ({
     }
   }, [taskId]);
 
-  // Clear checkpoints when task changes
+  // Clear checkpoints and chat history when task changes
   useEffect(() => {
     if (taskId) {
-      // Clear chat history when switching tasks
+      // Clear both chat history and checkpoints when switching tasks
       setLocalChatHistory([]);
+      setCheckpoints([]);
     }
   }, [taskId]);
 
@@ -81,14 +83,9 @@ const AIChat: React.FC<AIChatProps> = ({
       description: `Before: ${inputMessage.trim().length > 40 ? inputMessage.trim().substring(0, 40) + '...' : inputMessage.trim()}`
     };
 
-    // Save checkpoint to localStorage if taskId is available
+    // Save checkpoint to session state only (not localStorage)
     if (taskId) {
-      try {
-        saveCheckpoint(taskId, checkpoint);
-        setCheckpoints(prev => [...prev, checkpoint]);
-      } catch (error) {
-        console.error('Error saving checkpoint:', error);
-      }
+      setCheckpoints(prev => [...prev, checkpoint]);
     }
 
     try {
@@ -134,8 +131,7 @@ const AIChat: React.FC<AIChatProps> = ({
   };
 
   const handleClearCheckpoints = () => {
-    if (taskId && window.confirm('Clear all checkpoints for this task? This cannot be undone.')) {
-      clearCheckpoints(taskId);
+    if (window.confirm('Clear all checkpoints for this session? This cannot be undone.')) {
       setCheckpoints([]);
     }
   };
@@ -196,10 +192,11 @@ const AIChat: React.FC<AIChatProps> = ({
                       {message.role === 'assistant' && message.checkpointId && onCheckpointRestore && (
                         <button
                           onClick={() => handleCheckpointRestore(message.checkpointId!)}
-                          className="text-xs text-blue-300 hover:text-blue-200 underline ml-2"
+                          className="text-xs text-blue-300 hover:text-blue-200 underline ml-2 px-1 py-0.5 rounded bg-blue-900/30 sm:bg-transparent sm:px-0 sm:py-0"
                           title="Restore to this checkpoint"
                         >
-                          Restore
+                          <span className="sm:hidden">↶</span>
+                          <span className="hidden sm:inline">Restore</span>
                         </button>
                       )}
                     </div>
@@ -223,32 +220,37 @@ const AIChat: React.FC<AIChatProps> = ({
           {/* Input Area */}
           <div className="p-3 sm:p-4 border-t border-gray-700">
             {(localChatHistory.length > 0 || checkpoints.length > 0) && (
-              <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-600">
-                <div className="flex items-center space-x-4">
-                  <span className="text-xs text-gray-400">Session chat (not saved)</span>
-                  {checkpoints.length > 0 && (
-                    <span className="text-xs text-green-400">
-                      {checkpoints.length} checkpoint{checkpoints.length !== 1 ? 's' : ''}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center space-x-2">
-                  {checkpoints.length > 0 && (
-                    <button
-                      onClick={handleClearCheckpoints}
-                      className="text-xs text-gray-400 hover:text-red-400 transition-colors"
-                    >
-                      Clear Checkpoints
-                    </button>
-                  )}
-                  {localChatHistory.length > 0 && (
-                    <button
-                      onClick={() => setLocalChatHistory([])}
-                      className="text-xs text-gray-400 hover:text-red-400 transition-colors"
-                    >
-                      Clear Chat
-                    </button>
-                  )}
+              <div className="mb-3 pb-2 border-b border-gray-600">
+                {/* Mobile: Stack vertically, Desktop: Side by side */}
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-2 sm:space-y-0">
+                  <div className="flex items-center space-x-3 sm:space-x-4">
+                    <span className="text-xs text-gray-400">Session chat (not saved)</span>
+                    {checkpoints.length > 0 && (
+                      <span className="text-xs text-green-400">
+                        {checkpoints.length} checkpoint{checkpoints.length !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-3 sm:space-x-2">
+                    {checkpoints.length > 0 && (
+                      <button
+                        onClick={handleClearCheckpoints}
+                        className="text-xs text-gray-400 hover:text-red-400 transition-colors px-2 py-1 sm:px-0 sm:py-0 rounded sm:rounded-none bg-gray-700 sm:bg-transparent"
+                      >
+                        <span className="sm:hidden">Clear CP</span>
+                        <span className="hidden sm:inline">Clear Checkpoints</span>
+                      </button>
+                    )}
+                    {localChatHistory.length > 0 && (
+                      <button
+                        onClick={() => setLocalChatHistory([])}
+                        className="text-xs text-gray-400 hover:text-red-400 transition-colors px-2 py-1 sm:px-0 sm:py-0 rounded sm:rounded-none bg-gray-700 sm:bg-transparent"
+                      >
+                        <span className="sm:hidden">Clear Chat</span>
+                        <span className="hidden sm:inline">Clear Chat</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
