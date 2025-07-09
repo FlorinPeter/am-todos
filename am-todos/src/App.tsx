@@ -440,7 +440,7 @@ function App() {
     if (!settings) return;
     try {
       setIsSavingTask(true);
-      setSaveStep('📝 Updating title...');
+      setSaveStep('📝 Analyzing changes... (1/6)');
       
       const todoToUpdate = todos.find(todo => todo.id === id);
       if (!todoToUpdate) {
@@ -456,7 +456,7 @@ function App() {
         return;
       }
 
-      setSaveStep('🔄 Getting latest file version...');
+      setSaveStep('🔄 Getting latest version... (2/6)');
       // Get the latest SHA to avoid conflicts (same pattern as handleTodoUpdate)
       let latestSha = todoToUpdate.sha;
       try {
@@ -467,7 +467,7 @@ function App() {
         console.log('Title update: Could not fetch latest SHA, using existing:', latestSha);
       }
 
-      setSaveStep('📝 Preparing content...');
+      setSaveStep('📝 Preparing content... (3/6)');
       const updatedFrontmatter = {
         ...todoToUpdate.frontmatter,
         title: newTitle
@@ -494,7 +494,7 @@ function App() {
       const oldPath = todoToUpdate.path;
       const needsRename = oldPath !== newPath;
       
-      setSaveStep('🔍 Checking for conflicts...');
+      setSaveStep('🔍 Resolving filename... (4/6)');
       let finalPath = newPath;
       
       // Handle file name conflicts if renaming is needed
@@ -520,29 +520,28 @@ function App() {
       }
       
       if (needsRename) {
-        setSaveStep('📁 Renaming file...');
+        setSaveStep('📁 Updating files... (5/6)');
         
         // Create new file with new name
         const commitMessage = `docs: Rename task to "${newTitle}"`;
         await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, finalPath, fullContent, commitMessage);
         
-        // Delete old file
-        setSaveStep('🗑️ Cleaning up old file...');
+        // Delete old file (combine these steps visually)
         await deleteFile(settings.pat, settings.owner, settings.repo, oldPath, latestSha, `docs: Remove old file after renaming to "${newTitle}"`);
         
-        setSaveStep('🔄 Refreshing...');
+        setSaveStep('🔄 Refreshing list... (6/6)');
         await fetchTodos(finalPath); // Re-fetch and select the new file
       } else {
         // Just update the existing file
         const commitMessage = `docs: Update title to "${newTitle}"`;
-        setSaveStep('💾 Saving to GitHub...');
+        setSaveStep('💾 Saving changes... (5/6)');
         await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, latestSha);
         
-        setSaveStep('🔄 Refreshing...');
+        setSaveStep('🔄 Refreshing list... (6/6)');
         await fetchTodos(todoToUpdate.path); // Re-fetch and preserve selection
       }
       
-      setSaveStep('✅ Title updated!');
+      setSaveStep('✅ Title updated successfully!');
       setTimeout(() => {
         setIsSavingTask(false);
         setSaveStep('');
