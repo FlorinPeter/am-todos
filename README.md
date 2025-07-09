@@ -32,7 +32,7 @@ gcloud auth login
 export GOOGLE_CLOUD_PROJECT="your-project-id"
 
 # Deploy latest version
-export SOURCE_IMAGE="ghcr.io/florinpeter/am-todos:main"
+export SOURCE_IMAGE="ghcr.io/florinpeter/am-todos:latest"
 ./hack/deploy-all.sh
 ```
 
@@ -45,7 +45,7 @@ For local development or testing:
 docker run -p 3001:3001 ghcr.io/florinpeter/am-todos:latest
 
 # Or run a specific version
-docker run -p 3001:3001 ghcr.io/florinpeter/am-todos:v1.0.0
+docker run -p 3001:3001 ghcr.io/florinpeter/am-todos:latest
 
 # Using docker-compose
 curl -O https://raw.githubusercontent.com/FlorinPeter/am-todos/main/docker-compose.yml
@@ -57,7 +57,6 @@ docker-compose up -d
 ### 📦 Available Container Images
 
 - **Latest stable**: `ghcr.io/florinpeter/am-todos:latest`
-- **Specific versions**: `ghcr.io/florinpeter/am-todos:v1.0.0`
 - **Platform support**: linux/amd64, linux/arm64
 - **Registry**: [GitHub Container Registry](https://github.com/FlorinPeter/am-todos/pkgs/container/am-todos)
 
@@ -325,7 +324,7 @@ spec:
     spec:
       containers:
       - name: am-todos
-        image: ghcr.io/florinpeter/am-todos:v1.0.0
+        image: ghcr.io/florinpeter/am-todos:latest
         ports:
         - containerPort: 3001
         resources:
@@ -362,7 +361,7 @@ The project includes automated workflows for:
 ```bash
 git tag v1.1.0
 git push origin v1.1.0
-# Automatically builds and publishes ghcr.io/florinpeter/am-todos:v1.1.0
+# Automatically builds and publishes ghcr.io/florinpeter/am-todos:latest
 ```
 
 ## 🧪 Testing
