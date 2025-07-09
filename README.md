@@ -175,7 +175,7 @@ Both frontend and backend support hot reload for fast development:
 ```bash
 # Start both servers (recommended)
 cd am-todos
-./restart.sh  # Only needed for initial setup or rare issues
+./hack/restart-dev.sh  # Only needed for initial setup or rare issues
 
 # Manual start (if needed)
 cd server && node server.js &  # Backend
@@ -187,40 +187,24 @@ npm start                      # Frontend
 ```bash
 # Development
 npm start              # Start development server
-npm test              # Run tests in watch mode
-npm run build         # Build for production
+npm run dev            # Start development server
+npm run build          # Build for production
 
 # Testing
+npm test              # Run tests in watch mode
 npm run test:basic    # Run basic feature tests
 npm run test:github   # Run GitHub integration tests
 npm run test:retry    # Run retry logic tests
+npm run test:integration # Run integration tests
+npm run test:github-basic # Run basic github integration tests
+npm run test:github-stress # Run stress tests for github
+npm run test:last-file # Run last file deletion test
 
 # Backend
 cd server && node server.js  # Start backend server
 ```
 
-### Environment Variables
 
-**Container Deployment:**
-- No environment variables required
-- All configuration done through the web UI
-- Settings persist in browser localStorage
-
-**Development Setup:**
-```bash
-# Optional: Pre-configure for faster development
-# All can also be configured through the web UI
-GITHUB_PAT=your_github_token
-GITHUB_OWNER=your_username  
-GITHUB_REPO=your_repo_name
-FOLDER_NAME=todos
-```
-
-**Configuration Storage:**
-- **GitHub Settings**: PAT, owner, repo, folder (localStorage)
-- **AI Provider**: Selected provider, API keys, model preferences (localStorage)
-- **Application State**: UI preferences, active project (localStorage)
-- **Data**: All tasks stored as markdown files in your GitHub repository
 
 ## 🔒 Security
 
@@ -366,39 +350,6 @@ spec:
   type: LoadBalancer
 ```
 
-### ☁️ Cloud Platform Deployment
-
-#### Fly.io
-```bash
-# Install flyctl and login
-fly launch --image ghcr.io/florinpeter/am-todos:latest
-fly deploy
-```
-
-#### Railway
-```bash
-railway login
-railway deploy --image ghcr.io/florinpeter/am-todos:latest
-```
-
-#### Render
-- Create a new **Web Service**
-- Use **Container Image**: `ghcr.io/florinpeter/am-todos:latest`
-- Set port to **3001**
-
-### 🏗️ Traditional Hosting
-
-#### Vercel (Frontend + Serverless Backend)
-1. Deploy frontend to Vercel with environment variables
-2. Convert Express server to Vercel Edge Function
-3. Update API endpoints from localhost to production URLs
-
-#### Traditional Hosting
-1. Build frontend: `npm run build`
-2. Deploy `build/` folder to static hosting
-3. Deploy `server/` to Node.js hosting service
-4. Update CORS settings for production domain
-
 ### 🔄 CI/CD and Releases
 
 The project includes automated workflows for:
@@ -427,6 +378,10 @@ npm test
 npm run test:basic      # Component and feature tests
 npm run test:github     # GitHub API integration
 npm run test:retry      # Error handling and retry logic
+npm run test:integration # Run integration tests
+npm run test:github-basic # Run basic github integration tests
+npm run test:github-stress # Run stress tests for github
+npm run test:last-file # Run last file deletion test
 ```
 
 ## 📚 Documentation
