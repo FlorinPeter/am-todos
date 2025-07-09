@@ -36,7 +36,6 @@ This is "Agentic Markdown Todos" - an AI-powered todo application that transform
 
 ### Frontend Development
 ```bash
-cd am-todos        # Navigate to project directory
 npm start          # Run development server (localhost:3000)
 npm test           # Run tests in watch mode
 npm run build      # Build for production
@@ -44,19 +43,18 @@ npm run build      # Build for production
 
 ### Backend Development
 ```bash
-cd am-todos/server
+cd server
 node server.js     # Run backend server (localhost:3001)
 ```
 
 ### Full Development Setup
-1. Navigate to project: `cd am-todos`
-2. Start backend: `cd server && node server.js`
-3. Start frontend: `npm start` (in am-todos directory)  
-4. The frontend proxy forwards `/api` requests to the backend
+1. Start backend: `cd server && node server.js`
+2. Start frontend: `npm start` (in root directory)  
+3. The frontend proxy forwards `/api` requests to the backend
 
 **Hot Reload**: Both frontend and backend support hot reload, so code changes are automatically reflected. The restart script is rarely needed.
 
-**Manual Restart**: If needed, use `./restart.sh` (in am-todos directory) to restart both servers.
+**Manual Restart**: If needed, use `./hack/restart-dev.sh` to restart both servers.
 
 ## Production Deployment
 
@@ -253,7 +251,7 @@ chatHistory:
 ## Current Status (Latest Updates)
 
 > **📊 Implementation Status: 100% Complete** - See [FEATURES.md](FEATURES.md) for detailed verification  
-> **🧪 Testing Status: 100% Coverage** - See [am-todos/TESTING.md](am-todos/TESTING.md) for comprehensive test documentation
+> **🧪 Testing Status: 100% Coverage** - See [TESTING.md](TESTING.md) for comprehensive test documentation
 
 The archive functionality has been fully implemented and debugged:
 
@@ -390,4 +388,4 @@ The archive functionality has been fully implemented and debugged:
 - **Documentation**: Updated CLAUDE.md with complete implementation details
 - **Commit history**: Professional conventional commits with Claude attribution
 - **Testing infrastructure**: Created comprehensive GitHub API integration tests
-- **Restart script**: Use `./restart.sh` (in am-todos directory) to restart both servers when needed (rarely required due to hot reload)
+- **Restart script**: Use `./hack/restart-dev.sh` to restart both servers when needed (rarely required due to hot reload)

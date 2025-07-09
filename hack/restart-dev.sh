@@ -31,13 +31,13 @@ pkill -9 -f "esbuild" 2>/dev/null || true
 pkill -9 -f "node server.js" 2>/dev/null || true
 
 echo -e "${GREEN}🚀 Starting backend server...${NC}"
-cd /root/todo/am-todos/server
+cd /root/todo/server
 nohup node server.js > server.log 2>&1 &
 BACKEND_PID=$!
 echo "Backend server PID: $BACKEND_PID"
 
 echo -e "${GREEN}🌐 Starting frontend...${NC}"
-cd /root/todo/am-todos
+cd /root/todo
 nohup npm run dev > app.log 2>&1 &
 FRONTEND_PID=$!
 echo "Frontend PID: $FRONTEND_PID"
@@ -50,8 +50,8 @@ echo "  Backend API: http://159.65.120.9:3001"
 echo "  Health check: http://159.65.120.9:3001/health"
 echo ""
 echo -e "${YELLOW}📁 Log files:${NC}"
-echo "  Backend: /root/todo/am-todos/server/server.log"
-echo "  Frontend: /root/todo/am-todos/app.log"
+echo "  Backend: /root/todo/server/server.log"
+echo "  Frontend: /root/todo/app.log"
 
 sleep 2
 echo ""

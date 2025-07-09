@@ -75,7 +75,7 @@ For local development and customization:
 1. **Clone and navigate to the project:**
    ```bash
    git clone <repository-url>
-   cd todo/am-todos
+   cd todo
    ```
 
 2. **Install dependencies:**
@@ -174,7 +174,6 @@ Both frontend and backend support hot reload for fast development:
 
 ```bash
 # Start both servers (recommended)
-cd am-todos
 ./hack/restart-dev.sh  # Only needed for initial setup or rare issues
 
 # Manual start (if needed)
@@ -387,8 +386,8 @@ npm run test:last-file # Run last file deletion test
 ## 📚 Documentation
 
 - **[FEATURES.md](FEATURES.md)**: Detailed feature implementation evidence
-- **[CLAUDE.md](am-todos/CLAUDE.md)**: Development guidelines and architecture details  
-- **[TESTING.md](am-todos/TESTING.md)**: Comprehensive testing documentation
+- **[CLAUDE.md](CLAUDE.md)**: Development guidelines and architecture details  
+- **[TESTING.md](TESTING.md)**: Comprehensive testing documentation
 - **[DEPLOYMENT.md](DEPLOYMENT.md)**: Complete deployment guide with examples
 
 ## 📋 Releases
