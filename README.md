@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/FlorinPeter/am-todos/actions/workflows/ci.yml/badge.svg)](https://github.com/FlorinPeter/am-todos/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/badge/tests-377%20passing-brightgreen)](https://github.com/FlorinPeter/am-todos/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-check%20actions-orange)](https://github.com/FlorinPeter/am-todos/actions/workflows/ci.yml)
 [![Docker Build](https://github.com/FlorinPeter/am-todos/actions/workflows/docker-build.yml/badge.svg)](https://github.com/FlorinPeter/am-todos/actions/workflows/docker-build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)

@@ -1,0 +1,62 @@
+name: Update Coverage Badge
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  update-badge:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Download coverage artifact
+      uses: dawidd6/action-download-artifact@v2
+      with:
+        workflow: ci.yml
+        workflow_conclusion: success
+        name: coverage-report
+        path: coverage
+
+    - name: Generate coverage badge
+      run: |
+        # Extract coverage percentage
+        if [ -f coverage/coverage-summary.json ]; then
+          COVERAGE=$(cat coverage/coverage-summary.json | jq -r '.total.lines.pct' | cut -d. -f1)
+          
+          # Determine color
+          if [ $COVERAGE -ge 80 ]; then
+            COLOR="brightgreen"
+          elif [ $COVERAGE -ge 60 ]; then
+            COLOR="yellow"
+          else
+            COLOR="red"
+          fi
+          
+          echo "Coverage: ${COVERAGE}%"
+          echo "COVERAGE=${COVERAGE}" >> $GITHUB_ENV
+          echo "COLOR=${COLOR}" >> $GITHUB_ENV
+          
+          # Create a simple JSON for the badge
+          mkdir -p .github
+          echo "{\"coverage\": \"${COVERAGE}%\", \"color\": \"${COLOR}\"}" > .github/coverage.json
+        else
+          echo "No coverage data found"
+          echo "{\"coverage\": \"unknown\", \"color\": \"lightgrey\"}" > .github/coverage.json
+        fi
+
+    - name: Commit coverage data
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add .github/coverage.json || true
+        git diff --quiet && git diff --staged --quiet || git commit -m "Update coverage data [skip ci]"
+        git push || true
