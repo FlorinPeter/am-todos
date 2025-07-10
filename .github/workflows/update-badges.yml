@@ -38,8 +38,12 @@ jobs:
         # Run tests and capture output
         npm test -- --run --reporter=verbose > test-output.log 2>&1 || true
         
-        # Extract test count
-        TEST_COUNT=$(grep -E "Test Files.*passed" test-output.log | grep -oE "[0-9]+ passed" | grep -oE "[0-9]+" | head -1 || echo "0")
+        # Extract test count - look for test files or individual tests
+        TEST_COUNT=$(grep -E "(Test Files|Tests)" test-output.log | grep -oE "[0-9]+ passed" | grep -oE "[0-9]+" | tail -1 || echo "0")
+        if [ -z "$TEST_COUNT" ] || [ "$TEST_COUNT" = "0" ]; then
+          # Try alternative pattern
+          TEST_COUNT=$(grep -oE "[0-9]+ test" test-output.log | grep -oE "[0-9]+" | tail -1 || echo "0")
+        fi
         echo "TEST_COUNT=${TEST_COUNT}" >> $GITHUB_ENV
         echo "Test count: ${TEST_COUNT}"
         
@@ -55,7 +59,13 @@ jobs:
           echo "COVERAGE=${COVERAGE}" >> $GITHUB_ENV
           echo "Coverage: ${COVERAGE}%"
         else
-          echo "COVERAGE=unknown" >> $GITHUB_ENV
+          # Try to extract from console output
+          COVERAGE=$(npm run test:coverage 2>&1 | grep -oE "All files[[:space:]]+\|[[:space:]]+[0-9.]+" | grep -oE "[0-9.]+" | head -1 | cut -d. -f1 || echo "0")
+          if [ -z "$COVERAGE" ] || [ "$COVERAGE" = "0" ]; then
+            echo "COVERAGE=0" >> $GITHUB_ENV
+          else
+            echo "COVERAGE=${COVERAGE}" >> $GITHUB_ENV
+          fi
         fi
 
     - name: Create badges JSON
@@ -91,11 +101,18 @@ jobs:
         }
         EOF
         
+        # Format coverage message
+        if [ "${{ env.COVERAGE }}" == "0" ] || [ "${{ env.COVERAGE }}" == "" ]; then
+          COVERAGE_MSG="unknown"
+        else
+          COVERAGE_MSG="${{ env.COVERAGE }}%"
+        fi
+        
         cat > .github/coverage-badge.json << EOF
         {
           "schemaVersion": 1,
           "label": "coverage",
-          "message": "${{ env.COVERAGE }}%",
+          "message": "${COVERAGE_MSG}",
           "color": "${COVERAGE_COLOR}"
         }
         EOF
@@ -128,15 +145,21 @@ jobs:
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         
-        # Switch to badges branch (create if doesn't exist)
-        git fetch origin badges:badges || true
-        git checkout badges || git checkout -b badges
+        # Create orphan badges branch
+        git checkout --orphan badges-temp
         
-        # Copy badge files
+        # Remove all files
+        git rm -rf . || true
+        
+        # Copy only badge files
         cp .github/test-badge.json test-badge.json
         cp .github/coverage-badge.json coverage-badge.json
         
         # Commit and push
         git add test-badge.json coverage-badge.json
-        git commit -m "Update badge data [skip ci]" || echo "No changes to commit"
+        git commit -m "Update badge data [skip ci]"
+        
+        # Force push to badges branch
+        git branch -D badges || true
+        git branch -m badges
         git push origin badges --force
