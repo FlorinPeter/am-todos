@@ -68,6 +68,7 @@ COPY --from=frontend-builder --chown=nextjs:nodejs /app/build ./build
 
 # Copy server source
 COPY --chown=nextjs:nodejs server/server.js ./server/
+COPY --chown=nextjs:nodejs server/gitlabService.js ./server/
 
 # Re-declare build args for runtime stage
 ARG GIT_SHA
