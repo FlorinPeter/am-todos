@@ -177,7 +177,7 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
 
         {/* GitHub Configuration */}
         {gitProvider === 'github' && (
-          <div className="border-t border-gray-600 pt-4">
+          <div>
             <h3 className="text-lg font-medium text-gray-200 mb-4">GitHub Configuration</h3>
             <div className="space-y-4">
               <div>
@@ -225,7 +225,7 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
 
         {/* GitLab Configuration */}
         {gitProvider === 'gitlab' && (
-          <div className="border-t border-gray-600 pt-4">
+          <div>
             <h3 className="text-lg font-medium text-gray-200 mb-4">GitLab Configuration</h3>
             <div className="space-y-4">
               <div>
@@ -243,17 +243,19 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
               </div>
               
               <div>
-                <label htmlFor="projectId" className="block text-sm font-medium text-gray-300">Project ID or Path</label>
+                <label htmlFor="projectId" className="block text-sm font-medium text-gray-300">Project ID</label>
                 <input
                   type="text"
                   id="projectId"
                   value={projectId}
                   onChange={(e) => setProjectId(e.target.value)}
                   className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="123456 or username/project-name"
+                  placeholder="123456"
+                  pattern="[0-9]+"
+                  title="Project ID must be numeric"
                   required={gitProvider === 'gitlab'}
                 />
-                <p className="mt-1 text-sm text-gray-400">Use project ID (numbers) or full project path (username/project-name).</p>
+                <p className="mt-1 text-sm text-gray-400">Use the numeric project ID (found in project settings → General).</p>
               </div>
               
               <div>
