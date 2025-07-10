@@ -62,7 +62,11 @@ jobs:
         
         # Debug: show what we found
         echo "Test extraction debug:"
+        echo "=== Last 10 lines of test output ==="
+        tail -10 test-output.log || echo "Could not read test output"
+        echo "=== Grep for Tests patterns ==="
         grep -E "Tests.*passed" test-output.log | head -3 || echo "No test summary patterns found"
+        echo "=== Test count found: $TEST_COUNT ==="
         
     - name: Run coverage
       id: coverage
@@ -96,8 +100,24 @@ jobs:
         
         # Debug: show what we found
         echo "Coverage extraction debug:"
+        echo "=== Last 20 lines of coverage output ==="
+        tail -20 coverage-output.log || echo "Could not read coverage output"
+        echo "=== Grep for All files pattern ==="
         grep -E "All files" coverage-output.log || echo "No 'All files' pattern found"
+        echo "=== Coverage found: $COVERAGE ==="
+        echo "=== Check if coverage files exist ==="
+        ls -la coverage/ 2>/dev/null || echo "No coverage directory"
 
+    - name: Upload debug logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-logs
+        path: |
+          test-output.log
+          coverage-output.log
+        retention-days: 1
+    
     - name: Create badges JSON
       run: |
         # Create JSON for shields.io endpoint badge
