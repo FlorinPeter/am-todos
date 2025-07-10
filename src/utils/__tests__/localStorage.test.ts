@@ -28,14 +28,22 @@ Object.defineProperty(global, 'localStorage', {
 
 // Now import the functions
 import { 
+  saveSettings,
+  loadSettings,
+  encodeSettingsToUrl,
+  decodeSettingsFromUrl,
+  getUrlConfig,
   saveCheckpoint, 
   getCheckpoints, 
   clearCheckpoints, 
   generateCheckpointId,
+  saveSelectedTodoId,
+  loadSelectedTodoId,
+  clearSelectedTodoId,
   Checkpoint 
 } from '../localStorage';
 
-describe('Checkpoint localStorage functions', () => {
+describe('localStorage functions', () => {
   beforeEach(() => {
     mockLocalStorage.clear();
     vi.clearAllMocks();
@@ -280,5 +288,515 @@ describe('Checkpoint localStorage functions', () => {
         JSON.stringify([checkpoint2])
       );
     });
+  });
+
+  describe('Settings Management', () => {
+    const mockGitHubSettings = {
+      pat: 'github-token',
+      owner: 'testuser',
+      repo: 'test-repo',
+      folder: 'todos',
+      geminiApiKey: 'gemini-key',
+      aiProvider: 'gemini' as const,
+      openRouterApiKey: '',
+      aiModel: 'gemini-2.5-flash',
+      gitProvider: 'github' as const,
+      instanceUrl: '',
+      projectId: '',
+      token: '',
+      branch: 'main'
+    };
+
+    const mockGitLabSettings = {
+      pat: '',
+      owner: '',
+      repo: '',
+      folder: 'work-tasks',
+      geminiApiKey: '',
+      aiProvider: 'openrouter' as const,
+      openRouterApiKey: 'openrouter-key',
+      aiModel: 'anthropic/claude-3.5-sonnet',
+      gitProvider: 'gitlab' as const,
+      instanceUrl: 'https://gitlab.example.com',
+      projectId: '12345',
+      token: 'gitlab-token',
+      branch: 'main'
+    };
+
+    describe('saveSettings', () => {
+      it('saves GitHub settings to localStorage', () => {
+        saveSettings(mockGitHubSettings);
+        
+        expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
+          'githubSettings',
+          JSON.stringify(mockGitHubSettings)
+        );
+      });
+
+      it('saves GitLab settings to localStorage', () => {
+        saveSettings(mockGitLabSettings);
+        
+        expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
+          'githubSettings',
+          JSON.stringify(mockGitLabSettings)
+        );
+      });
+
+      it('handles localStorage errors gracefully', () => {
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        mockLocalStorage.setItem.mockImplementation(() => {
+          throw new Error('localStorage full');
+        });
+
+        expect(() => saveSettings(mockGitHubSettings)).not.toThrow();
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Error saving settings to localStorage',
+          expect.any(Error)
+        );
+
+        consoleSpy.mockRestore();
+      });
+    });
+
+    describe('loadSettings', () => {
+      it('returns null when no settings exist', () => {
+        const settings = loadSettings();
+        expect(settings).toBeNull();
+      });
+
+      it('loads and returns stored GitHub settings with defaults', () => {
+        mockLocalStorage.store['githubSettings'] = JSON.stringify(mockGitHubSettings);
+        
+        const settings = loadSettings();
+        expect(settings).toEqual(mockGitHubSettings);
+      });
+
+      it('adds default values for missing fields', () => {
+        const incompleteSettings = {
+          pat: 'token',
+          owner: 'user',
+          repo: 'repo'
+        };
+        
+        mockLocalStorage.store['githubSettings'] = JSON.stringify(incompleteSettings);
+        
+        const settings = loadSettings();
+        expect(settings).toEqual({
+          ...incompleteSettings,
+          folder: 'todos',
+          aiProvider: 'gemini',
+          aiModel: 'gemini-2.5-flash',
+          gitProvider: 'github',
+          branch: 'main'
+        });
+      });
+
+      it('applies correct defaults for OpenRouter provider', () => {
+        const openRouterSettings = {
+          pat: 'token',
+          owner: 'user',
+          repo: 'repo',
+          aiProvider: 'openrouter'
+        };
+        
+        mockLocalStorage.store['githubSettings'] = JSON.stringify(openRouterSettings);
+        
+        const settings = loadSettings();
+        expect(settings?.aiModel).toBe('anthropic/claude-3.5-sonnet');
+      });
+
+      it('handles localStorage errors gracefully', () => {
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        mockLocalStorage.getItem.mockImplementation(() => {
+          throw new Error('localStorage error');
+        });
+
+        const settings = loadSettings();
+        expect(settings).toBeNull();
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Error loading settings from localStorage',
+          expect.any(Error)
+        );
+
+        consoleSpy.mockRestore();
+      });
+
+      it('handles corrupted JSON data gracefully', () => {
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        mockLocalStorage.store['githubSettings'] = 'invalid json';
+        
+        const settings = loadSettings();
+        expect(settings).toBeNull();
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Error loading settings from localStorage',
+          expect.any(Error)
+        );
+
+        consoleSpy.mockRestore();
+      });
+    });
+  });
+
+  describe('URL Configuration', () => {
+    beforeEach(() => {
+      // Mock window.location
+      Object.defineProperty(window, 'location', {
+        value: {
+          origin: 'http://localhost:3000',
+          pathname: '/',
+          search: ''
+        },
+        writable: true
+      });
+    });
+
+    describe('encodeSettingsToUrl', () => {
+      it('encodes GitHub settings to URL', () => {
+        const settings = {
+          pat: 'github-token',
+          owner: 'testuser',
+          repo: 'test-repo',
+          folder: 'todos',
+          geminiApiKey: 'gemini-key',
+          aiProvider: 'gemini' as const,
+          openRouterApiKey: '',
+          aiModel: 'gemini-2.5-flash',
+          gitProvider: 'github' as const,
+          instanceUrl: '',
+          projectId: '',
+          token: '',
+          branch: 'main'
+        };
+
+        const url = encodeSettingsToUrl(settings);
+        
+        expect(url).toMatch(/^http:\/\/localhost:3000\/\?config=[A-Za-z0-9+/=]+$/);
+      });
+
+      it('encodes GitLab settings to URL', () => {
+        const settings = {
+          pat: '',
+          owner: '',
+          repo: '',
+          folder: 'work-tasks',
+          geminiApiKey: '',
+          aiProvider: 'openrouter' as const,
+          openRouterApiKey: 'openrouter-key',
+          aiModel: 'anthropic/claude-3.5-sonnet',
+          gitProvider: 'gitlab' as const,
+          instanceUrl: 'https://gitlab.example.com',
+          projectId: '12345',
+          token: 'gitlab-token',
+          branch: 'main'
+        };
+
+        const url = encodeSettingsToUrl(settings);
+        
+        expect(url).toMatch(/^http:\/\/localhost:3000\/\?config=[A-Za-z0-9+/=]+$/);
+      });
+
+      it('handles encoding errors gracefully', () => {
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        
+        // Mock btoa to throw an error
+        const originalBtoa = global.btoa;
+        global.btoa = vi.fn(() => {
+          throw new Error('Encoding error');
+        });
+
+        const url = encodeSettingsToUrl({} as any);
+        
+        expect(url).toBe('');
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Error encoding settings to URL',
+          expect.any(Error)
+        );
+
+        global.btoa = originalBtoa;
+        consoleSpy.mockRestore();
+      });
+    });
+
+    describe('decodeSettingsFromUrl', () => {
+      it('decodes valid GitHub settings from base64', () => {
+        const settings = {
+          pat: 'github-token',
+          owner: 'testuser',
+          repo: 'test-repo',
+          folder: 'todos',
+          gitProvider: 'github'
+        };
+        
+        const encoded = btoa(JSON.stringify(settings));
+        const decoded = decodeSettingsFromUrl(encoded);
+        
+        expect(decoded).toEqual({
+          ...settings,
+          branch: 'main'
+        });
+      });
+
+      it('decodes valid GitLab settings from base64', () => {
+        const settings = {
+          instanceUrl: 'https://gitlab.example.com',
+          projectId: '12345',
+          token: 'gitlab-token',
+          folder: 'work-tasks',
+          gitProvider: 'gitlab'
+        };
+        
+        const encoded = btoa(JSON.stringify(settings));
+        const decoded = decodeSettingsFromUrl(encoded);
+        
+        expect(decoded).toEqual({
+          ...settings,
+          branch: 'main'
+        });
+      });
+
+      it('validates required GitHub fields', () => {
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const incompleteSettings = {
+          pat: 'token',
+          owner: 'user'
+          // missing repo
+        };
+        
+        const encoded = btoa(JSON.stringify(incompleteSettings));
+        const decoded = decodeSettingsFromUrl(encoded);
+        
+        expect(decoded).toBeNull();
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Invalid GitHub settings configuration - missing required fields'
+        );
+
+        consoleSpy.mockRestore();
+      });
+
+      it('validates required GitLab fields', () => {
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const incompleteSettings = {
+          instanceUrl: 'https://gitlab.example.com',
+          projectId: '12345'
+          // missing token
+        };
+        
+        const encoded = btoa(JSON.stringify({
+          ...incompleteSettings,
+          gitProvider: 'gitlab'
+        }));
+        const decoded = decodeSettingsFromUrl(encoded);
+        
+        expect(decoded).toBeNull();
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Invalid GitLab settings configuration - missing required fields'
+        );
+
+        consoleSpy.mockRestore();
+      });
+
+      it('handles invalid base64 gracefully', () => {
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        
+        const decoded = decodeSettingsFromUrl('invalid-base64!@#');
+        
+        expect(decoded).toBeNull();
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Error decoding settings from URL',
+          expect.any(Error)
+        );
+
+        consoleSpy.mockRestore();
+      });
+
+      it('handles invalid JSON gracefully', () => {
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        
+        const invalidJson = btoa('invalid json {');
+        const decoded = decodeSettingsFromUrl(invalidJson);
+        
+        expect(decoded).toBeNull();
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Error decoding settings from URL',
+          expect.any(Error)
+        );
+
+        consoleSpy.mockRestore();
+      });
+
+      it('adds default folder when missing', () => {
+        const settings = {
+          pat: 'token',
+          owner: 'user',
+          repo: 'repo'
+        };
+        
+        const encoded = btoa(JSON.stringify(settings));
+        const decoded = decodeSettingsFromUrl(encoded);
+        
+        expect(decoded?.folder).toBe('todos');
+      });
+
+      it('adds default branch when missing', () => {
+        const settings = {
+          pat: 'token',
+          owner: 'user',
+          repo: 'repo'
+        };
+        
+        const encoded = btoa(JSON.stringify(settings));
+        const decoded = decodeSettingsFromUrl(encoded);
+        
+        expect(decoded?.branch).toBe('main');
+      });
+    });
+
+    describe('getUrlConfig', () => {
+      it('returns null when no config parameter exists', () => {
+        Object.defineProperty(window, 'location', {
+          value: {
+            search: '?other=param'
+          },
+          writable: true
+        });
+
+        const config = getUrlConfig();
+        expect(config).toBeNull();
+      });
+
+      it('returns decoded settings when config parameter exists', () => {
+        const settings = {
+          pat: 'token',
+          owner: 'user',
+          repo: 'repo',
+          folder: 'todos'
+        };
+        
+        const encoded = btoa(JSON.stringify(settings));
+        Object.defineProperty(window, 'location', {
+          value: {
+            search: `?config=${encoded}`
+          },
+          writable: true
+        });
+
+        const config = getUrlConfig();
+        expect(config).toEqual({
+          ...settings,
+          branch: 'main'
+        });
+      });
+
+      it('returns null for invalid config parameter', () => {
+        Object.defineProperty(window, 'location', {
+          value: {
+            search: '?config=invalid'
+          },
+          writable: true
+        });
+
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const config = getUrlConfig();
+        expect(config).toBeNull();
+        consoleSpy.mockRestore();
+      });
+    });
+  });
+
+  describe('Selected Todo Persistence', () => {
+    describe('saveSelectedTodoId', () => {
+      it('saves todo ID to localStorage', () => {
+        saveSelectedTodoId('todo-123');
+        
+        expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
+          'selectedTodoId',
+          'todo-123'
+        );
+      });
+
+      it('removes todo ID when null is passed', () => {
+        saveSelectedTodoId(null);
+        
+        expect(mockLocalStorage.removeItem).toHaveBeenCalledWith(
+          'selectedTodoId'
+        );
+      });
+
+      it('handles localStorage errors gracefully', () => {
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        mockLocalStorage.setItem.mockImplementation(() => {
+          throw new Error('localStorage error');
+        });
+
+        expect(() => saveSelectedTodoId('todo-123')).not.toThrow();
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Error saving selected todo ID to localStorage',
+          expect.any(Error)
+        );
+
+        consoleSpy.mockRestore();
+      });
+    });
+
+    describe('loadSelectedTodoId', () => {
+      it('returns stored todo ID', () => {
+        mockLocalStorage.store['selectedTodoId'] = 'todo-456';
+        
+        const todoId = loadSelectedTodoId();
+        expect(todoId).toBe('todo-456');
+      });
+
+      it('returns null when no todo ID is stored', () => {
+        const todoId = loadSelectedTodoId();
+        expect(todoId).toBeNull();
+      });
+
+      it('handles localStorage errors gracefully', () => {
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        mockLocalStorage.getItem.mockImplementation(() => {
+          throw new Error('localStorage error');
+        });
+
+        const todoId = loadSelectedTodoId();
+        expect(todoId).toBeNull();
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Error loading selected todo ID from localStorage',
+          expect.any(Error)
+        );
+
+        consoleSpy.mockRestore();
+      });
+    });
+
+    describe('clearSelectedTodoId', () => {
+      it('removes todo ID from localStorage', () => {
+        mockLocalStorage.store['selectedTodoId'] = 'todo-789';
+        
+        clearSelectedTodoId();
+        
+        expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('selectedTodoId');
+        expect(mockLocalStorage.store['selectedTodoId']).toBeUndefined();
+      });
+
+      it('handles localStorage errors gracefully', () => {
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        mockLocalStorage.removeItem.mockImplementation(() => {
+          throw new Error('localStorage error');
+        });
+
+        expect(() => clearSelectedTodoId()).not.toThrow();
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Error clearing selected todo ID from localStorage',
+          expect.any(Error)
+        );
+
+        consoleSpy.mockRestore();
+      });
+    });
+  });
+
+  describe('Checkpoints Management', () => {
+    // Existing checkpoint tests are included here
+    // (keeping the original test structure)
   });
 });
