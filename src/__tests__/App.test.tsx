@@ -377,15 +377,17 @@ describe('App Component', () => {
   });
 
   describe('Todo Operations', () => {
-    it('renders todo editor with operation buttons', async () => {
+    it('renders todo editor with operation buttons when todo is selected', async () => {
       render(<App />);
       
       await waitFor(() => {
         expect(screen.getByTestId('todo-editor')).toBeInTheDocument();
       });
       
-      // Check that the save button is present
-      expect(screen.getByTestId('save-todo')).toBeInTheDocument();
+      // The app auto-selects the first todo, so buttons should be present
+      await waitFor(() => {
+        expect(screen.getByTestId('save-todo')).toBeInTheDocument();
+      });
       expect(screen.getByTestId('archive-todo')).toBeInTheDocument();
       expect(screen.getByTestId('delete-todo')).toBeInTheDocument();
     });
@@ -397,6 +399,7 @@ describe('App Component', () => {
       
       render(<App />);
       
+      // The app auto-selects the first todo, so save button should be present
       await waitFor(() => {
         expect(screen.getByTestId('save-todo')).toBeInTheDocument();
       });
@@ -412,6 +415,7 @@ describe('App Component', () => {
       
       render(<App />);
       
+      // The app auto-selects the first todo, so archive button should be present
       await waitFor(() => {
         expect(screen.getByTestId('archive-todo')).toBeInTheDocument();
       });
@@ -427,6 +431,7 @@ describe('App Component', () => {
       
       render(<App />);
       
+      // The app auto-selects the first todo, so delete button should be present
       await waitFor(() => {
         expect(screen.getByTestId('delete-todo')).toBeInTheDocument();
       });
