@@ -301,7 +301,7 @@ describe('AIChat Component', () => {
         expect(screen.getByText('Task updated successfully')).toBeInTheDocument();
       });
       
-      expect(screen.getByText('Restore')).toBeInTheDocument();
+      expect(screen.getByTitle('Restore to this checkpoint')).toBeInTheDocument();
     });
 
     it('calls onCheckpointRestore when restore button is clicked', async () => {
