@@ -1,18 +1,29 @@
 {
-  "name": "server",
+  "name": "am-todos-server",
   "version": "1.0.0",
-  "main": "index.js",
+  "type": "module",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest --run --coverage"
   },
-  "keywords": [],
+  "keywords": ["todo", "markdown", "ai", "github", "gitlab"],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Server for Agentic Markdown Todos",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "cors": "^2.8.5",
     "dotenv": "^17.0.1",
     "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.8",
+    "supertest": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
