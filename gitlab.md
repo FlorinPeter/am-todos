@@ -17,8 +17,9 @@ The primary architectural change will involve abstracting the Git provider logic
 
 ### 2.1. Backend (`server/server.js`)
 
-*   **Provider Abstraction**: Introduce an abstraction layer (e.g., `gitProviderService.js`) that can dynamically load and use either `githubService.js` (existing) or a new `gitlabService.js` based on user configuration.
-*   **API Endpoints**: The existing `/api/github/*` endpoints will need to be generalized or new `/api/git/*` endpoints created that route requests to the appropriate provider service.
+*   **Keep Existing Routes**: Maintain existing `/api/github` endpoints for backward compatibility.
+*   **Add New Routes**: Create new `/api/gitlab` endpoints alongside existing ones.
+*   **No Provider Abstraction**: Implement GitLab service directly without complex abstraction layers.
 *   **Error Handling**: Ensure consistent error handling across both providers.
 
 ### 2.2. Frontend (`src/`)
@@ -96,9 +97,9 @@ This component will be renamed (e.g., `GitSettings.tsx`) and significantly refac
 
 ### 5.2. Integration Tests
 
-*   **End-to-End Flow**: Create integration tests that simulate a user's full workflow (e.g., select GitLab, enter credentials, create a task, edit it, archive it, delete it). These tests should interact with a real (or test) GitLab instance.
-*   **Backend-Frontend Integration**: Test that frontend API calls correctly trigger the backend GitLab service and that responses are handled correctly.
-*   **Configuration Sharing**: Test that shared URLs correctly pre-populate GitLab settings.
+*   **Extend Existing Tests**: Build upon current test patterns and infrastructure, don't create new testing systems.
+*   **Mock-Based Testing**: Use mocked GitLab API responses following existing mock patterns.
+*   **Configuration Sharing**: Test that shared URLs correctly pre-populate GitLab settings using existing test utilities.
 
 ### 5.3. Manual Testing
 
@@ -109,8 +110,9 @@ This component will be renamed (e.g., `GitSettings.tsx`) and significantly refac
 
 ### 6.1. Environment Variables
 
-*   No new environment variables should be strictly necessary for GitLab integration, as all configuration (instance URL, PAT, project) will be user-provided and stored in `localStorage`.
-*   However, for testing or specific deployment scenarios, it might be useful to have optional environment variables for default GitLab settings.
+*   No new environment variables needed for GitLab integration.
+*   All configuration (instance URL, PAT, project) will be user-provided and stored in `localStorage`.
+*   Testing will rely on mocking, manual testing will be performed separately.
 
 ### 6.2. Dockerfile
 
@@ -122,8 +124,9 @@ This component will be renamed (e.g., `GitSettings.tsx`) and significantly refac
 
 ### 6.4. Documentation
 
-*   Update `README.md` with instructions on how to configure GitLab.
+*   Update `README.md` with instructions on how to configure GitLab, emphasize sovereign data ownership.
 *   Update `FEATURES.md` to reflect GitLab support.
+*   Update `CONCEPT.md` to include GitLab integration and strengthen sovereign/self-sovereign messaging.
 *   Add a `TROUBLESHOOTING.md` section for common GitLab configuration issues.
 
 ## 7. Implementation Steps (High-Level)
@@ -157,16 +160,16 @@ This plan provides a comprehensive roadmap for integrating GitLab. I'll await yo
 
 ## **Implementation Steps**
 
-### **Phase 1: Backend Abstraction (2-3 hours)**
-1. Create `server/gitProviderService.js` - unified provider routing
-2. Create `server/gitlabService.js` - GitLab API implementation
-3. Update `server/server.js` - add `/api/git` endpoints with provider routing
-4. Implement GitLab-specific API mappings (files, commits, directories)
+### **Phase 1: Backend Implementation (2-3 hours)**
+1. Create `server/gitlabService.js` - GitLab API implementation
+2. Update `server/server.js` - add `/api/gitlab` endpoints alongside existing `/api/github`
+3. Implement GitLab-specific API mappings (files, commits, directories)
+4. Maintain backward compatibility with existing GitHub routes
 
 ### **Phase 2: Frontend Services (2-3 hours)**  
 1. Create `src/services/gitlabService.ts` - GitLab API client
-2. Create `src/services/gitService.ts` - unified Git service interface
-3. Update `src/services/githubService.ts` - maintain existing but route through abstraction
+2. Create `src/services/gitService.ts` - simple router to GitHub/GitLab services
+3. Keep `src/services/githubService.ts` unchanged for backward compatibility
 4. Implement GitLab-specific error handling and Base64 encoding
 
 ### **Phase 3: Settings & UI (2-3 hours)**
@@ -175,18 +178,19 @@ This plan provides a comprehensive roadmap for integrating GitLab. I'll await yo
 3. Update `localStorage.ts` - extend settings interface for GitLab
 4. Update `SettingsSharing.tsx` - include GitLab config in QR/URL sharing
 
-### **Phase 4: Integration & Testing (3-4 hours)**
-1. Create `src/services/__tests__/gitlabService.test.ts` - unit tests
-2. Create `src/services/__tests__/gitService.test.ts` - integration tests  
+### **Phase 4: Testing (2-3 hours)**
+1. Create `src/services/__tests__/gitlabService.test.ts` - unit tests with mocks
+2. Create `src/services/__tests__/gitService.test.ts` - router tests  
 3. Update component tests for provider selection UI
-4. Add GitLab integration tests with real API calls
-5. Update feature validation tests for GitLab support
+4. Extend existing test patterns, don't create new testing systems
+5. Use mocked GitLab API responses following existing patterns
 
 ### **Phase 5: Documentation & Polish (1-2 hours)**
-1. Update README.md with GitLab configuration instructions
+1. Update README.md with GitLab configuration instructions and sovereign messaging
 2. Update FEATURES.md to document GitLab support
-3. Add troubleshooting section for GitLab-specific issues
-4. Test cross-provider functionality and edge cases
+3. Update CONCEPT.md to include GitLab integration and strengthen sovereign/self-sovereign messaging
+4. Add troubleshooting section for GitLab-specific issues
+5. Manual testing and edge case validation
 
 ## **Key Technical Decisions**
 - **GitLab API**: Use project ID for API calls (more reliable than paths)
@@ -201,4 +205,4 @@ This plan provides a comprehensive roadmap for integrating GitLab. I'll await yo
 - Clear error messages for GitLab-specific configuration issues
 - Fallback mechanisms for API differences between providers
 
-**Total Estimated Time**: 10-15 hours for complete implementation and testing
+**Total Estimated Time**: 8-12 hours for complete implementation and testing
