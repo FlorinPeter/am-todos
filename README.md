@@ -1,8 +1,8 @@
 # 📋 Agentic Markdown Todos
 
 [![CI](https://github.com/FlorinPeter/am-todos/actions/workflows/ci.yml/badge.svg)](https://github.com/FlorinPeter/am-todos/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-377%20passing-brightgreen)](https://github.com/FlorinPeter/am-todos/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-check%20actions-orange)](https://github.com/FlorinPeter/am-todos/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/FlorinPeter/am-todos/badges/test-badge.json)](https://github.com/FlorinPeter/am-todos/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/FlorinPeter/am-todos/badges/coverage-badge.json)](https://github.com/FlorinPeter/am-todos/actions/workflows/ci.yml)
 [![Docker Build](https://github.com/FlorinPeter/am-todos/actions/workflows/docker-build.yml/badge.svg)](https://github.com/FlorinPeter/am-todos/actions/workflows/docker-build.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)

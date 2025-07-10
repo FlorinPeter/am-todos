@@ -1,0 +1,142 @@
+name: Update Badges
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  update-badges:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GIST_ID: ${{ secrets.GIST_ID }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests and capture output
+      id: test
+      run: |
+        # Run tests and capture output
+        npm test -- --run --reporter=verbose > test-output.log 2>&1 || true
+        
+        # Extract test count
+        TEST_COUNT=$(grep -E "Test Files.*passed" test-output.log | grep -oE "[0-9]+ passed" | grep -oE "[0-9]+" | head -1 || echo "0")
+        echo "TEST_COUNT=${TEST_COUNT}" >> $GITHUB_ENV
+        echo "Test count: ${TEST_COUNT}"
+        
+    - name: Run coverage
+      id: coverage
+      run: |
+        # Run coverage
+        npm run test:coverage || true
+        
+        # Extract coverage percentage
+        if [ -f coverage/coverage-summary.json ]; then
+          COVERAGE=$(cat coverage/coverage-summary.json | jq -r '.total.lines.pct' | cut -d. -f1)
+          echo "COVERAGE=${COVERAGE}" >> $GITHUB_ENV
+          echo "Coverage: ${COVERAGE}%"
+        else
+          echo "COVERAGE=unknown" >> $GITHUB_ENV
+        fi
+
+    - name: Create badges JSON
+      run: |
+        # Create JSON for shields.io endpoint badge
+        mkdir -p .github
+        
+        # Test badge color
+        if [ "${{ env.TEST_COUNT }}" == "0" ]; then
+          TEST_COLOR="red"
+        else
+          TEST_COLOR="brightgreen"
+        fi
+        
+        # Coverage badge color
+        if [ "${{ env.COVERAGE }}" == "unknown" ]; then
+          COVERAGE_COLOR="lightgrey"
+        elif [ "${{ env.COVERAGE }}" -ge 80 ]; then
+          COVERAGE_COLOR="brightgreen"
+        elif [ "${{ env.COVERAGE }}" -ge 60 ]; then
+          COVERAGE_COLOR="yellow"
+        else
+          COVERAGE_COLOR="red"
+        fi
+        
+        # Create JSON for shields.io
+        cat > .github/test-badge.json << EOF
+        {
+          "schemaVersion": 1,
+          "label": "tests",
+          "message": "${{ env.TEST_COUNT }} passing",
+          "color": "${TEST_COLOR}"
+        }
+        EOF
+        
+        cat > .github/coverage-badge.json << EOF
+        {
+          "schemaVersion": 1,
+          "label": "coverage",
+          "message": "${{ env.COVERAGE }}%",
+          "color": "${COVERAGE_COLOR}"
+        }
+        EOF
+        
+    - name: Update Gist
+      if: ${{ env.GIST_ID != '' }}
+      uses: schneegans/dynamic-badges-action@v1.7.0
+      with:
+        auth: ${{ secrets.GIST_SECRET }}
+        gistID: ${{ env.GIST_ID }}
+        filename: am-todos-tests.json
+        label: tests
+        message: ${{ env.TEST_COUNT }} passing
+        color: ${{ env.TEST_COUNT == '0' && 'red' || 'brightgreen' }}
+        
+    - name: Update Coverage Gist
+      if: ${{ env.GIST_ID != '' }}
+      uses: schneegans/dynamic-badges-action@v1.7.0
+      with:
+        auth: ${{ secrets.GIST_SECRET }}
+        gistID: ${{ env.GIST_ID }}
+        filename: am-todos-coverage.json
+        label: coverage
+        message: ${{ env.COVERAGE }}%
+        color: ${{ env.COVERAGE == 'unknown' && 'lightgrey' || env.COVERAGE >= 80 && 'brightgreen' || env.COVERAGE >= 60 && 'yellow' || 'red' }}
+
+    - name: Commit badge data to branch
+      run: |
+        # Configure git
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # Switch to badges branch (create if doesn't exist)
+        git fetch origin badges:badges || true
+        git checkout badges || git checkout -b badges
+        
+        # Copy badge files
+        cp .github/test-badge.json test-badge.json
+        cp .github/coverage-badge.json coverage-badge.json
+        
+        # Commit and push
+        git add test-badge.json coverage-badge.json
+        git commit -m "Update badge data [skip ci]" || echo "No changes to commit"
+        git push origin badges --force
