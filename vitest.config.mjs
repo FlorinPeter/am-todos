@@ -7,7 +7,7 @@ export default defineConfig({
     globals: true,
     css: false,
     coverage: {
-      reporter: ['text', 'json', 'html', 'lcov'],
+      reporter: ['text', 'json', 'html', 'lcov', 'cobertura'],
       reportsDirectory: './coverage',
       exclude: [
         'node_modules/',

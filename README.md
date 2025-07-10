@@ -1,7 +1,7 @@
 # 📋 Agentic Markdown Todos
 
 [![CI](https://github.com/FlorinPeter/am-todos/actions/workflows/ci.yml/badge.svg)](https://github.com/FlorinPeter/am-todos/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/FlorinPeter/am-todos/graph/badge.svg?token=YOUR_TOKEN)](https://codecov.io/gh/FlorinPeter/am-todos)
+[![Tests](https://img.shields.io/badge/tests-377%20passing-brightgreen)](https://github.com/FlorinPeter/am-todos/actions/workflows/ci.yml)
 [![Docker Build](https://github.com/FlorinPeter/am-todos/actions/workflows/docker-build.yml/badge.svg)](https://github.com/FlorinPeter/am-todos/actions/workflows/docker-build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
