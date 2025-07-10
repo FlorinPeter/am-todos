@@ -2,10 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import NewTodoInput from './components/NewTodoInput';
 import TodoSidebar from './components/TodoSidebar';
 import TodoEditor from './components/TodoEditor';
-import GitHubSettings from './components/GitHubSettings';
+import GitSettings from './components/GitSettings';
 import ProjectManager from './components/ProjectManager';
 import { loadSettings, getUrlConfig, saveSettings, saveSelectedTodoId, loadSelectedTodoId, clearSelectedTodoId } from './utils/localStorage';
-import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDirectory, moveTaskToArchive, moveTaskFromArchive, deleteFile } from './services/githubService';
+import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDirectory, moveTaskToArchive, moveTaskFromArchive, deleteFile } from './services/gitService';
 import { generateInitialPlan, generateCommitMessage } from './services/aiService';
 import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, TodoFrontmatter } from './utils/markdown';
 
@@ -820,7 +820,7 @@ function App() {
   if (!settings) {
     return (
       <div className="bg-gray-900 min-h-screen text-white p-4 flex items-center justify-center">
-        <GitHubSettings onSettingsSaved={handleSettingsSaved} />
+        <GitSettings onSettingsSaved={handleSettingsSaved} />
       </div>
     );
   }
@@ -1000,7 +1000,7 @@ function App() {
                 ✕
               </button>
             </div>
-            <GitHubSettings onSettingsSaved={handleSettingsSaved} />
+            <GitSettings onSettingsSaved={handleSettingsSaved} />
           </div>
         </div>
       )}
