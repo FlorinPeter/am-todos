@@ -266,20 +266,37 @@ describe('GitLab Service', () => {
 
   describe('listProjectFolders', () => {
     it('should list available project folders', async () => {
-      const mockContents = [
-        { name: 'todos', path: 'todos', type: 'dir' },
-        { name: 'work-tasks', path: 'work-tasks', type: 'dir' },
-        { name: 'personal', path: 'personal', type: 'dir' },
-        { name: 'README.md', path: 'README.md', type: 'file' }
-      ];
-
-      (fetch as any).mockResolvedValueOnce({
+      // Mock successful responses for 'todos' and 'work-tasks', failures for others
+      const mockSuccessResponse = {
         ok: true,
-        json: () => Promise.resolve(mockContents)
-      });
+        json: () => Promise.resolve([])
+      };
+      const mockFailResponse = {
+        ok: false,
+        json: () => Promise.resolve({ error: 'Not found' })
+      };
+
+      // Set up mocks for the potential folders that should exist
+      (fetch as any)
+        .mockResolvedValueOnce(mockSuccessResponse) // todos
+        .mockResolvedValueOnce(mockFailResponse)    // todo
+        .mockResolvedValueOnce(mockFailResponse)    // tasks
+        .mockResolvedValueOnce(mockFailResponse)    // task
+        .mockResolvedValueOnce(mockFailResponse)    // work
+        .mockResolvedValueOnce(mockFailResponse)    // personal
+        .mockResolvedValueOnce(mockFailResponse)    // projects
+        .mockResolvedValueOnce(mockFailResponse)    // project
+        .mockResolvedValueOnce(mockFailResponse)    // test
+        .mockResolvedValueOnce(mockFailResponse)    // test1
+        .mockResolvedValueOnce(mockFailResponse)    // test2
+        .mockResolvedValueOnce(mockFailResponse)    // main
+        .mockResolvedValueOnce(mockFailResponse)    // dev
+        .mockResolvedValueOnce(mockSuccessResponse) // work-tasks
+        .mockResolvedValueOnce(mockFailResponse);   // personal-tasks
 
       const result = await gitlabService.listProjectFolders(mockSettings);
 
+      // Should call with the first few potential folders
       expect(fetch).toHaveBeenCalledWith(
         'http://localhost:3001/api/gitlab',
         expect.objectContaining({
@@ -289,16 +306,15 @@ describe('GitLab Service', () => {
             projectId: mockSettings.projectId,
             token: mockSettings.token,
             branch: mockSettings.branch,
-            path: ''
+            path: 'todos'
           })
         })
       );
 
-      // Should include todos (default), work-tasks, and personal
+      // Should include the folders that returned successful responses
       expect(result).toContain('todos');
       expect(result).toContain('work-tasks');
-      expect(result).toContain('personal');
-      expect(result).not.toContain('README.md'); // Files should be filtered out
+      expect(result).toHaveLength(2);
     });
 
     it('should return default folder on error', async () => {
