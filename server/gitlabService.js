@@ -253,4 +253,4 @@ class GitLabService {
   }
 }
 
-module.exports = GitLabService;
+export default GitLabService;

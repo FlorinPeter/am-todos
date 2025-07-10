@@ -22,6 +22,7 @@ export default defineConfig({
         'vitest.config.mjs',
         'postcss.config.js',
         'tailwind.config.js',
+        '.github/**',
       ],
     },
   },

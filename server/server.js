@@ -1,8 +1,12 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const GitLabService = require('./gitlabService');
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import GitLabService from './gitlabService.js';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -423,7 +427,13 @@ app.use((req, res) => {
   }
 });
 
-app.listen(port, '0.0.0.0', () => {
-  console.log(`✅ Server successfully listening at http://0.0.0.0:${port}`);
-  console.log(`🌐 Health check available at http://0.0.0.0:${port}/health`);
-});
+// Export the app for testing
+export default app;
+
+// Only start the server if this file is run directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`✅ Server successfully listening at http://0.0.0.0:${port}`);
+    console.log(`🌐 Health check available at http://0.0.0.0:${port}/health`);
+  });
+}
