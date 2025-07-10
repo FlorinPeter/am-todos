@@ -195,7 +195,7 @@ const AIChat: React.FC<AIChatProps> = ({
                           className="text-xs text-blue-300 hover:text-blue-200 underline ml-2 px-1 py-0.5 rounded bg-blue-900/30 sm:bg-transparent sm:px-0 sm:py-0"
                           title="Restore to this checkpoint"
                         >
-                          <span className="sm:hidden">↶</span>
+                          <span className="sm:hidden">Restore</span>
                           <span className="hidden sm:inline">Restore</span>
                         </button>
                       )}
@@ -237,7 +237,7 @@ const AIChat: React.FC<AIChatProps> = ({
                         onClick={handleClearCheckpoints}
                         className="text-xs text-gray-400 hover:text-red-400 transition-colors px-2 py-1 sm:px-0 sm:py-0 rounded sm:rounded-none bg-gray-700 sm:bg-transparent"
                       >
-                        <span className="sm:hidden">Clear CP</span>
+                        <span className="sm:hidden">Clear Checkpoint</span>
                         <span className="hidden sm:inline">Clear Checkpoints</span>
                       </button>
                     )}

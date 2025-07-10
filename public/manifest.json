@@ -1,6 +1,7 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "AM-Todos",
+  "name": "Agentic Markdown Todos - AI-Powered Task Management",
+  "description": "AI-powered todo application that transforms GitHub repositories into intelligent task management systems",
   "icons": [
     {
       "src": "favicon.ico",
@@ -20,6 +21,7 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#3B82F6",
+  "background_color": "#1F2937",
+  "categories": ["productivity", "utilities", "business"]
 }

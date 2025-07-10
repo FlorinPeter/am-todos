@@ -40,7 +40,7 @@ jobs:
       - name: Get package version and git info
         id: package_version
         run: |
-          VERSION=$(grep '"version"' am-todos/package.json | cut -d'"' -f4)
+          VERSION=$(grep '"version"' package.json | cut -d'"' -f4)
           GIT_SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
           BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           echo "version=$VERSION" >> $GITHUB_OUTPUT

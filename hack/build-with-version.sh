@@ -12,7 +12,7 @@ IMAGE_NAME=${1:-"am-todos:latest"}
 GIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GIT_TAG=$(git describe --tags --exact-match 2>/dev/null || echo "")
 BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-VERSION=$(grep '"version"' am-todos/package.json | cut -d'"' -f4 2>/dev/null || echo "0.1.0")
+VERSION=$(grep '"version"' package.json | cut -d'"' -f4 2>/dev/null || echo "0.1.0")
 
 echo "🔨 Building Docker image with version information..."
 echo "   Image: $IMAGE_NAME"

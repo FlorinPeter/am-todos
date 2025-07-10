@@ -23,11 +23,6 @@ Access the application at `http://localhost:3001`
    docker-compose up -d
    ```
 
-2. **Development with hot reload:**
-   ```bash
-   docker-compose --profile dev up -d
-   ```
-
 ### Environment Variables
 
 The application supports the following environment variables:
@@ -162,9 +157,6 @@ railway up
 ```bash
 # Build the production image
 docker build -t am-todos:local .
-
-# Build the development image
-docker build -f Dockerfile.dev -t am-todos:dev .
 
 # Run your local build
 docker run -p 3001:3001 am-todos:local
