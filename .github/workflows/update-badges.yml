@@ -30,21 +30,29 @@ jobs:
         cache: 'npm'
 
     - name: Install dependencies
-      run: npm ci
+      run: |
+        npm ci
+        cd server && npm ci && cd ..
 
     - name: Run tests and capture output
       id: test
       run: |
-        # Run tests and capture output
+        # Run frontend tests and capture output
         npm test -- --run --reporter=verbose > test-output.log 2>&1 || true
         
-        # Extract test count - look for exact vitest format
-        # Pattern: "      Tests  567 passed (567)"
-        TEST_COUNT=$(grep -E "^\s*Tests\s+[0-9]+ passed \([0-9]+\)" test-output.log | grep -oE "[0-9]+ passed \([0-9]+\)" | grep -oE "\([0-9]+\)" | grep -oE "[0-9]+" | head -1 || echo "0")
+        # Run server tests and append to output
+        cd server && npm test -- --run --reporter=verbose >> ../test-output.log 2>&1 || true && cd ..
         
-        # Alternative pattern: "Tests  567 passed (567)" without leading spaces
-        if [ -z "$TEST_COUNT" ] || [ "$TEST_COUNT" = "0" ]; then
-          TEST_COUNT=$(grep -E "Tests\s+[0-9]+ passed \([0-9]+\)" test-output.log | grep -oE "[0-9]+ passed \([0-9]+\)" | grep -oE "\([0-9]+\)" | grep -oE "[0-9]+" | head -1 || echo "0")
+        # Extract test count - sum from both frontend and server runs
+        # Pattern: "      Tests  XXX passed (XXX)"
+        FRONTEND_TESTS=$(grep -E "^\s*Tests\s+[0-9]+ passed \([0-9]+\)" test-output.log | grep -oE "[0-9]+ passed \([0-9]+\)" | grep -oE "\([0-9]+\)" | grep -oE "[0-9]+" | head -1 || echo "0")
+        SERVER_TESTS=$(grep -E "^\s*Tests\s+[0-9]+ passed \([0-9]+\)" test-output.log | grep -oE "[0-9]+ passed \([0-9]+\)" | grep -oE "\([0-9]+\)" | grep -oE "[0-9]+" | tail -1 || echo "0")
+        
+        # Sum the test counts
+        if [ -n "$FRONTEND_TESTS" ] && [ -n "$SERVER_TESTS" ] && [ "$FRONTEND_TESTS" != "0" ] && [ "$SERVER_TESTS" != "0" ] && [ "$FRONTEND_TESTS" != "$SERVER_TESTS" ]; then
+          TEST_COUNT=$((FRONTEND_TESTS + SERVER_TESTS))
+        else
+          TEST_COUNT=$FRONTEND_TESTS
         fi
         
         # Fallback: Count individual test checkmarks
@@ -66,7 +74,7 @@ jobs:
         tail -10 test-output.log || echo "Could not read test output"
         echo "=== Grep for Tests patterns ==="
         grep -E "Tests.*passed" test-output.log | head -3 || echo "No test summary patterns found"
-        echo "=== Test count found: $TEST_COUNT ==="
+        echo "=== Frontend tests: $FRONTEND_TESTS, Server tests: $SERVER_TESTS, Total: $TEST_COUNT ==="
         
     - name: Run coverage
       id: coverage

@@ -6,6 +6,10 @@ export default defineConfig({
     setupFiles: ['./src/setupTests.ts'],
     globals: true,
     css: false,
+    exclude: [
+      '**/node_modules/**',
+      'server/**/__tests__/**',  // Exclude server tests from frontend test runs
+    ],
     coverage: {
       reporter: ['text', 'json', 'html', 'lcov', 'cobertura'],
       reportsDirectory: './coverage',
@@ -23,6 +27,7 @@ export default defineConfig({
         'postcss.config.js',
         'tailwind.config.js',
         '.github/**',
+        'server/**',  // Exclude server files from coverage
       ],
     },
   },

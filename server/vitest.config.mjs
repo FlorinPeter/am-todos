@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    pool: 'forks',  // Use forks instead of threads for better ESM compatibility
     coverage: {
       reporter: ['text', 'json', 'html'],
       reportsDirectory: './coverage',
