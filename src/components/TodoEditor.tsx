@@ -184,9 +184,6 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
           onMarkdownChange={(newContent) => onTodoUpdate(selectedTodo.id, newContent)}
           onChatHistoryChange={(newChatHistory) => onTodoUpdate(selectedTodo.id, selectedTodo.content, newChatHistory)}
           filePath={selectedTodo.path}
-          token={token}
-          owner={owner}
-          repo={repo}
           taskId={selectedTodo.id}
         />
       </div>

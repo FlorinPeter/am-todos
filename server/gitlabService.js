@@ -55,7 +55,9 @@ class GitLabService {
    */
   async getFile(filePath, branch = 'main') {
     const encodedPath = encodeURIComponent(filePath);
-    const endpoint = `/projects/${this.projectId}/repository/files/${encodedPath}`;
+    const endpoint = `/projects/${this.projectId}/repository/files/${encodedPath}?ref=${branch}`;
+    
+    console.log(`GitLab getFile request: ${endpoint}`);
     
     const response = await this.makeRequest(endpoint, {
       method: 'GET',
@@ -65,7 +67,19 @@ class GitLabService {
       }
     });
 
-    const data = await response.json();
+    console.log(`GitLab getFile response status: ${response.status}`);
+    
+    const responseText = await response.text();
+    console.log(`GitLab getFile response text (first 200 chars): ${responseText.substring(0, 200)}`);
+    
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('GitLab getFile JSON parse error:', parseError.message);
+      console.error('GitLab getFile full response text:', responseText);
+      throw new Error(`Failed to parse GitLab getFile response: ${parseError.message}`);
+    }
     
     // GitLab returns content in Base64, decode it
     const content = Buffer.from(data.content, 'base64').toString('utf-8');
@@ -168,7 +182,21 @@ class GitLabService {
       body: JSON.stringify(requestBody)
     });
 
-    return await response.json();
+    // GitLab DELETE operations may return empty response body
+    const responseText = await response.text();
+    console.log('GitLab deleteFile response text:', responseText);
+    
+    if (responseText.trim() === '') {
+      console.log('GitLab deleteFile: Empty response, file deleted successfully');
+      return { deleted: true };
+    }
+    
+    try {
+      return JSON.parse(responseText);
+    } catch (parseError) {
+      console.log('GitLab deleteFile: Non-JSON response, but delete was successful');
+      return { deleted: true };
+    }
   }
 
   /**

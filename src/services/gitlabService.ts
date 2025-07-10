@@ -163,7 +163,21 @@ export const getFileMetadata = async (settings: GitLabSettings, path: string) =>
   console.log('Getting GitLab file metadata:', path);
   
   const response = await makeGitLabRequest('getFile', settings, { filePath: path });
-  const metadata = await response.json();
+  console.log('GitLab getFileMetadata response status:', response.status);
+  
+  const responseText = await response.text();
+  console.log('GitLab getFileMetadata raw response:', responseText.substring(0, 200) + '...');
+  
+  let metadata;
+  try {
+    metadata = JSON.parse(responseText);
+  } catch (parseError) {
+    console.error('GitLab getFileMetadata JSON parse error:', parseError);
+    console.error('GitLab getFileMetadata full response:', responseText);
+    throw new Error(`Failed to parse GitLab API response: ${parseError.message}`);
+  }
+  
+  console.log('GitLab getFileMetadata parsed keys:', Object.keys(metadata));
   
   return {
     sha: metadata.sha,
@@ -293,30 +307,36 @@ export const getProject = async (settings: GitLabSettings) => {
 
 export const listProjectFolders = async (settings: GitLabSettings): Promise<string[]> => {
   try {
-    const response = await makeGitLabRequest('listFiles', settings, { path: '' });
-    const contents = await response.json();
+    // GitLab API doesn't reliably return directories in root listing
+    // So we'll try to discover directories by testing known patterns
+    const potentialFolders = [
+      'todos', 'todo', 'tasks', 'task', 'work', 'personal', 'projects', 'project',
+      'test', 'test1', 'test2', 'main', 'dev', 'work-tasks', 'personal-tasks'
+    ];
     
-    // Filter for directories that might contain todo files
-    const folders = contents
-      .filter((item: any) => item.type === 'dir' || item.path.includes('/'))
-      .map((item: any) => item.name || item.path.split('/')[0])
-      .filter((name: string) => 
-        // Include common project folder patterns
-        name.includes('todo') || 
-        name.includes('task') || 
-        name.includes('project') ||
-        name.includes('work') ||
-        name.includes('personal') ||
-        name === 'todos' || // Default
-        name.match(/^[a-zA-Z][a-zA-Z0-9_-]*$/) // Valid folder names
-      );
+    const existingFolders: string[] = [];
     
-    // Always include 'todos' as default if not present
-    if (!folders.includes('todos')) {
-      folders.unshift('todos');
+    // Test each potential folder by trying to access it
+    for (const folderName of potentialFolders) {
+      try {
+        const testResponse = await makeGitLabRequest('listFiles', settings, { path: folderName });
+        if (testResponse.ok) {
+          existingFolders.push(folderName);
+          console.log(`GitLab: Found existing folder: ${folderName}`);
+        }
+      } catch (error) {
+        // Folder doesn't exist, continue
+      }
     }
     
-    return [...new Set(folders)]; // Remove duplicates
+    // Always include 'todos' as default if no folders found
+    if (existingFolders.length === 0) {
+      existingFolders.push('todos');
+    }
+    
+    console.log('GitLab discovered folders:', existingFolders);
+    
+    return [...new Set(existingFolders)]; // Remove duplicates
   } catch (error) {
     console.error('Error listing GitLab project folders:', error);
     return ['todos']; // Default fallback

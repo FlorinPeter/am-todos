@@ -39,10 +39,7 @@ describe('Component Basic Functionality Tests', () => {
     test('renders with git history props', () => {
       const propsWithGit = {
         ...mockProps,
-        filePath: 'test.md',
-        token: 'token',
-        owner: 'owner',
-        repo: 'repo'
+        filePath: 'test.md'
       };
       
       expect(() => render(<MarkdownViewer {...propsWithGit} />)).not.toThrow();

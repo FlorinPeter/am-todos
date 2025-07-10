@@ -126,9 +126,6 @@ describe('Basic Feature Coverage - All 12 Features', () => {
   describe('Feature 9: Git History & Version Control', () => {
     it('GitHistory component renders version control interface', () => {
       const mockProps = {
-        token: 'test-token',
-        owner: 'test-owner',
-        repo: 'test-repo',
         filePath: 'test-file.md',
         onRestore: vi.fn(),
         onClose: vi.fn()

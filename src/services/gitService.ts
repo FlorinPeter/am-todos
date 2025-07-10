@@ -45,7 +45,7 @@ export const getGitSettings = (): GitSettings => {
     instanceUrl: settings.instanceUrl,
     projectId: settings.projectId,
     token: settings.token,
-    branch: settings.branch || 'main'
+    branch: 'main'
   };
 };
 
@@ -82,7 +82,7 @@ export const createOrUpdateTodo = async (
         instanceUrl: settings.instanceUrl,
         projectId: settings.projectId,
         token: settings.token,
-        branch: settings.branch || 'main'
+        branch: 'main'
       },
       path,
       content,
@@ -113,7 +113,7 @@ export const ensureDirectory = async (folder: string, commitMessage?: string) =>
         instanceUrl: settings.instanceUrl,
         projectId: settings.projectId,
         token: settings.token,
-        branch: settings.branch || 'main'
+        branch: 'main'
       },
       folder,
       commitMessage
@@ -143,7 +143,7 @@ export const getTodos = async (folder: string = 'todos', includeArchived = false
         instanceUrl: settings.instanceUrl,
         projectId: settings.projectId,
         token: settings.token,
-        branch: settings.branch || 'main'
+        branch: 'main'
       },
       folder,
       includeArchived
@@ -173,7 +173,7 @@ export const getFileContent = async (path: string) => {
         instanceUrl: settings.instanceUrl,
         projectId: settings.projectId,
         token: settings.token,
-        branch: settings.branch || 'main'
+        branch: 'main'
       },
       path
     );
@@ -202,7 +202,7 @@ export const getFileMetadata = async (path: string) => {
         instanceUrl: settings.instanceUrl,
         projectId: settings.projectId,
         token: settings.token,
-        branch: settings.branch || 'main'
+        branch: 'main'
       },
       path
     );
@@ -244,7 +244,7 @@ export const moveTaskToArchive = async (
         instanceUrl: settings.instanceUrl,
         projectId: settings.projectId,
         token: settings.token,
-        branch: settings.branch || 'main'
+        branch: 'main'
       },
       currentPath,
       content,
@@ -289,7 +289,7 @@ export const moveTaskFromArchive = async (
         instanceUrl: settings.instanceUrl,
         projectId: settings.projectId,
         token: settings.token,
-        branch: settings.branch || 'main'
+        branch: 'main'
       },
       currentPath,
       content,
@@ -323,7 +323,7 @@ export const deleteFile = async (path: string, commitMessage: string) => {
         instanceUrl: settings.instanceUrl,
         projectId: settings.projectId,
         token: settings.token,
-        branch: settings.branch || 'main'
+        branch: 'main'
       },
       path,
       commitMessage
@@ -353,7 +353,7 @@ export const getFileHistory = async (path: string) => {
         instanceUrl: settings.instanceUrl,
         projectId: settings.projectId,
         token: settings.token,
-        branch: settings.branch || 'main'
+        branch: 'main'
       },
       path
     );
@@ -382,7 +382,7 @@ export const getFileAtCommit = async (path: string, sha: string) => {
         instanceUrl: settings.instanceUrl,
         projectId: settings.projectId,
         token: settings.token,
-        branch: settings.branch || 'main'
+        branch: 'main'
       },
       path,
       sha
@@ -397,22 +397,32 @@ export const getFileAtCommit = async (path: string, sha: string) => {
  */
 export const listProjectFolders = async (): Promise<string[]> => {
   const settings = getGitSettings();
+  console.log('gitService: listProjectFolders called with provider:', settings.provider);
   
   if (settings.provider === 'github') {
     if (!settings.pat || !settings.owner || !settings.repo) {
       throw new Error('GitHub settings incomplete. Please configure PAT, owner, and repo.');
     }
-    return await githubService.listProjectFolders(settings.pat, settings.owner, settings.repo);
+    const folders = await githubService.listProjectFolders(settings.pat, settings.owner, settings.repo);
+    console.log('gitService: GitHub folders:', folders);
+    return folders;
   } else if (settings.provider === 'gitlab') {
     if (!settings.instanceUrl || !settings.projectId || !settings.token) {
       throw new Error('GitLab settings incomplete. Please configure instance URL, project ID, and token.');
     }
-    return await gitlabService.listProjectFolders({
-      instanceUrl: settings.instanceUrl,
-      projectId: settings.projectId,
-      token: settings.token,
-      branch: settings.branch || 'main'
-    });
+    try {
+      const folders = await gitlabService.listProjectFolders({
+        instanceUrl: settings.instanceUrl,
+        projectId: settings.projectId,
+        token: settings.token,
+        branch: 'main'
+      });
+      console.log('gitService: GitLab folders:', folders);
+      return folders;
+    } catch (error) {
+      console.error('gitService: GitLab listProjectFolders error:', error);
+      throw error;
+    }
   } else {
     throw new Error('Unsupported Git provider');
   }
@@ -438,7 +448,7 @@ export const createProjectFolder = async (folderName: string): Promise<void> => 
         instanceUrl: settings.instanceUrl,
         projectId: settings.projectId,
         token: settings.token,
-        branch: settings.branch || 'main'
+        branch: 'main'
       },
       folderName
     );

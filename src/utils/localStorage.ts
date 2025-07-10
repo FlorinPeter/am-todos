@@ -33,6 +33,7 @@ export const loadSettings = (): GitHubSettings | null => {
     if (!settingsString) return null;
     
     const settings = JSON.parse(settingsString);
+    
     // Ensure folder field exists, default to 'todos' for backward compatibility
     if (!settings.folder) {
       settings.folder = 'todos';
@@ -51,6 +52,7 @@ export const loadSettings = (): GitHubSettings | null => {
     if (!settings.branch) {
       settings.branch = 'main';
     }
+    
     return settings;
   } catch (error) {
     console.error("Error loading settings from localStorage", error);

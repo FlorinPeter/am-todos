@@ -21,7 +21,6 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
   const [instanceUrl, setInstanceUrl] = useState('https://gitlab.com');
   const [projectId, setProjectId] = useState('');
   const [token, setToken] = useState('');
-  const [branch, setBranch] = useState('main');
   
   // Common settings
   const [folder, setFolder] = useState('todos');
@@ -52,7 +51,6 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
       setInstanceUrl(savedSettings.instanceUrl || 'https://gitlab.com');
       setProjectId(savedSettings.projectId || '');
       setToken(savedSettings.token || '');
-      setBranch(savedSettings.branch || 'main');
       
       // Common settings
       setFolder(savedSettings.folder || 'todos');
@@ -70,6 +68,15 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
     
     setIsLoadingFolders(true);
     try {
+      // Save current form state temporarily so gitService can read it
+      const currentSettings = {
+        gitProvider,
+        pat, owner, repo,
+        instanceUrl, projectId, token,
+        folder, geminiApiKey, aiProvider, openRouterApiKey, aiModel
+      };
+      saveSettings(currentSettings);
+      
       const folders = await listProjectFolders();
       setAvailableFolders(folders);
     } catch (error) {
@@ -78,7 +85,7 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
     } finally {
       setIsLoadingFolders(false);
     }
-  }, [gitProvider, pat, owner, repo, instanceUrl, projectId, token]);
+  }, [gitProvider, pat, owner, repo, instanceUrl, projectId, token, folder, geminiApiKey, aiProvider, openRouterApiKey, aiModel]);
 
   // Load folders when credentials are available
   useEffect(() => {
@@ -98,6 +105,15 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
     
     setIsCreatingFolder(true);
     try {
+      // Save current form state temporarily so gitService can read it
+      const currentSettings = {
+        gitProvider,
+        pat, owner, repo,
+        instanceUrl, projectId, token,
+        folder, geminiApiKey, aiProvider, openRouterApiKey, aiModel
+      };
+      saveSettings(currentSettings);
+      
       await createProjectFolder(newFolderName.trim());
       await loadFolders(); // Refresh folder list
       setFolder(newFolderName.trim()); // Auto-select new folder
@@ -123,7 +139,6 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
       instanceUrl,
       projectId,
       token,
-      branch,
       // Common settings
       folder, 
       geminiApiKey, 
@@ -255,19 +270,6 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
                 <p className="mt-1 text-sm text-gray-400">Create a token with 'api' scope for full repository access.</p>
               </div>
               
-              <div>
-                <label htmlFor="branch" className="block text-sm font-medium text-gray-300">Branch Name</label>
-                <input
-                  type="text"
-                  id="branch"
-                  value={branch}
-                  onChange={(e) => setBranch(e.target.value)}
-                  className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="main"
-                  required={gitProvider === 'gitlab'}
-                />
-                <p className="mt-1 text-sm text-gray-400">Branch to store your tasks (usually 'main' or 'master').</p>
-              </div>
             </div>
           </div>
         )}

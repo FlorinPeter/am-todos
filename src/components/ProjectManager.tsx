@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { loadSettings, saveSettings } from '../utils/localStorage';
-import { listProjectFolders, createProjectFolder } from '../services/githubService';
+import { listProjectFolders, createProjectFolder } from '../services/gitService';
 
 interface ProjectManagerProps {
   onProjectChanged: (newSettings?: any) => void;
@@ -15,29 +15,55 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    setSettings(loadSettings());
+    const loadedSettings = loadSettings();
+    console.log('ProjectManager: Settings loaded:', loadedSettings);
+    setSettings(loadedSettings);
+    
+    // Force load folders if we have settings
+    if (loadedSettings?.gitProvider === 'gitlab' && loadedSettings?.instanceUrl && loadedSettings?.projectId && loadedSettings?.token) {
+      console.log('ProjectManager: Force loading GitLab folders');
+      setTimeout(() => loadFolders(), 100);
+    }
   }, []);
 
   const loadFolders = async () => {
-    if (!settings?.pat || !settings?.owner || !settings?.repo) return;
+    // Check if we have the required settings for any provider
+    const hasGitHubSettings = !!(settings?.pat && settings?.owner && settings?.repo);
+    const hasGitLabSettings = !!(settings?.instanceUrl && settings?.projectId && settings?.token);
+    
+    console.log('ProjectManager: loadFolders called', { hasGitHubSettings, hasGitLabSettings });
+    
+    if (!hasGitHubSettings && !hasGitLabSettings) return;
     
     setIsLoading(true);
     try {
-      const folders = await listProjectFolders(settings.pat, settings.owner, settings.repo);
+      const folders = await listProjectFolders();
+      console.log('ProjectManager: Folders loaded:', folders);
       setAvailableFolders(folders);
     } catch (error) {
-      console.error('Failed to load folders:', error);
+      console.error('ProjectManager: Failed to load folders:', error);
+      console.error('ProjectManager: Error details:', error.message, error.stack);
+      // Keep default folders on error
+      setAvailableFolders(['todos']);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (settings?.pat && settings?.owner && settings?.repo) {
+    const hasGitHubSettings = !!(settings?.pat && settings?.owner && settings?.repo);
+    const hasGitLabSettings = !!(settings?.instanceUrl && settings?.projectId && settings?.token);
+    
+    console.log('ProjectManager: useEffect triggered', { hasGitHubSettings, hasGitLabSettings, settings });
+    
+    if (hasGitHubSettings || hasGitLabSettings) {
+      console.log('ProjectManager: Calling loadFolders');
       loadFolders();
+    } else {
+      console.log('ProjectManager: Not loading folders - no valid settings');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings?.pat, settings?.owner, settings?.repo]);
+  }, [settings?.pat, settings?.owner, settings?.repo, settings?.instanceUrl, settings?.projectId, settings?.token]);
 
   const handleProjectSwitch = (newFolder: string) => {
     if (!settings) return;
@@ -49,16 +75,17 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
   };
 
   const handleCreateProject = async () => {
-    if (!newProjectName.trim() || !settings?.pat || !settings?.owner || !settings?.repo) return;
+    if (!newProjectName.trim()) return;
+    
+    // Check if we have the required settings for any provider
+    const hasGitHubSettings = !!(settings?.pat && settings?.owner && settings?.repo);
+    const hasGitLabSettings = !!(settings?.instanceUrl && settings?.projectId && settings?.token);
+    
+    if (!hasGitHubSettings && !hasGitLabSettings) return;
     
     setIsCreating(true);
     try {
-      await createProjectFolder(
-        settings.pat, 
-        settings.owner, 
-        settings.repo, 
-        newProjectName.trim()
-      );
+      await createProjectFolder(newProjectName.trim());
       
       await loadFolders();
       handleProjectSwitch(newProjectName.trim());
@@ -75,7 +102,21 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
 
   const currentProject = settings?.folder || 'todos';
 
-  if (!settings?.pat) {
+  const hasGitHubSettings = settings?.pat && settings?.owner && settings?.repo;
+  const hasGitLabSettings = settings?.instanceUrl && settings?.projectId && settings?.token;
+  
+  console.log('ProjectManager: Render check', { 
+    hasGitHubSettings, 
+    hasGitLabSettings, 
+    availableFolders, 
+    availableFoldersLength: availableFolders.length,
+    availableFoldersContent: [...availableFolders],
+    currentProject,
+    showDropdown: availableFolders.length > 1
+  });
+  
+  if (!hasGitHubSettings && !hasGitLabSettings) {
+    console.log('ProjectManager: Not rendering - no settings');
     return null; // Don't show if not configured
   }
 

@@ -44,6 +44,11 @@ function App() {
   const [allTodos, setAllTodos] = useState<any[]>([]);
   const [showSettings, setShowSettings] = useState(false);
 
+  const getProviderName = () => {
+    const provider = settings?.gitProvider || 'github';
+    return provider === 'github' ? 'GitHub' : 'GitLab';
+  };
+
   const handleSettingsSaved = () => {
     const newSettings = loadSettings();
     setSettings(newSettings);
@@ -63,13 +68,13 @@ function App() {
     }
     
     try {
-      console.log(`Fetching from: ${currentSettings.owner}/${currentSettings.repo}`);
+      console.log(`Fetching from: ${currentSettings.gitProvider || 'github'} - ${currentSettings.owner}/${currentSettings.repo} or ${currentSettings.instanceUrl}/${currentSettings.projectId}`);
       console.log('Current timestamp:', new Date().toISOString());
       
       // Fetch both active and archived todos
       const [activeFiles, archivedFiles] = await Promise.all([
-        getTodos(currentSettings.pat, currentSettings.owner, currentSettings.repo, currentSettings.folder || 'todos', false),
-        getTodos(currentSettings.pat, currentSettings.owner, currentSettings.repo, currentSettings.folder || 'todos', true)
+        getTodos(currentSettings.folder || 'todos', false),
+        getTodos(currentSettings.folder || 'todos', true)
       ]);
       
       console.log('Active files retrieved:', activeFiles.length, 'files');
@@ -90,7 +95,7 @@ function App() {
       const fetchedTodos = await Promise.all(
         allFiles.map(async (file: any) => {
           console.log('Processing file:', file.name, 'path:', file.path);
-          const content = await getFileContent(currentSettings.pat, currentSettings.owner, currentSettings.repo, file.path);
+          const content = await getFileContent(file.path);
           console.log('File content length:', content.length);
           const { frontmatter, markdownContent } = parseMarkdownWithFrontmatter(content);
           console.log('Parsed frontmatter:', frontmatter);
@@ -227,9 +232,9 @@ function App() {
       console.log('Commit message generated:', commitMessage);
 
       // 4. Ensure directory exists and create file with user-friendly name
-      setCreationStep('📂 Setting up repository...');
+      setCreationStep(`📂 Setting up ${getProviderName()} repository...`);
       console.log('Ensuring directory exists...');
-      await ensureDirectory(settings.pat, settings.owner, settings.repo, settings.folder || 'todos');
+      await ensureDirectory(settings.folder || 'todos');
       
       const createSlug = (title: string) => {
         return title
@@ -255,7 +260,7 @@ function App() {
       let counter = 1;
       while (true) {
         try {
-          await getFileMetadata(settings.pat, settings.owner, settings.repo, finalFilename);
+          await getFileMetadata(finalFilename);
           // File exists, try next number
           const pathParts = filename.split('.');
           const extension = pathParts.pop();
@@ -270,16 +275,16 @@ function App() {
         }
       }
       
-      setCreationStep('💾 Saving to GitHub...');
-      console.log('Creating file on GitHub:', finalFilename);
-      const createResult = await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, finalFilename, fullContent, commitMessage);
-      console.log('File created successfully on GitHub');
+      setCreationStep(`💾 Saving to ${getProviderName()}...`);
+      console.log('Creating file on Git provider:', finalFilename);
+      const createResult = await createOrUpdateTodo(finalFilename, fullContent, commitMessage);
+      console.log('File created successfully on Git provider');
 
-      // 5. Wait for GitHub to process, then refresh
+      // 5. Wait for Git provider to process, then refresh
       setCreationStep('🔄 Refreshing task list...');
       console.log('Refreshing todos list...');
       
-      // Wait for GitHub processing
+      // Wait for Git provider processing
       await new Promise(resolve => setTimeout(resolve, 2000));
       await fetchTodos(finalFilename);
       
@@ -334,14 +339,14 @@ function App() {
       // Get the latest SHA to avoid conflicts
       let latestSha = todoToUpdate.sha;
       try {
-        const latestMetadata = await getFileMetadata(settings.pat, settings.owner, settings.repo, todoToUpdate.path);
+        const latestMetadata = await getFileMetadata(todoToUpdate.path);
         latestSha = latestMetadata.sha;
         console.log('App: Latest SHA retrieved:', latestSha);
       } catch (shaError) {
         console.log('App: Could not fetch latest SHA, using existing:', latestSha);
       }
 
-      setSaveStep('💾 Saving to GitHub...');
+      setSaveStep(`💾 Saving to ${getProviderName()}...`);
       console.log('App: Calling createOrUpdateTodo with SHA:', latestSha);
       
       // Retry logic for SHA conflicts
@@ -351,7 +356,7 @@ function App() {
       
       while (!saveSuccessful && retryCount < maxRetries) {
         try {
-          await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, latestSha);
+          await createOrUpdateTodo(todoToUpdate.path, fullContent, commitMessage, latestSha);
           saveSuccessful = true;
           console.log('App: Todo updated successfully');
         } catch (saveError) {
@@ -363,7 +368,7 @@ function App() {
             if (retryCount < maxRetries) {
               // Fetch the latest SHA again
               try {
-                const retryMetadata = await getFileMetadata(settings.pat, settings.owner, settings.repo, todoToUpdate.path);
+                const retryMetadata = await getFileMetadata(todoToUpdate.path);
                 latestSha = retryMetadata.sha;
                 console.log('App: Fetched new SHA for retry:', latestSha);
               } catch (retryError) {
@@ -419,7 +424,7 @@ function App() {
       // Get the latest SHA to avoid conflicts (same pattern as handleTodoUpdate)
       let latestSha = todoToUpdate.sha;
       try {
-        const latestMetadata = await getFileMetadata(settings.pat, settings.owner, settings.repo, todoToUpdate.path);
+        const latestMetadata = await getFileMetadata(todoToUpdate.path);
         latestSha = latestMetadata.sha;
         console.log('Priority update: Latest SHA retrieved:', latestSha);
       } catch (shaError) {
@@ -437,8 +442,8 @@ function App() {
       const priorityLabels = { 1: 'P1', 2: 'P2', 3: 'P3', 4: 'P4', 5: 'P5' };
       const commitMessage = `feat: Update priority to ${priorityLabels[newPriority as keyof typeof priorityLabels]} for "${todoToUpdate.title}"`;
 
-      setSaveStep('💾 Saving to GitHub...');
-      await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, latestSha);
+      setSaveStep(`💾 Saving to ${getProviderName()}...`);
+      await createOrUpdateTodo(todoToUpdate.path, fullContent, commitMessage, latestSha);
       
       setSaveStep('🔄 Refreshing...');
       await fetchTodos(todoToUpdate.path); // Re-fetch and preserve selection
@@ -484,7 +489,7 @@ function App() {
       // Get the latest SHA to avoid conflicts (same pattern as handleTodoUpdate)
       let latestSha = todoToUpdate.sha;
       try {
-        const latestMetadata = await getFileMetadata(settings.pat, settings.owner, settings.repo, todoToUpdate.path);
+        const latestMetadata = await getFileMetadata(todoToUpdate.path);
         latestSha = latestMetadata.sha;
         console.log('Title update: Latest SHA retrieved:', latestSha);
       } catch (shaError) {
@@ -528,7 +533,7 @@ function App() {
         
         while (true) {
           try {
-            await getFileMetadata(settings.pat, settings.owner, settings.repo, conflictFreePath);
+            await getFileMetadata(conflictFreePath);
             // File exists, try next number
             const pathParts = newPath.split('.');
             const extension = pathParts.pop();
@@ -548,10 +553,10 @@ function App() {
         
         // Create new file with new name
         const commitMessage = `docs: Rename task to "${newTitle}"`;
-        await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, finalPath, fullContent, commitMessage);
+        await createOrUpdateTodo(finalPath, fullContent, commitMessage);
         
         // Delete old file (combine these steps visually)
-        await deleteFile(settings.pat, settings.owner, settings.repo, oldPath, latestSha, `docs: Remove old file after renaming to "${newTitle}"`);
+        await deleteFile(oldPath, `docs: Remove old file after renaming to "${newTitle}"`);
         
         setSaveStep('🔄 Refreshing list... (6/6)');
         await fetchTodos(finalPath); // Re-fetch and select the new file
@@ -559,7 +564,7 @@ function App() {
         // Just update the existing file
         const commitMessage = `docs: Update title to "${newTitle}"`;
         setSaveStep('💾 Saving changes... (5/6)');
-        await createOrUpdateTodo(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, latestSha);
+        await createOrUpdateTodo(todoToUpdate.path, fullContent, commitMessage, latestSha);
         
         setSaveStep('🔄 Refreshing list... (6/6)');
         await fetchTodos(todoToUpdate.path); // Re-fetch and preserve selection
@@ -610,10 +615,10 @@ function App() {
 
       if (isCurrentlyArchived) {
         // Move from archive to active todos
-        await moveTaskFromArchive(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, settings.folder || 'todos');
+        await moveTaskFromArchive(todoToUpdate.path, fullContent, commitMessage, settings.folder || 'todos');
       } else {
         // Move from active todos to archive
-        await moveTaskToArchive(settings.pat, settings.owner, settings.repo, todoToUpdate.path, fullContent, commitMessage, settings.folder || 'todos');
+        await moveTaskToArchive(todoToUpdate.path, fullContent, commitMessage, settings.folder || 'todos');
       }
 
       setSaveStep('🔄 Refreshing...');
@@ -663,46 +668,13 @@ function App() {
       }
 
       setIsDeletingTask(true);
-      setDeletionStep('🔄 Getting latest file info...');
+      setDeletionStep('🔄 Preparing to delete...');
       console.log('Deleting todo:', todoToDelete.path);
 
-      // Get latest SHA to avoid conflicts
-      let latestSha = todoToDelete.sha;
-      try {
-        const latestMetadata = await getFileMetadata(settings.pat, settings.owner, settings.repo, todoToDelete.path);
-        latestSha = latestMetadata.sha;
-        console.log('Delete: Latest SHA retrieved:', latestSha);
-      } catch (shaError) {
-        console.log('Delete: Could not fetch latest SHA, using existing:', latestSha);
-      }
-
-      setDeletionStep('🗑️ Deleting from GitHub...');
+      setDeletionStep('🗑️ Deleting task...');
       
-      // GitHub API call to delete file
-      const response = await fetch(`https://api.github.com/repos/${settings.owner}/${settings.repo}/contents/${todoToDelete.path}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `token ${settings.pat}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: `Delete ${todoToDelete.title}`,
-          sha: latestSha,
-        }),
-      });
-
-      console.log('Delete response status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Delete response error:', errorText);
-        console.error('Delete request details:', {
-          path: todoToDelete.path,
-          sha: latestSha,
-          status: response.status
-        });
-        throw new Error(`Delete failed: ${response.status} ${response.statusText} - ${errorText}`);
-      }
+      // Use the deleteFile service which handles both GitHub and GitLab
+      await deleteFile(todoToDelete.path, `Delete ${todoToDelete.title}`);
 
       console.log('Todo deleted successfully');
 
@@ -713,7 +685,7 @@ function App() {
 
       setDeletionStep('🔄 Refreshing task list...');
       
-      // Simple reliable approach: wait for GitHub processing, then refresh
+      // Wait for processing, then refresh
       setTimeout(async () => {
         try {
           setDeletionStep('✅ Deletion completed, refreshing...');
@@ -736,7 +708,7 @@ function App() {
             setDeletionStep('');
           }, 1000);
         }
-      }, 2000); // Wait 2 seconds for GitHub to process deletion
+      }, 2000); // Wait 2 seconds for processing
     } catch (error) {
       console.error("Error deleting todo:", error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -755,14 +727,14 @@ function App() {
     if (creationStep.includes('Generating task plan')) return '15%';
     if (creationStep.includes('Preparing task content')) return '30%';
     if (creationStep.includes('Generating commit message')) return '45%';
-    if (creationStep.includes('Setting up repository')) return '60%';
+    if (creationStep.includes('Setting up') && creationStep.includes('repository')) return '60%';
     if (creationStep.includes('Checking for filename conflicts')) return '70%';
-    if (creationStep.includes('Saving to GitHub')) return '80%';
+    if (creationStep.includes('Saving to GitHub') || creationStep.includes('Saving to GitLab')) return '80%';
     if (creationStep.includes('Refreshing task list')) return '90%';
     if (creationStep.includes('Task created successfully') || creationStep.includes('✅')) return '100%';
     
     // Error and retry states
-    if (creationStep.includes('Waiting for GitHub')) return '85%';
+    if (creationStep.includes('Waiting for GitHub') || creationStep.includes('Waiting for GitLab')) return '85%';
     if (creationStep.includes('Task found')) return '95%';
     if (creationStep.includes('Taking longer than expected')) return '95%';
     if (creationStep.includes('Error, retrying')) return '75%';
@@ -775,7 +747,7 @@ function App() {
     if (!deletionStep) return '0%';
     // Actual deletion steps in chronological order
     if (deletionStep.includes('Getting latest file info')) return '20%';
-    if (deletionStep.includes('Deleting from GitHub')) return '50%';
+    if (deletionStep.includes('Deleting task')) return '50%';
     if (deletionStep.includes('Refreshing task list')) return '70%';
     if (deletionStep.includes('Deletion completed')) return '90%';
     if (deletionStep.includes('Task list updated')) return '100%';
@@ -800,7 +772,7 @@ function App() {
     if (saveStep.includes('Updating priority')) return '20%';
     if (saveStep.includes('Getting latest file version')) return '40%';
     if (saveStep.includes('Preparing content') && !saveStep.includes('(3/6)')) return '60%';
-    if (saveStep.includes('Saving to GitHub')) return '80%';
+    if (saveStep.includes('Saving to GitHub') || saveStep.includes('Saving to GitLab')) return '80%';
     if (saveStep.includes('Refreshing') && !saveStep.includes('(6/6)')) return '90%';
     if (saveStep.includes('Priority updated')) return '100%';
     if (saveStep.includes('Priority update failed')) return '100%';

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getFileHistory, getFileAtCommit } from '../services/githubService';
+import { getFileHistory, getFileAtCommit } from '../services/gitService';
 
 interface GitCommit {
   sha: string;
@@ -10,18 +10,12 @@ interface GitCommit {
 }
 
 interface GitHistoryProps {
-  token: string;
-  owner: string;
-  repo: string;
   filePath: string;
   onRestore: (content: string, commitSha: string) => void;
   onClose: () => void;
 }
 
 const GitHistory: React.FC<GitHistoryProps> = ({
-  token,
-  owner,
-  repo,
   filePath,
   onRestore,
   onClose
@@ -37,7 +31,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
     const fetchHistory = async () => {
       try {
         setLoading(true);
-        const history = await getFileHistory(token, owner, repo, filePath);
+        const history = await getFileHistory(filePath);
         setCommits(history);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch git history');
@@ -47,13 +41,13 @@ const GitHistory: React.FC<GitHistoryProps> = ({
     };
 
     fetchHistory();
-  }, [token, owner, repo, filePath]);
+  }, [filePath]);
 
   const handlePreview = async (commitSha: string) => {
     try {
       setLoadingPreview(true);
       setSelectedCommit(commitSha);
-      const fileData = await getFileAtCommit(token, owner, repo, filePath, commitSha);
+      const fileData = await getFileAtCommit(filePath, commitSha);
       setPreviewContent(fileData.content);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch file content');
