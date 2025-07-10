@@ -41,15 +41,20 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "Generated at: $(date)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        # Show coverage summary in GitHub Actions summary
-        cat coverage/coverage-summary.json | jq -r '
-          "| Metric | Coverage |",
-          "|--------|----------|",
-          "| Lines | \(.total.lines.pct)% |",
-          "| Statements | \(.total.statements.pct)% |",
-          "| Functions | \(.total.functions.pct)% |",
-          "| Branches | \(.total.branches.pct)% |"
-        ' >> $GITHUB_STEP_SUMMARY || echo "Coverage summary not available" >> $GITHUB_STEP_SUMMARY
+        # Check if coverage-summary.json exists
+        if [ -f coverage/coverage-summary.json ]; then
+          # Show coverage summary in GitHub Actions summary
+          cat coverage/coverage-summary.json | jq -r '
+            "| Metric | Coverage |",
+            "|--------|----------|",
+            "| Lines | \(.total.lines.pct)% |",
+            "| Statements | \(.total.statements.pct)% |",
+            "| Functions | \(.total.functions.pct)% |",
+            "| Branches | \(.total.branches.pct)% |"
+          ' >> $GITHUB_STEP_SUMMARY
+        else
+          echo "Coverage summary file not found. Check the test logs for coverage details." >> $GITHUB_STEP_SUMMARY
+        fi
 
     - name: Upload coverage reports
       if: matrix.node-version == '20.x'
