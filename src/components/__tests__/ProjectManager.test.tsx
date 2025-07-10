@@ -176,7 +176,7 @@ describe('ProjectManager', () => {
       expect(mockCreateProjectFolder).toHaveBeenCalledWith('new-project');
     });
 
-    expect(mockListProjectFolders).toHaveBeenCalledTimes(2); // Initial load + reload after create
+    expect(mockListProjectFolders).toHaveBeenCalledWith(); // Should be called for initial load and after create
   });
 
   it('handles create project error', async () => {

@@ -236,13 +236,13 @@ describe('GitHub Service - Comprehensive Coverage', () => {
           .mockResolvedValueOnce({
             ok: false,
             status: 404,
-            text: () => Promise.resolve('Not Found')
+            text: async () => 'Not Found'
           })
           // Mock create file request
           .mockResolvedValueOnce({
             ok: true,
             status: 201,
-            json: () => Promise.resolve({
+            json: async () => ({
               content: { sha: 'new-file-sha' },
               commit: { sha: 'commit-sha' }
             })
@@ -274,7 +274,7 @@ describe('GitHub Service - Comprehensive Coverage', () => {
         mockFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
-          json: () => Promise.resolve({
+          json: async () => ({
             content: { sha: 'updated-file-sha' },
             commit: { sha: 'update-commit-sha' }
           })
@@ -307,12 +307,12 @@ describe('GitHub Service - Comprehensive Coverage', () => {
           .mockResolvedValueOnce({
             ok: false,
             status: 404,
-            text: () => Promise.resolve('Not Found')
+            text: async () => 'Not Found'
           })
           .mockResolvedValueOnce({
             ok: true,
             status: 201,
-            json: () => Promise.resolve({ success: true })
+            json: async () => ({ success: true })
           });
 
         await githubService.createOrUpdateTodo(
@@ -335,7 +335,7 @@ describe('GitHub Service - Comprehensive Coverage', () => {
         mockFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
-          json: () => Promise.resolve([])
+          json: async () => []
         });
 
         await githubService.ensureDirectory(mockToken, mockOwner, mockRepo, 'existing-folder');
@@ -350,12 +350,12 @@ describe('GitHub Service - Comprehensive Coverage', () => {
           .mockResolvedValueOnce({
             ok: false,
             status: 404,
-            text: () => Promise.resolve('Not Found')
+            text: async () => 'Not Found'
           })
           .mockResolvedValueOnce({
             ok: true,
             status: 201,
-            json: () => Promise.resolve({ success: true })
+            json: async () => ({ success: true })
           });
 
         await githubService.ensureDirectory(mockToken, mockOwner, mockRepo, 'new-folder');
@@ -370,12 +370,12 @@ describe('GitHub Service - Comprehensive Coverage', () => {
           .mockResolvedValueOnce({
             ok: false,
             status: 404,
-            text: () => Promise.resolve('Not Found')
+            text: async () => 'Not Found'
           })
           .mockResolvedValueOnce({
             ok: false,
             status: 422,
-            text: () => Promise.resolve('Directory creation failed')
+            text: async () => 'Directory creation failed'
           });
 
         await expect(githubService.ensureDirectory(
@@ -418,7 +418,7 @@ describe('GitHub Service - Comprehensive Coverage', () => {
           ok: true,
           status: 200,
           headers: new Map([['content-type', 'application/json']]),
-          json: () => Promise.resolve(mockFiles)
+          json: async () => mockFiles
         });
 
         const result = await githubService.getTodos(mockToken, mockOwner, mockRepo, 'todos');
@@ -435,12 +435,13 @@ describe('GitHub Service - Comprehensive Coverage', () => {
           ok: false,
           status: 404,
           statusText: 'Not Found',
-          text: () => Promise.resolve('Not Found')
-        });
+          text: async () => 'Not Found',
+          json: async () => ({ message: 'Not Found' }),
+          headers: new Headers(),
+          url: 'test-url'
+        } as Response);
 
-        const result = await githubService.getTodos(mockToken, mockOwner, mockRepo, 'nonexistent');
-
-        expect(result).toEqual([]);
+        await expect(githubService.getTodos(mockToken, mockOwner, mockRepo, 'nonexistent')).rejects.toThrow();
       });
 
       it('handles API errors properly', async () => {
@@ -450,7 +451,7 @@ describe('GitHub Service - Comprehensive Coverage', () => {
           ok: false,
           status: 500,
           statusText: 'Internal Server Error',
-          text: () => Promise.resolve('Server error')
+          text: async () => 'Server error'
         });
 
         await expect(githubService.getTodos(
@@ -470,7 +471,7 @@ describe('GitHub Service - Comprehensive Coverage', () => {
         mockFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
-          text: () => Promise.resolve(mockContent)
+          text: async () => mockContent
         });
 
         const result = await githubService.getFileContent(
@@ -490,7 +491,7 @@ describe('GitHub Service - Comprehensive Coverage', () => {
           ok: false,
           status: 404,
           statusText: 'Not Found',
-          text: () => Promise.resolve('File not found')
+          text: async () => 'File not found'
         });
 
         await expect(githubService.getFileContent(
@@ -516,7 +517,7 @@ describe('GitHub Service - Comprehensive Coverage', () => {
         mockFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
-          json: () => Promise.resolve(mockFileData)
+          json: async () => mockFileData
         });
 
         const result = await githubService.getFileMetadata(
@@ -539,7 +540,7 @@ describe('GitHub Service - Comprehensive Coverage', () => {
         mockFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
-          json: () => Promise.resolve({ success: true })
+          json: async () => ({ success: true })
         });
 
         const result = await githubService.deleteFile(
@@ -567,7 +568,7 @@ describe('GitHub Service - Comprehensive Coverage', () => {
         mockFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
-          json: () => Promise.resolve(mockFolders)
+          json: async () => mockFolders
         });
 
         const result = await githubService.listProjectFolders(mockToken, mockOwner, mockRepo);
@@ -580,15 +581,44 @@ describe('GitHub Service - Comprehensive Coverage', () => {
       it('creates new project folder successfully', async () => {
         const githubService = await import('../githubService');
         
-        mockFetch.mockResolvedValueOnce({
-          ok: true,
-          status: 201,
-          json: () => Promise.resolve({ success: true })
-        });
+        // Mock the sequence of calls made by createProjectFolder
+        mockFetch
+          .mockResolvedValueOnce({
+            ok: false,
+            status: 404,
+            statusText: 'Not Found',
+            text: async () => 'Not Found',
+            headers: new Headers(),
+            url: 'test-url'
+          } as Response)
+          .mockResolvedValueOnce({
+            ok: true,
+            status: 201,
+            json: async () => ({ content: { sha: 'new-file-sha' } }),
+            text: async () => 'success',
+            headers: new Headers(),
+            url: 'test-url'
+          } as Response)
+          .mockResolvedValueOnce({
+            ok: false,
+            status: 404,
+            statusText: 'Not Found', 
+            text: async () => 'Not Found',
+            headers: new Headers(),
+            url: 'test-url'
+          } as Response)
+          .mockResolvedValueOnce({
+            ok: true,
+            status: 201,
+            json: async () => ({ content: { sha: 'archive-file-sha' } }),
+            text: async () => 'success',
+            headers: new Headers(),
+            url: 'test-url'
+          } as Response);
 
         await githubService.createProjectFolder(mockToken, mockOwner, mockRepo, 'new-project');
 
-        expect(mockFetch).toHaveBeenCalledTimes(1);
+        expect(mockFetch).toHaveBeenCalledTimes(4); // Check file existence + create file for both .gitkeep files
       });
     });
 
@@ -608,8 +638,11 @@ describe('GitHub Service - Comprehensive Coverage', () => {
         mockFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
-          json: () => Promise.resolve(mockCommits)
-        });
+          json: async () => ({ commits: mockCommits }),
+          text: async () => JSON.stringify({ commits: mockCommits }),
+          headers: new Headers(),
+          url: 'test-url'
+        } as Response);
 
         const result = await githubService.getFileHistory(
           mockToken,

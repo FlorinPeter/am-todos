@@ -1,24 +1,21 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 // Create a proper localStorage mock
-const createLocalStorageMock = () => {
-  const store = {} as Record<string, string>;
-  return {
-    getItem: vi.fn((key: string) => store[key] || null),
-    setItem: vi.fn((key: string, value: string) => {
-      store[key] = value;
-    }),
-    removeItem: vi.fn((key: string) => {
-      delete store[key];
-    }),
-    clear: vi.fn(() => {
-      Object.keys(store).forEach(key => delete store[key]);
-    }),
-    get store() { return store; }
-  };
-};
+const store = {} as Record<string, string>;
 
-const mockLocalStorage = createLocalStorageMock();
+const mockLocalStorage = {
+  getItem: vi.fn().mockImplementation((key: string) => store[key] || null),
+  setItem: vi.fn().mockImplementation((key: string, value: string) => {
+    store[key] = value;
+  }),
+  removeItem: vi.fn().mockImplementation((key: string) => {
+    delete store[key];
+  }),
+  clear: vi.fn().mockImplementation(() => {
+    Object.keys(store).forEach(key => delete store[key]);
+  }),
+  get store() { return store; }
+};
 
 // Mock the global localStorage
 Object.defineProperty(global, 'localStorage', {
@@ -45,7 +42,8 @@ import {
 
 describe('localStorage functions', () => {
   beforeEach(() => {
-    mockLocalStorage.clear();
+    // Clear the store
+    Object.keys(store).forEach(key => delete store[key]);
     vi.clearAllMocks();
   });
 
@@ -93,7 +91,7 @@ describe('localStorage functions', () => {
       };
 
       // Set up existing checkpoint
-      mockLocalStorage.store['checkpoints_task-1'] = JSON.stringify([existingCheckpoint]);
+      store['checkpoints_task-1'] = JSON.stringify([existingCheckpoint]);
       
       saveCheckpoint('task-1', mockCheckpoint);
       
@@ -167,7 +165,7 @@ describe('localStorage functions', () => {
         }
       ];
 
-      mockLocalStorage.store['checkpoints_task-1'] = JSON.stringify(mockCheckpoints);
+      store['checkpoints_task-1'] = JSON.stringify(mockCheckpoints);
       
       const checkpoints = getCheckpoints('task-1');
       expect(checkpoints).toEqual(mockCheckpoints);
@@ -191,7 +189,7 @@ describe('localStorage functions', () => {
 
     it('handles corrupted JSON data gracefully', () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockLocalStorage.store['checkpoints_task-1'] = 'invalid json';
+      store['checkpoints_task-1'] = 'invalid json';
       
       const checkpoints = getCheckpoints('task-1');
       expect(checkpoints).toEqual([]);
@@ -206,12 +204,12 @@ describe('localStorage functions', () => {
 
   describe('clearCheckpoints', () => {
     it('removes checkpoints from localStorage', () => {
-      mockLocalStorage.store['checkpoints_task-1'] = JSON.stringify([]);
+      store['checkpoints_task-1'] = JSON.stringify([]);
       
       clearCheckpoints('task-1');
       
       expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('checkpoints_task-1');
-      expect(mockLocalStorage.store['checkpoints_task-1']).toBeUndefined();
+      expect(store['checkpoints_task-1']).toBeUndefined();
     });
 
     it('handles localStorage errors gracefully', () => {
@@ -306,6 +304,17 @@ describe('localStorage functions', () => {
       token: '',
       branch: 'main'
     };
+    
+    beforeEach(() => {
+      // Ensure mock implementations are reset
+      mockLocalStorage.getItem.mockImplementation((key: string) => store[key] || null);
+      mockLocalStorage.setItem.mockImplementation((key: string, value: string) => {
+        store[key] = value;
+      });
+      mockLocalStorage.removeItem.mockImplementation((key: string) => {
+        delete store[key];
+      });
+    });
 
     const mockGitLabSettings = {
       pat: '',
@@ -365,7 +374,7 @@ describe('localStorage functions', () => {
       });
 
       it('loads and returns stored GitHub settings with defaults', () => {
-        mockLocalStorage.store['githubSettings'] = JSON.stringify(mockGitHubSettings);
+        store['githubSettings'] = JSON.stringify(mockGitHubSettings);
         
         const settings = loadSettings();
         expect(settings).toEqual(mockGitHubSettings);
@@ -378,7 +387,7 @@ describe('localStorage functions', () => {
           repo: 'repo'
         };
         
-        mockLocalStorage.store['githubSettings'] = JSON.stringify(incompleteSettings);
+        store['githubSettings'] = JSON.stringify(incompleteSettings);
         
         const settings = loadSettings();
         expect(settings).toEqual({
@@ -399,7 +408,7 @@ describe('localStorage functions', () => {
           aiProvider: 'openrouter'
         };
         
-        mockLocalStorage.store['githubSettings'] = JSON.stringify(openRouterSettings);
+        store['githubSettings'] = JSON.stringify(openRouterSettings);
         
         const settings = loadSettings();
         expect(settings?.aiModel).toBe('anthropic/claude-3.5-sonnet');
@@ -423,7 +432,7 @@ describe('localStorage functions', () => {
 
       it('handles corrupted JSON data gracefully', () => {
         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-        mockLocalStorage.store['githubSettings'] = 'invalid json';
+        store['githubSettings'] = 'invalid json';
         
         const settings = loadSettings();
         expect(settings).toBeNull();
@@ -704,6 +713,17 @@ describe('localStorage functions', () => {
   });
 
   describe('Selected Todo Persistence', () => {
+    beforeEach(() => {
+      // Ensure mock implementations are reset
+      mockLocalStorage.getItem.mockImplementation((key: string) => store[key] || null);
+      mockLocalStorage.setItem.mockImplementation((key: string, value: string) => {
+        store[key] = value;
+      });
+      mockLocalStorage.removeItem.mockImplementation((key: string) => {
+        delete store[key];
+      });
+    });
+    
     describe('saveSelectedTodoId', () => {
       it('saves todo ID to localStorage', () => {
         saveSelectedTodoId('todo-123');
@@ -740,7 +760,7 @@ describe('localStorage functions', () => {
 
     describe('loadSelectedTodoId', () => {
       it('returns stored todo ID', () => {
-        mockLocalStorage.store['selectedTodoId'] = 'todo-456';
+        store['selectedTodoId'] = 'todo-456';
         
         const todoId = loadSelectedTodoId();
         expect(todoId).toBe('todo-456');
@@ -770,12 +790,12 @@ describe('localStorage functions', () => {
 
     describe('clearSelectedTodoId', () => {
       it('removes todo ID from localStorage', () => {
-        mockLocalStorage.store['selectedTodoId'] = 'todo-789';
+        store['selectedTodoId'] = 'todo-789';
         
         clearSelectedTodoId();
         
         expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('selectedTodoId');
-        expect(mockLocalStorage.store['selectedTodoId']).toBeUndefined();
+        expect(store['selectedTodoId']).toBeUndefined();
       });
 
       it('handles localStorage errors gracefully', () => {
@@ -796,6 +816,17 @@ describe('localStorage functions', () => {
   });
 
   describe('Checkpoints Management Integration', () => {
+    beforeEach(() => {
+      // Ensure mock implementations are reset
+      mockLocalStorage.getItem.mockImplementation((key: string) => store[key] || null);
+      mockLocalStorage.setItem.mockImplementation((key: string, value: string) => {
+        store[key] = value;
+      });
+      mockLocalStorage.removeItem.mockImplementation((key: string) => {
+        delete store[key];
+      });
+    });
+    
     it('verifies complete checkpoint workflow', () => {
       const checkpoint: Checkpoint = {
         id: generateCheckpointId(),

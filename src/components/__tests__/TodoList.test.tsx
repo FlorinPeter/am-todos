@@ -100,8 +100,12 @@ describe('TodoList', () => {
     const markdownViewers = screen.getAllByTestId('markdown-viewer');
     expect(markdownViewers).toHaveLength(2);
     
-    expect(screen.getByText('# First Todo\n\n- [ ] Task 1\n- [x] Task 2')).toBeInTheDocument();
-    expect(screen.getByText('# Second Todo\n\n- [ ] Another task')).toBeInTheDocument();
+    // Check content is displayed (text may be split across elements)
+    expect(screen.getByText(/# First Todo/)).toBeInTheDocument();
+    expect(screen.getByText(/Task 1/)).toBeInTheDocument();
+    expect(screen.getByText(/Task 2/)).toBeInTheDocument();
+    expect(screen.getByText(/# Second Todo/)).toBeInTheDocument();
+    expect(screen.getByText(/Another task/)).toBeInTheDocument();
   });
 
   it('renders priority selectors for each todo', () => {
