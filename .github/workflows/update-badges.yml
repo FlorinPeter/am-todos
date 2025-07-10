@@ -38,35 +38,70 @@ jobs:
         # Run tests and capture output
         npm test -- --run --reporter=verbose > test-output.log 2>&1 || true
         
-        # Extract test count - look for test files or individual tests
-        TEST_COUNT=$(grep -E "(Test Files|Tests)" test-output.log | grep -oE "[0-9]+ passed" | grep -oE "[0-9]+" | tail -1 || echo "0")
+        # Extract test count - look for various patterns
+        # Pattern 1: "Tests  123 passed (123)"
+        TEST_COUNT=$(grep -oE "Tests[[:space:]]+[0-9]+ passed" test-output.log | grep -oE "[0-9]+" | head -1 || echo "0")
+        
+        # Pattern 2: "Test Files  X passed | Y passed (Z)"
         if [ -z "$TEST_COUNT" ] || [ "$TEST_COUNT" = "0" ]; then
-          # Try alternative pattern
-          TEST_COUNT=$(grep -oE "[0-9]+ test" test-output.log | grep -oE "[0-9]+" | tail -1 || echo "0")
+          TEST_COUNT=$(grep -E "Test Files.*passed.*passed" test-output.log | grep -oE "[0-9]+ passed" | grep -oE "[0-9]+" | tail -1 || echo "0")
         fi
+        
+        # Pattern 3: Look for total at the end of summary
+        if [ -z "$TEST_COUNT" ] || [ "$TEST_COUNT" = "0" ]; then
+          TEST_COUNT=$(grep -oE "[0-9]+ passed \([0-9]+\)" test-output.log | grep -oE "\([0-9]+\)" | grep -oE "[0-9]+" | tail -1 || echo "0")
+        fi
+        
+        # Pattern 4: Simple "X tests" pattern
+        if [ -z "$TEST_COUNT" ] || [ "$TEST_COUNT" = "0" ]; then
+          TEST_COUNT=$(grep -oE "[0-9]+ tests" test-output.log | grep -oE "[0-9]+" | tail -1 || echo "0")
+        fi
+        
+        # Set default if still empty
+        if [ -z "$TEST_COUNT" ]; then
+          TEST_COUNT="0"
+        fi
+        
         echo "TEST_COUNT=${TEST_COUNT}" >> $GITHUB_ENV
-        echo "Test count: ${TEST_COUNT}"
+        echo "Test count extracted: ${TEST_COUNT}"
+        
+        # Debug: show what we found
+        echo "Test extraction debug:"
+        grep -E "(Test Files|Tests)" test-output.log | head -3 || echo "No test summary patterns found"
         
     - name: Run coverage
       id: coverage
       run: |
-        # Run coverage
-        npm run test:coverage || true
+        # Run coverage and capture output
+        npm run test:coverage > coverage-output.log 2>&1 || true
         
-        # Extract coverage percentage
-        if [ -f coverage/coverage-summary.json ]; then
-          COVERAGE=$(cat coverage/coverage-summary.json | jq -r '.total.lines.pct' | cut -d. -f1)
-          echo "COVERAGE=${COVERAGE}" >> $GITHUB_ENV
-          echo "Coverage: ${COVERAGE}%"
-        else
-          # Try to extract from console output
-          COVERAGE=$(npm run test:coverage 2>&1 | grep -oE "All files[[:space:]]+\|[[:space:]]+[0-9.]+" | grep -oE "[0-9.]+" | head -1 | cut -d. -f1 || echo "0")
-          if [ -z "$COVERAGE" ] || [ "$COVERAGE" = "0" ]; then
-            echo "COVERAGE=0" >> $GITHUB_ENV
-          else
-            echo "COVERAGE=${COVERAGE}" >> $GITHUB_ENV
+        # Extract coverage percentage from output
+        # Look for pattern like "All files          |   62.95 |"
+        COVERAGE=$(grep -E "All files[[:space:]]+\|[[:space:]]+[0-9.]+" coverage-output.log | grep -oE "[0-9]+\.[0-9]+" | head -1 | cut -d. -f1 || echo "0")
+        
+        # Alternative extraction method if first one fails
+        if [ -z "$COVERAGE" ] || [ "$COVERAGE" = "0" ]; then
+          COVERAGE=$(grep -A5 "Coverage report" coverage-output.log | grep -E "All files" | grep -oE "[0-9]+\.[0-9]+" | head -1 | cut -d. -f1 || echo "0")
+        fi
+        
+        # Fallback to JSON file if available
+        if [ -z "$COVERAGE" ] || [ "$COVERAGE" = "0" ]; then
+          if [ -f coverage/coverage-summary.json ]; then
+            COVERAGE=$(cat coverage/coverage-summary.json | jq -r '.total.lines.pct' | cut -d. -f1 || echo "0")
           fi
         fi
+        
+        # Set default if still empty
+        if [ -z "$COVERAGE" ]; then
+          COVERAGE="0"
+        fi
+        
+        echo "COVERAGE=${COVERAGE}" >> $GITHUB_ENV
+        echo "Coverage extracted: ${COVERAGE}%"
+        
+        # Debug: show what we found
+        echo "Coverage extraction debug:"
+        grep -E "All files" coverage-output.log || echo "No 'All files' pattern found"
 
     - name: Create badges JSON
       run: |
