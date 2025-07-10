@@ -38,23 +38,18 @@ jobs:
         # Run tests and capture output
         npm test -- --run --reporter=verbose > test-output.log 2>&1 || true
         
-        # Extract test count - look for various patterns
-        # Pattern 1: "Tests  123 passed (123)"
-        TEST_COUNT=$(grep -oE "Tests[[:space:]]+[0-9]+ passed" test-output.log | grep -oE "[0-9]+" | head -1 || echo "0")
+        # Extract test count - look for exact vitest format
+        # Pattern: "      Tests  567 passed (567)"
+        TEST_COUNT=$(grep -E "^\s*Tests\s+[0-9]+ passed \([0-9]+\)" test-output.log | grep -oE "[0-9]+ passed \([0-9]+\)" | grep -oE "\([0-9]+\)" | grep -oE "[0-9]+" | head -1 || echo "0")
         
-        # Pattern 2: "Test Files  X passed | Y passed (Z)"
+        # Alternative pattern: "Tests  567 passed (567)" without leading spaces
         if [ -z "$TEST_COUNT" ] || [ "$TEST_COUNT" = "0" ]; then
-          TEST_COUNT=$(grep -E "Test Files.*passed.*passed" test-output.log | grep -oE "[0-9]+ passed" | grep -oE "[0-9]+" | tail -1 || echo "0")
+          TEST_COUNT=$(grep -E "Tests\s+[0-9]+ passed \([0-9]+\)" test-output.log | grep -oE "[0-9]+ passed \([0-9]+\)" | grep -oE "\([0-9]+\)" | grep -oE "[0-9]+" | head -1 || echo "0")
         fi
         
-        # Pattern 3: Look for total at the end of summary
+        # Fallback: Count individual test checkmarks
         if [ -z "$TEST_COUNT" ] || [ "$TEST_COUNT" = "0" ]; then
-          TEST_COUNT=$(grep -oE "[0-9]+ passed \([0-9]+\)" test-output.log | grep -oE "\([0-9]+\)" | grep -oE "[0-9]+" | tail -1 || echo "0")
-        fi
-        
-        # Pattern 4: Simple "X tests" pattern
-        if [ -z "$TEST_COUNT" ] || [ "$TEST_COUNT" = "0" ]; then
-          TEST_COUNT=$(grep -oE "[0-9]+ tests" test-output.log | grep -oE "[0-9]+" | tail -1 || echo "0")
+          TEST_COUNT=$(grep -c "✓" test-output.log || echo "0")
         fi
         
         # Set default if still empty
@@ -67,7 +62,7 @@ jobs:
         
         # Debug: show what we found
         echo "Test extraction debug:"
-        grep -E "(Test Files|Tests)" test-output.log | head -3 || echo "No test summary patterns found"
+        grep -E "Tests.*passed" test-output.log | head -3 || echo "No test summary patterns found"
         
     - name: Run coverage
       id: coverage
@@ -76,12 +71,12 @@ jobs:
         npm run test:coverage > coverage-output.log 2>&1 || true
         
         # Extract coverage percentage from output
-        # Look for pattern like "All files          |   62.95 |"
-        COVERAGE=$(grep -E "All files[[:space:]]+\|[[:space:]]+[0-9.]+" coverage-output.log | grep -oE "[0-9]+\.[0-9]+" | head -1 | cut -d. -f1 || echo "0")
+        # Look for pattern like "All files          |   62.95 |    77.05 |   58.13 |   62.95 |"
+        COVERAGE=$(grep -E "All files\s+\|\s+[0-9.]+\s+\|\s+[0-9.]+\s+\|\s+[0-9.]+\s+\|\s+[0-9.]+\s+\|" coverage-output.log | head -1 | sed 's/.*|[[:space:]]*\([0-9.]*\)[[:space:]]*|[[:space:]]*[0-9.]*[[:space:]]*|[[:space:]]*[0-9.]*[[:space:]]*|[[:space:]]*[0-9.]*[[:space:]]*|.*/\1/' | cut -d. -f1 || echo "0")
         
-        # Alternative extraction method if first one fails
+        # Alternative simpler extraction
         if [ -z "$COVERAGE" ] || [ "$COVERAGE" = "0" ]; then
-          COVERAGE=$(grep -A5 "Coverage report" coverage-output.log | grep -E "All files" | grep -oE "[0-9]+\.[0-9]+" | head -1 | cut -d. -f1 || echo "0")
+          COVERAGE=$(grep -E "All files.*\|.*[0-9.]+.*\|" coverage-output.log | head -1 | grep -oE "[0-9]+\.[0-9]+" | head -1 | cut -d. -f1 || echo "0")
         fi
         
         # Fallback to JSON file if available
