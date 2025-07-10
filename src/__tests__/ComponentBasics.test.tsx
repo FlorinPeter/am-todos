@@ -190,7 +190,7 @@ describe('Component Basic Functionality Tests', () => {
     test('handles save callback', () => {
       expect(() => {
         render(<GitSettings {...mockProps} />);
-        mockProps.onSave({ pat: 'new-token', owner: 'owner', repo: 'repo' });
+        mockProps.onSettingsSaved();
       }).not.toThrow();
     });
   });
