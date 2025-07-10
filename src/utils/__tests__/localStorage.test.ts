@@ -795,8 +795,26 @@ describe('localStorage functions', () => {
     });
   });
 
-  describe('Checkpoints Management', () => {
-    // Existing checkpoint tests are included here
-    // (keeping the original test structure)
+  describe('Checkpoints Management Integration', () => {
+    it('verifies complete checkpoint workflow', () => {
+      const checkpoint: Checkpoint = {
+        id: generateCheckpointId(),
+        content: '# Test Checkpoint',
+        timestamp: new Date().toISOString(),
+        chatMessage: 'Test checkpoint workflow',
+        description: 'Test checkpoint description'
+      };
+
+      // Test full workflow
+      saveCheckpoint('workflow-test', checkpoint);
+      const retrieved = getCheckpoints('workflow-test');
+      expect(retrieved).toHaveLength(1);
+      expect(retrieved[0]).toEqual(checkpoint);
+      
+      // Clear and verify
+      clearCheckpoints('workflow-test');
+      const afterClear = getCheckpoints('workflow-test');
+      expect(afterClear).toHaveLength(0);
+    });
   });
 });
