@@ -8,6 +8,13 @@ interface GitHubSettings {
   aiProvider?: 'gemini' | 'openrouter';
   openRouterApiKey?: string;
   aiModel?: string;
+  // Git Provider settings
+  gitProvider?: 'github' | 'gitlab';
+  // GitLab-specific settings
+  instanceUrl?: string;
+  projectId?: string;
+  token?: string;
+  branch?: string;
 }
 
 const SETTINGS_KEY = 'githubSettings';
@@ -26,6 +33,7 @@ export const loadSettings = (): GitHubSettings | null => {
     if (!settingsString) return null;
     
     const settings = JSON.parse(settingsString);
+    
     // Ensure folder field exists, default to 'todos' for backward compatibility
     if (!settings.folder) {
       settings.folder = 'todos';
@@ -37,6 +45,14 @@ export const loadSettings = (): GitHubSettings | null => {
     if (!settings.aiModel) {
       settings.aiModel = settings.aiProvider === 'gemini' ? 'gemini-2.5-flash' : 'anthropic/claude-3.5-sonnet';
     }
+    // Ensure Git provider fields exist with defaults
+    if (!settings.gitProvider) {
+      settings.gitProvider = 'github';
+    }
+    if (!settings.branch) {
+      settings.branch = 'main';
+    }
+    
     return settings;
   } catch (error) {
     console.error("Error loading settings from localStorage", error);
@@ -54,7 +70,12 @@ export const encodeSettingsToUrl = (settings: GitHubSettings): string => {
       geminiApiKey: settings.geminiApiKey || '',
       aiProvider: settings.aiProvider || 'gemini',
       openRouterApiKey: settings.openRouterApiKey || '',
-      aiModel: settings.aiModel || ''
+      aiModel: settings.aiModel || '',
+      gitProvider: settings.gitProvider || 'github',
+      instanceUrl: settings.instanceUrl || '',
+      projectId: settings.projectId || '',
+      token: settings.token || '',
+      branch: settings.branch || 'main'
     };
     const encoded = btoa(JSON.stringify(settingsToEncode));
     return `${window.location.origin}${window.location.pathname}?config=${encoded}`;
@@ -69,15 +90,29 @@ export const decodeSettingsFromUrl = (configParam: string): GitHubSettings | nul
     const decoded = atob(configParam);
     const settings = JSON.parse(decoded);
     
-    // Validate required fields
-    if (!settings.pat || !settings.owner || !settings.repo) {
-      console.error("Invalid settings configuration - missing required fields");
-      return null;
+    // Validate required fields based on Git provider
+    const gitProvider = settings.gitProvider || 'github';
+    
+    if (gitProvider === 'github') {
+      if (!settings.pat || !settings.owner || !settings.repo) {
+        console.error("Invalid GitHub settings configuration - missing required fields");
+        return null;
+      }
+    } else if (gitProvider === 'gitlab') {
+      if (!settings.instanceUrl || !settings.projectId || !settings.token) {
+        console.error("Invalid GitLab settings configuration - missing required fields");
+        return null;
+      }
     }
     
     // Ensure folder field exists
     if (!settings.folder) {
       settings.folder = 'todos';
+    }
+    
+    // Ensure branch field exists
+    if (!settings.branch) {
+      settings.branch = 'main';
     }
     
     return settings;

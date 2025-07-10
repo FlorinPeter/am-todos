@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const GitLabService = require('./gitlabService');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -133,6 +134,81 @@ app.post('/api/github', async (req, res) => {
   } catch (error) {
     console.error('GitHub API proxy error:', error);
     res.status(500).json({ error: 'Failed to proxy GitHub API request' });
+  }
+});
+
+// GitLab API proxy endpoint with security validation
+app.post('/api/gitlab', async (req, res) => {
+  const { action, instanceUrl, projectId, token, branch = 'main', ...params } = req.body || {};
+  
+  if (!action || !instanceUrl || !projectId || !token) {
+    return res.status(400).json({ error: 'Missing required fields: action, instanceUrl, projectId, token' });
+  }
+
+  try {
+    const gitlab = new GitLabService(instanceUrl, projectId, token);
+    let result;
+
+    switch (action) {
+      case 'getFile':
+        if (!params.filePath) {
+          return res.status(400).json({ error: 'Missing filePath for getFile action' });
+        }
+        result = await gitlab.getFile(params.filePath, branch);
+        break;
+
+      case 'getRawFile':
+        if (!params.filePath) {
+          return res.status(400).json({ error: 'Missing filePath for getRawFile action' });
+        }
+        const content = await gitlab.getRawFile(params.filePath, branch);
+        result = { content };
+        break;
+
+      case 'listFiles':
+        result = await gitlab.listFiles(params.path || '', branch);
+        break;
+
+      case 'createOrUpdateFile':
+        if (!params.filePath || !params.content || !params.commitMessage) {
+          return res.status(400).json({ error: 'Missing required fields for createOrUpdateFile: filePath, content, commitMessage' });
+        }
+        result = await gitlab.createOrUpdateFile(params.filePath, params.content, params.commitMessage, branch);
+        break;
+
+      case 'deleteFile':
+        if (!params.filePath || !params.commitMessage) {
+          return res.status(400).json({ error: 'Missing required fields for deleteFile: filePath, commitMessage' });
+        }
+        result = await gitlab.deleteFile(params.filePath, params.commitMessage, branch);
+        break;
+
+      case 'getProject':
+        result = await gitlab.getProject();
+        break;
+
+      case 'getFileHistory':
+        if (!params.filePath) {
+          return res.status(400).json({ error: 'Missing filePath for getFileHistory action' });
+        }
+        result = await gitlab.getFileHistory(params.filePath, branch);
+        break;
+
+      case 'getFileAtCommit':
+        if (!params.filePath || !params.sha) {
+          return res.status(400).json({ error: 'Missing required fields for getFileAtCommit: filePath, sha' });
+        }
+        result = await gitlab.getFileAtCommit(params.filePath, params.sha);
+        break;
+
+      default:
+        return res.status(400).json({ error: 'Unknown action' });
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error('GitLab API proxy error:', error);
+    res.status(500).json({ error: 'Failed to process GitLab API request: ' + error.message });
   }
 });
 

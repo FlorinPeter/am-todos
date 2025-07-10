@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import GitHubSettings from '../GitHubSettings';
+import GitSettings from '../GitSettings';
 
 // Mock the services
 vi.mock('../../services/githubService', () => ({
@@ -19,20 +19,20 @@ const mockProps = {
   onSettingsSaved: vi.fn()
 };
 
-describe('GitHubSettings - Basic Feature Coverage', () => {
+describe('GitSettings - Basic Feature Coverage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe('GitHub Integration Configuration', () => {
     it('renders application setup form', () => {
-      render(<GitHubSettings {...mockProps} />);
+      render(<GitSettings {...mockProps} />);
       
       expect(screen.getByText(/application setup/i)).toBeInTheDocument();
     });
 
     it('shows PAT input field', () => {
-      render(<GitHubSettings {...mockProps} />);
+      render(<GitSettings {...mockProps} />);
       
       const patInput = screen.getByLabelText(/GitHub Personal Access Token/i);
       expect(patInput).toBeInTheDocument();
@@ -40,35 +40,35 @@ describe('GitHubSettings - Basic Feature Coverage', () => {
     });
 
     it('shows repository owner input', () => {
-      render(<GitHubSettings {...mockProps} />);
+      render(<GitSettings {...mockProps} />);
       
       const ownerInput = screen.getByLabelText(/Repository Owner/i);
       expect(ownerInput).toBeInTheDocument();
     });
 
     it('shows repository name input', () => {
-      render(<GitHubSettings {...mockProps} />);
+      render(<GitSettings {...mockProps} />);
       
       const repoInput = screen.getByLabelText(/Repository Name/i);
       expect(repoInput).toBeInTheDocument();
     });
 
     it('shows AI provider configuration', () => {
-      render(<GitHubSettings {...mockProps} />);
+      render(<GitSettings {...mockProps} />);
       
       expect(screen.getByText(/AI Provider Configuration/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/AI Provider/i)).toBeInTheDocument();
     });
 
     it('shows save settings button', () => {
-      render(<GitHubSettings {...mockProps} />);
+      render(<GitSettings {...mockProps} />);
       
       const saveButton = screen.getByText(/save settings/i);
       expect(saveButton).toBeInTheDocument();
     });
 
     it('handles input changes correctly', async () => {
-      render(<GitHubSettings {...mockProps} />);
+      render(<GitSettings {...mockProps} />);
       
       const patInput = screen.getByLabelText(/GitHub Personal Access Token/i);
       const ownerInput = screen.getByLabelText(/Repository Owner/i);
@@ -84,13 +84,13 @@ describe('GitHubSettings - Basic Feature Coverage', () => {
     });
 
     it('shows security information about PAT', () => {
-      render(<GitHubSettings {...mockProps} />);
+      render(<GitSettings {...mockProps} />);
       
       expect(screen.getByText(/fine-grained PAT/i)).toBeInTheDocument();
     });
 
     it('shows AI provider selection', () => {
-      render(<GitHubSettings {...mockProps} />);
+      render(<GitSettings {...mockProps} />);
       
       const providerSelect = screen.getByLabelText(/AI Provider/i);
       expect(providerSelect).toBeInTheDocument();
@@ -102,14 +102,14 @@ describe('GitHubSettings - Basic Feature Coverage', () => {
 
   describe('Form Validation and UX', () => {
     it('shows Gemini API key field when Gemini is selected', () => {
-      render(<GitHubSettings {...mockProps} />);
+      render(<GitSettings {...mockProps} />);
       
       // Gemini is selected by default
       expect(screen.getByLabelText(/Google Gemini API Key/i)).toBeInTheDocument();
     });
 
     it('switches to OpenRouter fields when OpenRouter is selected', async () => {
-      render(<GitHubSettings {...mockProps} />);
+      render(<GitSettings {...mockProps} />);
       
       const providerSelect = screen.getByLabelText(/AI Provider/i);
       await userEvent.selectOptions(providerSelect, 'openrouter');
@@ -118,7 +118,7 @@ describe('GitHubSettings - Basic Feature Coverage', () => {
     });
 
     it('shows project folder configuration', () => {
-      render(<GitHubSettings {...mockProps} />);
+      render(<GitSettings {...mockProps} />);
       
       expect(screen.getByText(/Project Folder/i)).toBeInTheDocument();
       expect(screen.getByText(/New Project/i)).toBeInTheDocument();

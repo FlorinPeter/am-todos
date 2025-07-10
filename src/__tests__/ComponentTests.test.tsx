@@ -57,10 +57,7 @@ describe('Component Rendering Tests', () => {
     it('shows git history button when props provided', () => {
       const propsWithGit = {
         ...mockProps,
-        filePath: 'test.md',
-        token: 'token',
-        owner: 'owner',
-        repo: 'repo'
+        filePath: 'test.md'
       };
       
       render(<MarkdownViewer {...propsWithGit} />);

@@ -17,9 +17,6 @@ interface MarkdownViewerProps {
   onMarkdownChange: (newContent: string) => void;
   onChatHistoryChange: (newChatHistory: ChatMessage[]) => void;
   filePath?: string;
-  token?: string;
-  owner?: string;
-  repo?: string;
   taskId?: string; // Add taskId for checkpoint management
 }
 
@@ -29,9 +26,6 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   onMarkdownChange, 
   onChatHistoryChange,
   filePath,
-  token,
-  owner,
-  repo,
   taskId
 }) => {
   const [isEditMode, setIsEditMode] = useState(false);
@@ -192,7 +186,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
           
           <div className="flex items-center space-x-2 flex-shrink-0">
             {/* History button */}
-            {filePath && token && owner && repo && (
+            {filePath && (
               <button
                 onClick={() => setShowHistory(true)}
                 className="px-3 py-1.5 bg-gray-600 text-gray-200 rounded text-sm hover:bg-gray-500 transition-colors hidden sm:block min-h-[32px] flex items-center justify-center"
@@ -201,7 +195,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                 📜 History
               </button>
             )}
-            {filePath && token && owner && repo && (
+            {filePath && (
               <button
                 onClick={() => setShowHistory(true)}
                 className="px-2 py-1.5 bg-gray-600 text-gray-200 rounded text-sm hover:bg-gray-500 transition-colors sm:hidden min-h-[32px] flex items-center justify-center"
@@ -420,11 +414,8 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
       </div>
       
       {/* Git History Modal */}
-      {showHistory && filePath && token && owner && repo && (
+      {showHistory && filePath && (
         <GitHistory
-          token={token}
-          owner={owner}
-          repo={repo}
           filePath={filePath}
           onRestore={handleRestoreFromHistory}
           onClose={() => setShowHistory(false)}

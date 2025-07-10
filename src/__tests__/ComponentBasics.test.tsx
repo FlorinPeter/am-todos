@@ -13,7 +13,7 @@ import MarkdownViewer from '../components/MarkdownViewer';
 import TodoEditor from '../components/TodoEditor';
 import TodoSidebar from '../components/TodoSidebar';
 import NewTodoInput from '../components/NewTodoInput';
-import GitHubSettings from '../components/GitHubSettings';
+import GitSettings from '../components/GitSettings';
 import AIChat from '../components/AIChat';
 import GitHistory from '../components/GitHistory';
 
@@ -39,10 +39,7 @@ describe('Component Basic Functionality Tests', () => {
     test('renders with git history props', () => {
       const propsWithGit = {
         ...mockProps,
-        filePath: 'test.md',
-        token: 'token',
-        owner: 'owner',
-        repo: 'repo'
+        filePath: 'test.md'
       };
       
       expect(() => render(<MarkdownViewer {...propsWithGit} />)).not.toThrow();
@@ -172,30 +169,28 @@ describe('Component Basic Functionality Tests', () => {
     });
   });
 
-  describe('Feature 2: GitHubSettings Component', () => {
+  describe('Feature 2: GitSettings Component', () => {
     const mockProps = {
-      onSave: vi.fn(),
-      initialSettings: { pat: '', owner: '', repo: '' }
+      onSettingsSaved: vi.fn()
     };
 
     test('renders without crashing', () => {
-      const { container } = render(<GitHubSettings {...mockProps} />);
+      const { container } = render(<GitSettings {...mockProps} />);
       expect(container).toBeInTheDocument();
     });
 
     test('handles initial settings', () => {
       const settingsWithValues = {
-        onSave: vi.fn(),
-        initialSettings: { pat: 'test-token', owner: 'test-owner', repo: 'test-repo' }
+        onSettingsSaved: vi.fn()
       };
       
-      expect(() => render(<GitHubSettings {...settingsWithValues} />)).not.toThrow();
+      expect(() => render(<GitSettings {...settingsWithValues} />)).not.toThrow();
     });
 
     test('handles save callback', () => {
       expect(() => {
-        render(<GitHubSettings {...mockProps} />);
-        mockProps.onSave({ pat: 'new-token', owner: 'owner', repo: 'repo' });
+        render(<GitSettings {...mockProps} />);
+        mockProps.onSettingsSaved();
       }).not.toThrow();
     });
   });
@@ -355,7 +350,7 @@ describe('Component Basic Functionality Tests', () => {
           onSubmit={vi.fn()}
           isGenerating={false}
         />),
-        () => render(<GitHubSettings 
+        () => render(<GitSettings 
           onSave={vi.fn()}
           initialSettings={{ pat: '', owner: '', repo: '' }}
         />),

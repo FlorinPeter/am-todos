@@ -12,7 +12,7 @@ import MarkdownViewer from '../components/MarkdownViewer';
 import TodoEditor from '../components/TodoEditor';
 import TodoSidebar from '../components/TodoSidebar';
 import NewTodoInput from '../components/NewTodoInput';
-import GitHubSettings from '../components/GitHubSettings';
+import GitSettings from '../components/GitSettings';
 import AIChat from '../components/AIChat';
 import GitHistory from '../components/GitHistory';
 
@@ -33,13 +33,12 @@ describe('Basic Feature Coverage - All 12 Features', () => {
   });
 
   describe('Feature 2: GitHub Integration & CRUD Operations', () => {
-    it('GitHubSettings component renders configuration interface', () => {
+    it('GitSettings component renders configuration interface', () => {
       const mockProps = {
-        onSave: vi.fn(),
-        initialSettings: { pat: '', owner: '', repo: '' }
+        onSettingsSaved: vi.fn()
       };
       
-      render(<GitHubSettings {...mockProps} />);
+      render(<GitSettings {...mockProps} />);
       expect(document.body).toBeInTheDocument();
     });
   });
@@ -126,9 +125,6 @@ describe('Basic Feature Coverage - All 12 Features', () => {
   describe('Feature 9: Git History & Version Control', () => {
     it('GitHistory component renders version control interface', () => {
       const mockProps = {
-        token: 'test-token',
-        owner: 'test-owner',
-        repo: 'test-repo',
         filePath: 'test-file.md',
         onRestore: vi.fn(),
         onClose: vi.fn()

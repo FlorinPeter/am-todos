@@ -33,9 +33,9 @@ describe('Feature Implementation Validation', () => {
       expect(typeof githubService.createOrUpdateTodo).toBe('function');
     });
     
-    test('GitHubSettings component exists', async () => {
-      const GitHubSettings = await import('../components/GitHubSettings');
-      expect(GitHubSettings.default).toBeDefined();
+    test('GitSettings component exists', async () => {
+      const GitSettings = await import('../components/GitSettings');
+      expect(GitSettings.default).toBeDefined();
     });
   });
 
