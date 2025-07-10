@@ -1,5 +1,14 @@
 # 📋 Agentic Markdown Todos
 
+[![CI](https://github.com/FlorinPeter/am-todos/actions/workflows/ci.yml/badge.svg)](https://github.com/FlorinPeter/am-todos/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-377%20passing-brightgreen)](https://github.com/FlorinPeter/am-todos/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-check%20actions-orange)](https://github.com/FlorinPeter/am-todos/actions/workflows/ci.yml)
+[![Docker Build](https://github.com/FlorinPeter/am-todos/actions/workflows/docker-build.yml/badge.svg)](https://github.com/FlorinPeter/am-todos/actions/workflows/docker-build.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
+[![React](https://img.shields.io/badge/React-19.1.0-blue)](https://reactjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-4.9.5-blue)](https://www.typescriptlang.org)
+
 > **Transform your GitHub repository into an intelligent task management system**
 
 An AI-powered todo application that merges the simplicity of plain text markdown files with modern AI capabilities. Your tasks live as `.md` files in your GitHub repository, ensuring **you own your data** while leveraging AI for smart task planning and management.
