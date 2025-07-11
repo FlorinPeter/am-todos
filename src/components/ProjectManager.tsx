@@ -20,10 +20,18 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
     setSettings(loadedSettings);
     
     // Force load folders if we have settings
+    let timeoutId: NodeJS.Timeout | null = null;
     if (loadedSettings?.gitProvider === 'gitlab' && loadedSettings?.instanceUrl && loadedSettings?.projectId && loadedSettings?.token) {
       console.log('ProjectManager: Force loading GitLab folders');
-      setTimeout(() => loadFolders(), 100);
+      timeoutId = setTimeout(() => loadFolders(), 100);
     }
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, []);
 
   const loadFolders = async () => {
