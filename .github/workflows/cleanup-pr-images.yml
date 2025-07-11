@@ -49,6 +49,7 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           echo "Cleaning up images for closed PR #${PR_NUMBER}"
           
@@ -95,6 +96,7 @@ jobs:
           DAYS_TO_KEEP: ${{ github.event.inputs.days_to_keep || '1' }}
           # For scheduled runs, default to actual deletion. For manual runs, use input (defaults to true)
           DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || github.event.inputs.dry_run || 'true' }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           echo "============================================"
           echo "Cleanup Configuration:"
@@ -205,6 +207,8 @@ jobs:
       # Report on remaining images
       - name: Report remaining images
         if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           echo "## Container Registry Status" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
