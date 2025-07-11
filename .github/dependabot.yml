@@ -13,11 +13,13 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 10
-    reviewers:
-      - "FlorinPeter"
     commit-message:
       prefix: "deps"
       include: "scope"
+    ignore:
+      # Keep @types/node aligned with our Node.js runtime (22.x LTS)
+      - dependency-name: "@types/node"
+        versions: ["23.x", "24.x", "25.x"]
 
   # Backend dependencies (Express, AI integrations)
   - package-ecosystem: "npm"
@@ -27,11 +29,13 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 10
-    reviewers:
-      - "FlorinPeter"
     commit-message:
       prefix: "deps"
       include: "scope"
+    ignore:
+      # Keep @types/node aligned with our Node.js runtime (22.x LTS)
+      - dependency-name: "@types/node"
+        versions: ["23.x", "24.x", "25.x"]
 
   # Docker dependencies
   - package-ecosystem: "docker"
