@@ -108,7 +108,7 @@ className="px-3 py-1.5 bg-red-600 text-white rounded text-sm hover:bg-red-700 tr
 
 **Background Overlay**:
 ```tsx
-className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
 ```
 
 **Modal Container**:
@@ -262,15 +262,21 @@ Since January 2025, users provide their own API keys through the setup wizard:
 
 ### **TailwindCSS Configuration Validation**
 
-Ensure `postcss.config.js` uses object format:
+TailwindCSS v4 uses `@tailwindcss/vite` plugin in vite.config.mjs:
 ```javascript
-// ✅ CORRECT
-module.exports = {
-  plugins: {
-    tailwindcss: {},
-    autoprefixer: {},
-  },
-}
+// ✅ CORRECT (vite.config.mjs)
+import tailwindcss from '@tailwindcss/vite'
+
+export default defineConfig({
+  plugins: [react(), tsconfigPaths(), tailwindcss()],
+  // ...
+})
+```
+
+CSS imports use new v4 syntax:
+```css
+/* ✅ CORRECT (src/index.css) */
+@import "tailwindcss";
 ```
 
 ### **Browser Testing**

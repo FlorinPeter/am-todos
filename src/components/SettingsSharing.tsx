@@ -64,7 +64,7 @@ const SettingsSharing: React.FC<SettingsSharingProps> = ({ isVisible, onClose })
   if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-4">
@@ -131,7 +131,7 @@ const SettingsSharing: React.FC<SettingsSharingProps> = ({ isVisible, onClose })
               </div>
 
               {/* Security Notice */}
-              <div className="bg-yellow-900 bg-opacity-50 border border-yellow-600 rounded-md p-4">
+              <div className="bg-yellow-900/50 border border-yellow-600 rounded-md p-4">
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
                     <svg className="h-5 w-5 text-yellow-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">

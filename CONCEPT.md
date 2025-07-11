@@ -145,8 +145,8 @@ The application has been **fully implemented and is production-ready** with all 
 
 ### 🏗️ Technical Architecture
 
-*   **Frontend:** React 19.1.0 with TypeScript, TailwindCSS 3.4.17
-*   **Backend:** Express 5.1.0 as AI proxy with comprehensive validation
+*   **Frontend:** React with TypeScript, TailwindCSS
+*   **Backend:** Express as AI proxy with comprehensive validation
 *   **State Management:** React hooks with optimized useCallback patterns
 *   **Storage:** Git repository (GitHub/GitLab) as single source of truth
 *   **Security:** Fine-grained PAT with repository-specific permissions

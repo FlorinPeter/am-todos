@@ -19,8 +19,6 @@ ENV REACT_APP_VERSION=${VERSION:-0.1.0}
 # Copy frontend package files
 COPY package*.json ./
 COPY tsconfig.json ./
-COPY tailwind.config.js ./
-COPY postcss.config.js ./
 COPY vite.config.mjs ./
 COPY index.html ./
 

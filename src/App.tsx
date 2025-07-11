@@ -910,7 +910,7 @@ function App() {
         {/* Mobile Sidebar Backdrop */}
         {sidebarOpen && (
           <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden transition-opacity duration-300"
+            className="fixed inset-0 bg-black/50 z-20 md:hidden transition-opacity duration-300"
             onClick={() => setSidebarOpen(false)}
           />
         )}
@@ -948,7 +948,7 @@ function App() {
 
       {/* New Todo Modal */}
       {showNewTodoInput && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-lg p-4 sm:p-6 max-w-md w-full">
             <h2 className="text-lg sm:text-xl font-bold mb-4">Create New Task</h2>
             <NewTodoInput 
@@ -961,7 +961,7 @@ function App() {
 
       {/* Settings Modal */}
       {showSettings && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-900 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-white">Settings</h2>
@@ -979,7 +979,7 @@ function App() {
 
       {/* Loading Overlay */}
       {isCreatingTask && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50">
           <div className="bg-gray-800 rounded-lg p-6 max-w-sm w-full mx-4 text-center">
             <div className="mb-4">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
@@ -996,7 +996,7 @@ function App() {
 
       {/* Deletion Loading Overlay */}
       {isDeletingTask && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50">
           <div className="bg-gray-800 rounded-lg p-6 max-w-sm w-full mx-4 text-center">
             <div className="mb-4">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
@@ -1013,7 +1013,7 @@ function App() {
 
       {/* Save Loading Overlay */}
       {isSavingTask && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50">
           <div className="bg-gray-800 rounded-lg p-6 max-w-sm w-full mx-4 text-center">
             <div className="mb-4">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto"></div>

@@ -24,8 +24,6 @@ export default defineConfig({
         'src/react-app-env.d.ts',
         'vite.config.mjs',
         'vitest.config.mjs',
-        'postcss.config.js',
-        'tailwind.config.js',
         '.github/**',
         'server/**',  // Exclude server files from coverage
       ],
