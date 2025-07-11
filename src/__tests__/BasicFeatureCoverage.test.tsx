@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 // Mock all services to avoid API calls
@@ -219,26 +219,38 @@ const code = "sample";
     });
   });
 
-  describe('Known Missing Implementation', () => {
-    it('Interactive Checkbox Functionality - Known Gap', () => {
-      // This feature is documented as missing in FEATURES.md
-      // Checkboxes are currently rendered as disabled
+  describe('Interactive Checkbox Implementation', () => {
+    it('Interactive Checkbox Functionality - Now Fully Implemented', () => {
+      // This feature has been implemented with manual markdown parsing
       const contentWithCheckboxes = '- [ ] Task 1\n- [x] Task 2';
       
+      const mockOnMarkdownChange = vi.fn();
       const mockProps = {
         content: contentWithCheckboxes,
         chatHistory: [],
-        onMarkdownChange: vi.fn(),
+        onMarkdownChange: mockOnMarkdownChange,
         onChatHistoryChange: vi.fn()
       };
       
       const { container } = render(<MarkdownViewer {...mockProps} />);
       const checkboxes = container.querySelectorAll('input[type="checkbox"]');
       
-      // Verify checkboxes exist but are disabled (known limitation)
+      // Verify checkboxes exist and are now functional
+      expect(checkboxes).toHaveLength(2);
       checkboxes.forEach(checkbox => {
-        expect(checkbox).toBeDisabled();
+        expect(checkbox).toBeEnabled();
+        expect(checkbox).toHaveClass('cursor-pointer');
       });
+
+      // Test checkbox interaction - click the first checkbox
+      fireEvent.click(checkboxes[0]);
+      
+      // Verify that the onMarkdownChange callback was called
+      expect(mockOnMarkdownChange).toHaveBeenCalled();
+      
+      // Verify the content was updated with the checkbox toggled
+      const updatedContent = mockOnMarkdownChange.mock.calls[0][0];
+      expect(updatedContent).toContain('- [x] Task 1'); // Should be checked now
     });
   });
 

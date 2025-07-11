@@ -82,17 +82,28 @@ describe('MarkdownViewer - Basic Feature Coverage', () => {
       expect(heading).toHaveClass('text-3xl');
     });
 
-    it('renders checkboxes (currently disabled)', () => {
+    it('renders interactive checkboxes (now functional)', () => {
       const contentWithCheckboxes = '- [ ] Task 1\n- [x] Task 2';
-      render(<MarkdownViewer {...mockProps} content={contentWithCheckboxes} />);
+      const mockOnMarkdownChange = vi.fn();
+      render(<MarkdownViewer {...mockProps} content={contentWithCheckboxes} onMarkdownChange={mockOnMarkdownChange} />);
       
       const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-      expect(checkboxes.length).toBeGreaterThan(0);
+      expect(checkboxes).toHaveLength(2);
       
-      // Verify checkboxes are disabled (known limitation)
+      // Verify checkboxes are now enabled and functional
       checkboxes.forEach(checkbox => {
-        expect(checkbox).toBeDisabled();
+        expect(checkbox).toBeEnabled();
+        expect(checkbox).toHaveClass('cursor-pointer');
       });
+
+      // Test checkbox functionality
+      fireEvent.click(checkboxes[0]);
+      expect(mockOnMarkdownChange).toHaveBeenCalled();
+      
+      // Verify proper state - first checkbox should be checked, second unchanged
+      const updatedContent = mockOnMarkdownChange.mock.calls[0][0];
+      expect(updatedContent).toContain('- [x] Task 1');
+      expect(updatedContent).toContain('- [x] Task 2');
     });
   });
 
