@@ -37,7 +37,7 @@ The core vision is to merge the simplicity and sovereignty of plain text files w
 
 ## 3. Architecture & Tech Stack
 
-The application is a single-page application (SPA) that communicates with two main external services: the GitHub API and a serverless function that proxies requests to the Google Gemini API.
+The application is a single-page application (SPA) that communicates with Git provider APIs (GitHub/GitLab) and a serverless function that proxies requests to AI providers (Google Gemini/OpenRouter).
 
 ### Frontend
 
@@ -88,13 +88,13 @@ isArchived: false
 
 1.  **User Input:** The user enters a goal (e.g., "Deploy the web app to production") in `NewTodoInput.tsx` and submits.
 2.  **UI Update:** The `App.tsx` component adds a temporary "GENERATING" placeholder todo to the list and displays it to the user.
-3.  **Generate Plan (AI Call):** `App.tsx` calls `generateInitialPlan()`, which POSTs to the `/api/gemini` proxy with `{ action: 'generateInitialPlan', payload: { goal } }`.
-4.  **AI Proxy:** The serverless function receives the request, selects the `SYSTEM_PROMPT_INITIAL`, and calls the Gemini API.
-5.  **Markdown Generation:** The Gemini API returns a markdown checklist. The proxy forwards this back to the client.
+3.  **Generate Plan (AI Call):** `App.tsx` calls `generateInitialPlan()`, which POSTs to the `/api/ai` proxy with `{ action: 'generateInitialPlan', payload: { goal } }`.
+4.  **AI Proxy:** The serverless function receives the request, selects the `SYSTEM_PROMPT_INITIAL`, and calls the configured AI provider.
+5.  **Markdown Generation:** The AI provider returns a markdown checklist. The proxy forwards this back to the client.
 6.  **Prepare File:** The client now has the markdown content. It combines this with the default frontmatter.
-7.  **Generate Commit Message (AI Call):** `App.tsx` calls `generateCommitMessage()`, which POSTs to the `/api/gemini` proxy with details about the new file. The AI returns a conventional commit message (e.g., `feat: Add task "Deploy web app to production"`).
-8.  **GitHub API Call:** The `githubService.createOrUpdateTodo()` function is called. It makes a `PUT /repos/{owner}/{repo}/contents/todos/{filename}.md` request to the GitHub API, providing the Base64-encoded file content and the generated commit message.
-9.  **Sync State:** After the GitHub API confirms the creation, `App.tsx` triggers a full re-fetch of all todos from the repository to ensure the local state is in sync with the source of truth.
+7.  **Generate Commit Message (AI Call):** `App.tsx` calls `generateCommitMessage()`, which POSTs to the `/api/ai` proxy with details about the new file. The AI returns a conventional commit message (e.g., `feat: Add task "Deploy web app to production"`).
+8.  **Git API Call:** The `gitService.createOrUpdateTodo()` function is called, which routes to the appropriate provider (GitHub/GitLab) and makes the API request to create the file with Base64-encoded content and the generated commit message.
+9.  **Sync State:** After the Git provider API confirms the creation, `App.tsx` triggers a full re-fetch of all todos from the repository to ensure the local state is in sync with the source of truth.
 
 ### B) Checking a Box
 
@@ -103,7 +103,7 @@ isArchived: false
 3.  **Propagate Change:** The new markdown string is passed up to `App.tsx` via the `onMarkdownChange` prop.
 4.  **Handle Mutation:** `App.tsx` triggers its `handleUpdateTodoContent` flow.
 5.  **Generate Commit Message (AI Call):** As before, the client calls the proxy to generate a commit message. Given the small change, the AI is prompted to return something like `fix: Complete "Configure CI/CD pipeline"`.
-6.  **GitHub API Call:** `githubService.createOrUpdateTodo()` is called again. This time, it includes the file's `sha` (a unique identifier for the file's current version), which is required by the GitHub API for updates.
+6.  **Git API Call:** `gitService.createOrUpdateTodo()` is called again. This time, it includes the file's `sha` (a unique identifier for the file's current version), which is required by Git provider APIs for updates.
 7.  **Sync State:** The app re-fetches the todo list to get the updated file content and the new `sha`.
 
 ---
@@ -125,22 +125,22 @@ The application has been **fully implemented and is production-ready** with all 
     *   6-step visual progress bars for all operations (create, save, delete)
     *   Unsaved changes detection with confirmation dialogs
     *   Full-featured textarea editor with monospace font and proper formatting
-*   **GitHub Integration:** Complete CRUD operations with proper error handling and retry logic
-*   **Interactive Checkboxes:** Real-time task completion with immediate GitHub sync
+*   **Git Provider Integration:** Complete CRUD operations with GitHub/GitLab support, proper error handling and retry logic
+*   **Interactive Checkboxes:** Real-time task completion with immediate Git provider sync
 *   **AI Chat Assistant:** Natural language task modification (stateless operation)
 *   **Task Management:** Priority system (P1-P5), archiving, and deletion with confirmation
 *   **Smart File Naming:** Human-readable filenames with date prefixes
 *   **Auto-Directory Setup:** Automatic `/todos` and `/todos/archive` folder creation
 *   **Conventional Commits:** AI-generated semantic commit messages for all operations
 *   **Error Handling:** Comprehensive error recovery and user feedback
-*   **Testing Infrastructure:** Complete GitHub API integration test suite
+*   **Testing Infrastructure:** Complete Git provider API integration test suite
 
 #### **Advanced Features (Beyond Original Scope)**
 *   **Git History & Version Control:** Complete git history viewing and version restore functionality
 *   **Concurrent Operation Handling:** SHA conflict resolution and retry mechanisms
 *   **Unicode Support:** Full international character support with proper Base64 encoding
 *   **Stress Testing:** Validated with multiple concurrent operations
-*   **Advanced Retry Logic:** Sophisticated handling of GitHub API eventual consistency
+*   **Advanced Retry Logic:** Sophisticated handling of Git provider API eventual consistency
 *   **Loading Overlays:** Comprehensive loading states with progress indicators
 
 ### 🏗️ Technical Architecture
@@ -148,9 +148,9 @@ The application has been **fully implemented and is production-ready** with all 
 *   **Frontend:** React 19.1.0 with TypeScript, TailwindCSS 3.4.17
 *   **Backend:** Express 5.1.0 as AI proxy with comprehensive validation
 *   **State Management:** React hooks with optimized useCallback patterns
-*   **Storage:** GitHub repository as single source of truth
+*   **Storage:** Git repository (GitHub/GitLab) as single source of truth
 *   **Security:** Fine-grained PAT with repository-specific permissions
-*   **API Integration:** Complete GitHub API proxy with validation and error handling
+*   **API Integration:** Complete Git provider API proxy with validation and error handling
 *   **Testing:** Comprehensive integration test suite covering all scenarios
 
 ### 📱 User Experience
@@ -160,7 +160,7 @@ The application has been **fully implemented and is production-ready** with all 
 *   **Data Integrity:** Protection against data loss with confirmation dialogs
 *   **Professional UI:** Clean, modern interface with consistent design patterns
 *   **Performance:** Sub-second operations with intelligent retry mechanisms
-*   **Real-time Updates:** Immediate UI feedback with background GitHub synchronization
+*   **Real-time Updates:** Immediate UI feedback with background Git provider synchronization
 
 ### 🚀 Production Readiness
 
@@ -185,7 +185,7 @@ All features described in the concept document have been fully implemented, test
 - **Implementation**: Interactive checkboxes with auto-save, keyboard support, and accessibility features
 - **Features**:
   - ✅ Click handling for checkbox state toggling ([ ] ↔ [x])
-  - ✅ Auto-save functionality in view mode for immediate GitHub sync
+  - ✅ Auto-save functionality in view mode for immediate Git provider sync
   - ✅ Unique checkbox identification and line mapping system
   - ✅ Content preservation during checkbox toggles
   - ✅ Keyboard accessibility (Space key, Enter key support)
