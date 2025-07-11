@@ -6,7 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is "Agentic Markdown Todos" - an AI-powered todo application that transforms GitHub repositories into intelligent task management systems. The core vision merges the simplicity of plain text files with modern AI power, ensuring **you own your data** as markdown files in your Git repository.
 
-> **📋 For detailed feature verification with code evidence, see [FEATURES.md](FEATURES.md)**
 
 ### Key Principles
 - **You Own Your Data**: Tasks are `.md` files in your GitHub repo, editable with any tool
@@ -14,80 +13,39 @@ This is "Agentic Markdown Todos" - an AI-powered todo application that transform
 - **AI as a Partner**: AI assists with planning, task decomposition, and administrative work
 - **Markdown-Native**: Primary interface uses rich markdown for flexibility and structure
 
-### Core Features
+### Core Features Overview
 - **AI-Powered Task Generation**: High-level goals → detailed actionable checklists
-- **Multi-Folder Support**: Organize tasks in configurable folders for different projects/contexts
-- **Two-Panel Responsive Layout**: Sidebar task list + main content area with mobile support
-- **AI Chat Assistant**: Natural language commands to modify task lists (integrated at bottom of tasks)
-- **Interactive Checkboxes**: Click to toggle task completion with real-time GitHub sync
-- **Markdown Edit Mode**: Toggle between view and edit modes with full markdown editing capabilities
-- **Task Management**: Create, edit, delete, archive, and prioritize tasks (P1-P5)
-- **Mobile-First Design**: Hamburger menu, responsive layout, touch-friendly interface
-- **Progress Tracking**: Visual progress bars for create, save, and delete operations with step-by-step feedback
-- **Smart File Naming**: User-friendly names like `2025-01-05-task-name.md` instead of timestamps
-- **Auto-Directory Setup**: Automatically creates chosen folder and `/archive` subfolder if missing
-- **Real-Time Updates**: Instant refresh and auto-selection of new tasks
-- **Conventional Commits**: AI-generated semantic commit messages for clean Git history
-- **Unsaved Changes Protection**: Clear indicators and confirmation dialogs prevent data loss
-- **Configuration Sharing**: Generate shareable URLs and QR codes for seamless setup across devices
-- **Multi-AI Provider Support**: Choose between Google Gemini or OpenRouter (400+ models including GPT, Claude, Llama)
+- **Multi-Folder Support**: Organize tasks in configurable folders for different projects
+- **Interactive Checkboxes**: Click to toggle task completion with real-time Git sync
+- **Markdown Edit Mode**: Toggle between view and edit modes with full editing capabilities
+- **Multi-AI Provider Support**: Choose between Google Gemini or OpenRouter (400+ models)
 
 ## Development Commands
 
-### Frontend Development
+### Quick Start Development
 ```bash
-npm start          # Run development server (localhost:3000)
-npm test           # Run tests in watch mode
-npm run build      # Build for production
+# Start both servers (recommended for development)
+./hack/restart-dev.sh
 ```
 
-### Backend Development
-```bash
-cd server
-node server.js     # Run backend server (localhost:3001)
-```
-
-### Full Development Setup
-1. Start backend: `cd server && node server.js`
-2. Start frontend: `npm start` (in root directory)  
-3. The frontend proxy forwards `/api` requests to the backend
-
-**Hot Reload**: Both frontend and backend support hot reload, so code changes are automatically reflected. The restart script is rarely needed.
-
-**Manual Restart**: If needed, use `./hack/restart-dev.sh` to restart both servers.
+**Hot Reload**: Both servers support automatic reloading on code changes.  
+**Proxy**: Frontend automatically forwards `/api` requests to backend.
 
 ## Production Deployment
 
-### Google Cloud Run Deployment
-The application is production-ready for Google Cloud Run deployment using the scripts in the `hack/` directory.
+> **🚀 Complete Deployment Guide**: See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions
 
-#### Prerequisites
+### Quick Cloud Run Deployment
 ```bash
-# Install dependencies (run once)
+# Prerequisites
 sudo ./hack/install-dependencies.sh
-
-# Authenticate with Google Cloud
 gcloud auth login
 export GOOGLE_CLOUD_PROJECT="your-project-id"
-```
 
-#### Quick Deployment
-```bash
-# Deploy latest GitHub image
+# Deploy
 export SOURCE_IMAGE="ghcr.io/your-username/am-todos:main"
 ./hack/deploy-all.sh
 ```
-
-#### Deployment Options
-1. **Complete deployment (Recommended)**: `./hack/deploy-all.sh`
-2. **Pull and retag existing image**: `./hack/pull-and-push.sh && ./hack/deploy-to-cloud-run.sh`
-3. **Build from source**: `./hack/build-and-push.sh && ./hack/deploy-to-cloud-run.sh`
-
-#### Environment Configuration
-- **Development**: Uses `localhost:3001` proxy and direct GitHub/AI API calls
-- **Production**: Uses relative URLs, deployed as single container with frontend + backend
-- **Region**: Frankfurt (europe-west3) by default
-- **Scaling**: 0-10 instances with 1Gi memory and 1 CPU per instance
 
 ## Development vs Production Differences
 
@@ -156,7 +114,7 @@ NODE_ENV=production node server/server.js
 
 ### File Structure Patterns
 - `src/components/`: React components
-  - `GitHubSettings.tsx`: Configuration interface for GitHub PAT and repository
+  - `GitSettings.tsx`: Configuration interface for GitHub/GitLab PAT and repository
   - `SettingsSharing.tsx`: Configuration sharing modal with QR codes and copyable links
   - `MarkdownViewer.tsx`: Interactive markdown display with AI chat integration
   - `TodoSidebar.tsx`: Priority-sorted task list with mobile hamburger menu
@@ -193,11 +151,11 @@ NODE_ENV=production node server/server.js
 - Unified API endpoint (`/api/ai`) handles both providers with OpenAI-compatible format
 
 ### Markdown Processing
-- Files use **YAML frontmatter** for metadata (title, createdAt, priority, isArchived, chatHistory)
+- Files use **YAML frontmatter** for metadata (title, createdAt, priority, isArchived)
 - `react-markdown` with `remark-gfm` for GitHub-flavored markdown rendering
 - **Interactive checkboxes**: Click to toggle with real-time GitHub sync
 - **Fixed regex bug**: Proper checkbox pattern matching (`\[[ xX]\]`)
-- **Chat history storage**: Persistent AI conversation history in frontmatter
+- **Chat interface**: AI chat available but stateless (no persistent history)
 - **Priority system**: P1 (Critical/Red) to P5 (Very Low/Gray) with color coding
 - **Archive functionality**: Toggle task visibility without deletion
 
@@ -208,9 +166,6 @@ title: 'Plan a weekend trip to the mountains'
 createdAt: '2023-10-27T10:00:00.000Z'
 priority: 3
 isArchived: false
-chatHistory:
-  - role: 'user'
-    content: 'Add a task to book a cabin'
 ---
 ```
 
@@ -248,33 +203,22 @@ chatHistory:
 - User-friendly error messages in UI
 - Graceful fallbacks for storage and API failures
 
-## Current Status (Latest Updates)
+## Current Status
 
 > **📊 Implementation Status: 100% Complete** - See [FEATURES.md](FEATURES.md) for detailed verification  
 > **🧪 Testing Status: 100% Coverage** - See [TESTING.md](TESTING.md) for comprehensive test documentation
 
-The archive functionality has been fully implemented and debugged:
-
-### Recent Archive Fixes (Current Session)
-1. **Tab Count Display**: Fixed App.tsx lines 661 and 671 to use `allTodos.filter()` instead of `todos.filter()` for accurate tab counts
-2. **Sidebar Archive Display**: Fixed TodoSidebar.tsx line 62 to remove duplicate `isArchived` filter that was preventing archived tasks from appearing
-3. **Complete Archive Workflow**: Archive/unarchive operations now work correctly with proper task counts and sidebar display
-4. **Server Logs**: Confirmed backend is properly fetching both active and archived todos from GitHub API
-
-### Current Functionality Status
-- ✅ **Active/Archive Tab Switching**: Works correctly with accurate counts
-- ✅ **Archive/Unarchive Tasks**: Full bidirectional movement between active and archive
-- ✅ **Sidebar Display**: Shows appropriate tasks based on selected view mode
-- ✅ **Task Counts**: Real-time accurate counts for both active and archived tasks
-- ✅ **Data Persistence**: All operations properly sync with GitHub repository
-- ✅ **Mobile Responsiveness**: Archive functionality works on mobile devices
-- ✅ **Configuration Sharing**: URL-based sharing with QR codes for cross-device setup
-- ✅ **Multi-AI Provider Support**: Full Gemini and OpenRouter integration with 400+ model access
+All core functionality is implemented and production-ready:
+- ✅ AI-powered task generation with multi-provider support
+- ✅ Interactive checkboxes with real-time Git sync
+- ✅ Multi-folder support for project organization
+- ✅ Mobile-responsive design with archive functionality
+- ✅ Configuration sharing with QR codes
 
 ## Key Workflows
 
 ### Configuration Sharing
-1. User clicks "Share Config" in GitHub Settings → Modal opens with generation progress
+1. User clicks "Share Config" in Git Settings → Modal opens with generation progress
 2. **QR Code Generation**: Creates high-quality QR code for mobile device scanning
 3. **URL Generation**: Encodes all settings (PAT, repo details, API keys) in Base64 URL parameter
 4. **Copy/Share**: User can copy link or scan QR code to share configuration
@@ -329,10 +273,10 @@ The archive functionality has been fully implemented and debugged:
 ### Using AI Chat Assistant
 1. User clicks "AI Chat Assistant" at bottom of task → Chat interface expands
 2. User types natural language command (e.g., "Add a step for user authentication")
-3. `processChatMessage()` calls `/api/gemini` with current content and chat history
+3. `processChatMessage()` calls `/api/gemini` with current content (stateless)
 4. AI returns updated markdown content
 5. App updates task and saves to GitHub with commit message
-6. Chat history stored in frontmatter for context
+6. AI chat updates task content without persistent history
 
 ### Managing Tasks
 - **Priority changes**: Dropdown selector (P1-P5) with color-coded badges
@@ -347,45 +291,20 @@ The archive functionality has been fully implemented and debugged:
 - **Fine-grained permissions**: PAT restricted to specific repository only
 - **HTTPS only**: All API communications over secure connections
 
-## Recent Improvements (Latest Session)
+## Development Workflow
 
-### UI/UX Enhancements
-- **Two-panel layout**: Professional sidebar + main content design
-- **Mobile responsiveness**: Hamburger menu, touch-friendly interface
-- **Progress tracking**: Visual progress bars for all operations (create, save, delete)
-- **Markdown edit mode**: Toggle between view and edit modes with full editing capabilities
-- **Smart file naming**: Date-prefixed, human-readable file names
-- **Auto-directory setup**: No manual `/todos` folder creation needed
-- **Real-time updates**: Immediate task list refresh and auto-selection
-- **Unsaved changes protection**: Visual indicators and confirmation dialogs
+### Testing
+```bash
+npm run test:basic     # Run feature validation tests
+npm test              # Interactive test runner
+```
 
-### Functionality Additions
-- **Markdown editor**: Full-featured text editor with monospace font and syntax support
-- **Save progress tracking**: 6-step visual feedback during save operations
-- **Delete tasks**: Complete removal with confirmation dialog and progress tracking
-- **AI chat interface**: Bottom-of-task collapsible chat for modifications
-- **Priority management**: Visual P1-P5 system with color coding
-- **Archive system**: Hide/show tasks without deletion
-- **Configuration sharing**: Generate shareable URLs and QR codes for cross-device setup
-- **Multi-AI provider support**: Flexible switching between Gemini and OpenRouter with 400+ model access
-- **Error handling**: Comprehensive debugging and user feedback
-- **Unicode support**: Fixed Base64 encoding for special characters
+### Git Workflow
+- Use `main` branch for development
+- Conventional commits with descriptive messages
+- Professional commit history maintained
 
-### Technical Fixes
-- **Edit mode state management**: Proper handling of edit/view transitions with data integrity
-- **Progress overlay system**: Consistent progress bars across all operations
-- **Build system**: Fixed TailwindCSS PostCSS configuration
-- **TypeScript errors**: Resolved error handling and type safety
-- **Regex bug**: Fixed checkbox pattern matching in MarkdownViewer
-- **State management**: Improved refresh logic and dependency handling
-- **Mobile layout**: Fixed sidebar height and responsive breakpoints
-- **Archive tab counts**: Fixed incorrect tab counts showing 0 by using allTodos instead of filtered todos array
-- **Archive sidebar display**: Fixed archived tasks not appearing in sidebar by removing duplicate isArchived filter in TodoSidebar component
-
-### Development Workflow
-- **Git integration**: Modern `main` branch instead of `master`
-- **Comprehensive logging**: Detailed debugging throughout application
-- **Documentation**: Updated CLAUDE.md with complete implementation details
-- **Commit history**: Professional conventional commits with Claude attribution
-- **Testing infrastructure**: Created comprehensive GitHub API integration tests
-- **Restart script**: Use `./hack/restart-dev.sh` to restart both servers when needed (rarely required due to hot reload)
+### Restart Development Environment
+```bash
+./hack/restart-dev.sh  # Restart both servers (rarely needed due to hot reload)
+```
