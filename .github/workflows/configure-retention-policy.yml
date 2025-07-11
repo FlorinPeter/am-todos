@@ -1,0 +1,34 @@
+name: Configure Package Retention Policy
+
+on:
+  # Run once to set up the policy
+  workflow_dispatch:
+  
+  # Or run when the main workflow file changes
+  push:
+    paths:
+      - '.github/workflows/docker-build.yml'
+      - '.github/workflows/configure-retention-policy.yml'
+
+jobs:
+  configure-retention:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    
+    steps:
+      - name: Configure retention policy for untagged images
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Note: GitHub Container Registry has automatic cleanup for untagged manifests
+          # after 90 days, but we can't configure custom policies via API yet.
+          
+          echo "## Container Registry Retention Policy" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "GitHub automatically deletes untagged images after 90 days." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "For more aggressive cleanup, use the cleanup-pr-images.yml workflow which:" >> $GITHUB_STEP_SUMMARY
+          echo "- Deletes PR-specific images when PRs are closed" >> $GITHUB_STEP_SUMMARY
+          echo "- Runs weekly to clean SHA-tagged images older than 7 days" >> $GITHUB_STEP_SUMMARY
+          echo "- Preserves images tagged with 'latest', 'main', or version tags" >> $GITHUB_STEP_SUMMARY

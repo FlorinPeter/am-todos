@@ -9,6 +9,12 @@ on:
     tags:
       - 'v*'
   
+  # Trigger on pull request (only for open PRs)
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+  
   # Allow manual workflow trigger
   workflow_dispatch:
 
@@ -55,15 +61,16 @@ jobs:
           tags: |
             # set latest tag for main branch
             type=ref,event=branch
-            type=ref,event=pr
+            # set PR-specific tag with PR number for easy cleanup
+            type=ref,event=pr,prefix=pr-,suffix=-{{sha}}
             # set version tags for version tags
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
             # set latest tag for main branch
             type=raw,value=latest,enable={{is_default_branch}}
-            # set SHA tag
-            type=sha,prefix=sha-
+            # set SHA tag only for main branch
+            type=sha,prefix=sha-,enable={{is_default_branch}}
 
       - name: Build and push Docker image
         id: build
