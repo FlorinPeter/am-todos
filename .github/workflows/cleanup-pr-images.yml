@@ -20,7 +20,7 @@ on:
       days_to_keep:
         description: 'Keep images newer than this many days'
         required: false
-        default: '1'
+        default: '0'
 
 env:
   REGISTRY: ghcr.io
@@ -93,7 +93,7 @@ jobs:
       - name: Delete old images (except main and tagged)
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         env:
-          DAYS_TO_KEEP: ${{ github.event.inputs.days_to_keep || '1' }}
+          DAYS_TO_KEEP: ${{ github.event.inputs.days_to_keep || '0' }}
           # For scheduled runs, default to actual deletion. For manual runs, use input (defaults to true)
           DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || github.event.inputs.dry_run || 'true' }}
           GH_TOKEN: ${{ github.token }}
@@ -116,6 +116,7 @@ jobs:
           echo "Cutoff date: ${CUTOFF_DATE}"
           echo "Current date: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
           echo "Will delete all images created before ${CUTOFF_DATE}"
+          echo "Will also delete all untagged manifests (intermediate layers)"
           echo "Will preserve: main, latest, and version tags (v*)"
           echo ""
           
@@ -167,8 +168,8 @@ jobs:
               continue
             fi
             
-            # Check if older than cutoff (delete all non-protected images older than cutoff)
-            if [[ "$CREATED_AT" < "$CUTOFF_DATE" ]]; then
+            # Check if older than cutoff OR untagged (delete all non-protected images older than cutoff, plus untagged)
+            if [[ "$CREATED_AT" < "$CUTOFF_DATE" ]] || [[ -z "$TAGS" ]]; then
               echo "✗ DELETING version ${VERSION_ID} - Created: ${CREATED_AT}, Tags: ${TAG_LIST}"
               DELETE_LIST="${DELETE_LIST}${VERSION_ID}\n"
               
