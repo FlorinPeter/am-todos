@@ -498,7 +498,7 @@ const PrioritySelector: React.FC<PrioritySelectorProps> = ({
 > **🏗 Detailed Architecture**: See [CONCEPT.md](CONCEPT.md) for complete technical architecture documentation
 
 ### **Core Technologies**
-- **Frontend:** React 19.1.0 with TypeScript and TailwindCSS 3.4.17
+- **Frontend:** React 19.1.0 with TypeScript and TailwindCSS 4.1.11
 - **Backend:** Express 5.1.0 with AI integration proxy
 - **Markdown:** `react-markdown` with `remark-gfm` for GitHub-flavored markdown
 - **External APIs:** GitHub/GitLab APIs for data storage, Google Gemini/OpenRouter for AI

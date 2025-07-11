@@ -181,7 +181,7 @@ isArchived: false
 
 ### Technology Stack Specifics
 - **React 19.1.0** with TypeScript and hooks-based state management
-- **TailwindCSS 3.4.17** with PostCSS configuration and responsive design
+- **TailwindCSS 4.1.11** with @tailwindcss/vite plugin and responsive design
 - **Express 5.1.0** backend with CORS enabled
 - **QR Code Library**: `qrcode` package for generating configuration QR codes
 - **Create React App** build system (do not eject)
@@ -189,9 +189,10 @@ isArchived: false
 
 ## Development Notes
 
-### PostCSS Configuration
-- Uses `tailwindcss` and `autoprefixer` plugins
-- Configuration in `postcss.config.js` - maintain object format for compatibility
+### TailwindCSS Configuration
+- Uses TailwindCSS v4 with dedicated `@tailwindcss/vite` plugin
+- No longer requires `postcss.config.js` or `tailwind.config.js` files
+- Configuration is CSS-based using `@import "tailwindcss"` in index.css
 
 ### State Management Pattern
 - React hooks with useCallback optimization for performance

@@ -254,6 +254,6 @@ This project is open source and available under the MIT License.
 
 ---
 
-**Made with ❤️ using React, TypeScript, TailwindCSS, Google Gemini AI, and Claude Code**
+**Made with ❤️ using React, TypeScript, TailwindCSS v4, Google Gemini AI, and Claude Code**
 
 *Transform your repository into an intelligent task management system today!*
