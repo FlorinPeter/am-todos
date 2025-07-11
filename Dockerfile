@@ -1,5 +1,5 @@
 # Multi-stage build for production-ready container
-FROM node:18-alpine AS frontend-builder
+FROM node:24-alpine AS frontend-builder
 
 # Set working directory for frontend build
 WORKDIR /app
@@ -35,7 +35,7 @@ COPY src/ ./src/
 RUN npm run build
 
 # Stage 2: Backend build
-FROM node:18-alpine AS backend-builder
+FROM node:24-alpine AS backend-builder
 
 # Set working directory for backend
 WORKDIR /app/server
@@ -47,7 +47,7 @@ COPY server/package*.json ./
 RUN npm ci --only=production
 
 # Stage 3: Production runtime
-FROM node:18-alpine AS runtime
+FROM node:24-alpine AS runtime
 
 # Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init
