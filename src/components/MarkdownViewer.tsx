@@ -449,7 +449,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
       {/* AI Chat - available in both modes, uses appropriate content */}
       <div className="relative">
         {hasUnsavedChanges && (
-          <div className="bg-blue-900 bg-opacity-50 text-blue-200 text-sm p-2 border-t border-blue-700">
+          <div className="bg-blue-900/50 text-blue-200 text-sm p-2 border-t border-blue-700">
             💡 AI changes will be applied to your draft. Use the Save button above to commit changes.
           </div>
         )}

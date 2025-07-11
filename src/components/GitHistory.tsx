@@ -82,7 +82,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <div className="bg-gray-800 rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-hidden border border-gray-700">
           <div className="flex justify-center items-center h-32">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -95,7 +95,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
 
   if (error) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <div className="bg-gray-800 rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-hidden border border-gray-700">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold text-white">Git History Error</h2>
@@ -119,7 +119,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start sm:items-center justify-center z-50 p-2 sm:p-4 pt-8 sm:pt-4 pb-4">
+    <div className="fixed inset-0 bg-black/50 flex items-start sm:items-center justify-center z-50 p-2 sm:p-4 pt-8 sm:pt-4 pb-4">
       <div className="bg-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-6xl max-h-[85vh] sm:max-h-[95vh] overflow-hidden flex flex-col border border-gray-700 mt-4 sm:mt-0">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-base sm:text-xl font-bold text-white truncate pr-2 leading-tight">Git History</h2>
