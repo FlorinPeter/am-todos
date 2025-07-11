@@ -179,7 +179,7 @@ isArchived: false
 - **Folder Support**: Defaults to 'todos' for backward compatibility, can be changed to any folder name
 - **Proxy**: Frontend configured to proxy `/api` requests to `localhost:3001`
 
-### Technology Stack Specifics
+### Technology Stack Specifics {#technology-stack-specifics}
 - **React 19.1.0** with TypeScript and hooks-based state management
 - **TailwindCSS 4.1.11** with @tailwindcss/vite plugin and responsive design
 - **Express 5.1.0** backend with CORS enabled
