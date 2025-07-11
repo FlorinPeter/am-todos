@@ -57,37 +57,85 @@ jobs:
           REPO_OWNER="${{ github.repository_owner }}"
           PACKAGE_NAME="${{ github.event.repository.name }}"
           
-          VERSIONS=$(gh api \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "/orgs/${REPO_OWNER}/packages/container/${PACKAGE_NAME}/versions" \
-            --paginate \
-            --jq '.[] | select(.metadata.container.tags[] | contains("pr-'${PR_NUMBER}'")) | .id' || \
-          gh api \
+          # Check if package exists and get versions
+          echo "Checking for package versions..."
+          
+          # Try user packages first (personal repos), then org packages
+          VERSIONS_JSON=""
+          if VERSIONS_JSON=$(gh api \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "/users/${REPO_OWNER}/packages/container/${PACKAGE_NAME}/versions" \
-            --paginate \
-            --jq '.[] | select(.metadata.container.tags[] | contains("pr-'${PR_NUMBER}'")) | .id')
+            --paginate 2>/dev/null); then
+            echo "Found package under user account"
+            API_BASE="/users/${REPO_OWNER}/packages/container/${PACKAGE_NAME}/versions"
+          elif VERSIONS_JSON=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/orgs/${REPO_OWNER}/packages/container/${PACKAGE_NAME}/versions" \
+            --paginate 2>/dev/null); then
+            echo "Found package under organization"
+            API_BASE="/orgs/${REPO_OWNER}/packages/container/${PACKAGE_NAME}/versions"
+          else
+            echo "No package found or no access to package registry"
+            echo "This could be because:"
+            echo "1. No Docker images have been pushed yet"
+            echo "2. Package name doesn't match repository name"
+            echo "3. Package is private and lacks permissions"
+            exit 0
+          fi
+          
+          # Find versions with PR tag
+          PR_TAG="pr-${PR_NUMBER}"
+          echo "Searching for versions with tag: ${PR_TAG}"
+          
+          # Debug: Show raw JSON response
+          echo "Debug: Raw API response:"
+          echo "$VERSIONS_JSON" | jq '.' 2>/dev/null || echo "Failed to parse JSON: $VERSIONS_JSON"
+          
+          # Extract version IDs for this PR (ensure we get integers)
+          echo "Debug: Searching for tags containing: $PR_TAG"
+          VERSION_IDS=$(echo "$VERSIONS_JSON" | jq -r --arg pr_tag "$PR_TAG" '
+            .[] | 
+            select(.metadata.container.tags[]? | contains($pr_tag)) | 
+            "\(.id) (tags: \(.metadata.container.tags | join(",")))"
+          ' 2>/dev/null || echo "")
+          
+          echo "Debug: Found matching versions:"
+          echo "$VERSION_IDS"
+          
+          # Extract just the IDs (integers only)
+          CLEAN_VERSION_IDS=$(echo "$VERSION_IDS" | grep -oE '^[0-9]+' || true)
+          
+          if [[ -z "$CLEAN_VERSION_IDS" ]]; then
+            echo "No images found with PR tag: ${PR_TAG}"
+            echo "Available tags:"
+            echo "$VERSIONS_JSON" | jq -r '.[] | .metadata.container.tags[]?' 2>/dev/null | sort | uniq | head -10 || echo "No tags found"
+            exit 0
+          fi
+          
+          echo "Found $(echo "$CLEAN_VERSION_IDS" | wc -w) version(s) to delete:"
+          echo "$CLEAN_VERSION_IDS"
           
           # Delete each version
-          for VERSION_ID in $VERSIONS; do
-            echo "Deleting version ${VERSION_ID} with PR tag pr-${PR_NUMBER}"
-            if [[ "${{ github.event.inputs.dry_run }}" != "true" ]]; then
-              gh api \
+          for VERSION_ID in $CLEAN_VERSION_IDS; do
+            if [[ -n "$VERSION_ID" && "$VERSION_ID" =~ ^[0-9]+$ ]]; then
+              echo "Deleting version ID: ${VERSION_ID}"
+              if gh api \
                 --method DELETE \
                 -H "Accept: application/vnd.github+json" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
-                "/orgs/${REPO_OWNER}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}" || \
-              gh api \
-                --method DELETE \
-                -H "Accept: application/vnd.github+json" \
-                -H "X-GitHub-Api-Version: 2022-11-28" \
-                "/users/${REPO_OWNER}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}"
+                "${API_BASE}/${VERSION_ID}" 2>/dev/null; then
+                echo "✓ Successfully deleted version ${VERSION_ID}"
+              else
+                echo "✗ Failed to delete version ${VERSION_ID} (may have been already deleted)"
+              fi
             else
-              echo "[DRY RUN] Would delete version ${VERSION_ID}"
+              echo "⚠️ Skipping invalid version ID: ${VERSION_ID}"
             fi
           done
+          
+          echo "PR image cleanup completed"
 
       # Scheduled/manual cleanup - delete old images (keep only today's)
       - name: Delete old images (except main and tagged)
