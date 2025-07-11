@@ -53,10 +53,19 @@ jobs:
           echo "Cleaning up images for closed PR #${PR_NUMBER}"
           
           # Get all versions for this package
+          REPO_OWNER="${{ github.repository_owner }}"
+          PACKAGE_NAME="${IMAGE_NAME##*/}"
+          
           VERSIONS=$(gh api \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "/user/packages/container/${IMAGE_NAME##*/}/versions" \
+            "/orgs/${REPO_OWNER}/packages/container/${PACKAGE_NAME}/versions" \
+            --paginate \
+            --jq '.[] | select(.metadata.container.tags[] | contains("pr-'${PR_NUMBER}'")) | .id' || \
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/users/${REPO_OWNER}/packages/container/${PACKAGE_NAME}/versions" \
             --paginate \
             --jq '.[] | select(.metadata.container.tags[] | contains("pr-'${PR_NUMBER}'")) | .id')
           
@@ -68,7 +77,12 @@ jobs:
                 --method DELETE \
                 -H "Accept: application/vnd.github+json" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
-                "/user/packages/container/${IMAGE_NAME##*/}/versions/${VERSION_ID}"
+                "/orgs/${REPO_OWNER}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}" || \
+              gh api \
+                --method DELETE \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "/users/${REPO_OWNER}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}"
             else
               echo "[DRY RUN] Would delete version ${VERSION_ID}"
             fi
@@ -104,18 +118,28 @@ jobs:
           echo ""
           
           # Get all versions
+          REPO_OWNER="${{ github.repository_owner }}"
+          PACKAGE_NAME="${IMAGE_NAME##*/}"
+          
           VERSIONS=$(gh api \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "/user/packages/container/${IMAGE_NAME##*/}/versions" \
+            "/orgs/${REPO_OWNER}/packages/container/${PACKAGE_NAME}/versions" \
+            --paginate \
+            --jq '.[]' 2>/dev/null || \
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/users/${REPO_OWNER}/packages/container/${PACKAGE_NAME}/versions" \
             --paginate \
             --jq '.[]')
           
           # Process each version
-          DELETE_COUNT=0
-          SKIP_COUNT=0
+          ACTIONS_LOG=""
+          DELETE_LIST=""
+          KEEP_LIST=""
           
-          echo "$VERSIONS" | jq -c '.' | while read -r VERSION; do
+          while IFS= read -r VERSION; do
             VERSION_ID=$(echo "$VERSION" | jq -r '.id')
             CREATED_AT=$(echo "$VERSION" | jq -r '.created_at')
             TAGS=$(echo "$VERSION" | jq -r '.metadata.container.tags[]' 2>/dev/null || echo "")
@@ -137,29 +161,38 @@ jobs:
             
             if [[ "$PROTECTED" == "true" ]]; then
               echo "✓ KEEPING version ${VERSION_ID} - Protected tags: ${TAG_LIST}"
-              ((SKIP_COUNT++))
+              KEEP_LIST="${KEEP_LIST}${VERSION_ID}\n"
               continue
             fi
             
             # Check if older than cutoff (delete all non-protected images older than cutoff)
             if [[ "$CREATED_AT" < "$CUTOFF_DATE" ]]; then
               echo "✗ DELETING version ${VERSION_ID} - Created: ${CREATED_AT}, Tags: ${TAG_LIST}"
-              ((DELETE_COUNT++))
+              DELETE_LIST="${DELETE_LIST}${VERSION_ID}\n"
               
               if [[ "${DRY_RUN}" != "true" ]]; then
                 gh api \
                   --method DELETE \
                   -H "Accept: application/vnd.github+json" \
                   -H "X-GitHub-Api-Version: 2022-11-28" \
-                  "/user/packages/container/${IMAGE_NAME##*/}/versions/${VERSION_ID}" || true
+                  "/orgs/${REPO_OWNER}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}" || \
+                gh api \
+                  --method DELETE \
+                  -H "Accept: application/vnd.github+json" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
+                  "/users/${REPO_OWNER}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}" || true
               else
                 echo "  [DRY RUN] Would delete this version"
               fi
             else
               echo "✓ KEEPING version ${VERSION_ID} - Recent (${CREATED_AT}), Tags: ${TAG_LIST}"
-              ((SKIP_COUNT++))
+              KEEP_LIST="${KEEP_LIST}${VERSION_ID}\n"
             fi
-          done
+          done <<< "$VERSIONS"
+          
+          # Count the results
+          DELETE_COUNT=$(echo -e "$DELETE_LIST" | grep -c "^[0-9]" || echo 0)
+          SKIP_COUNT=$(echo -e "$KEEP_LIST" | grep -c "^[0-9]" || echo 0)
           
           echo ""
           echo "============================================"
@@ -180,7 +213,12 @@ jobs:
           VERSIONS=$(gh api \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "/user/packages/container/${IMAGE_NAME##*/}/versions" \
+            "/orgs/${REPO_OWNER}/packages/container/${PACKAGE_NAME}/versions" \
+            --paginate 2>/dev/null || \
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/users/${REPO_OWNER}/packages/container/${PACKAGE_NAME}/versions" \
             --paginate)
           
           TOTAL_COUNT=$(echo "$VERSIONS" | jq '. | length')
