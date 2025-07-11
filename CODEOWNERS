@@ -1,0 +1,29 @@
+# Code owners for am-todos repository
+# For more information, see: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global code owner for all files
+* @FlorinPeter
+
+# Frontend code (React, TypeScript, TailwindCSS)
+/src/ @FlorinPeter
+/public/ @FlorinPeter
+package.json @FlorinPeter
+package-lock.json @FlorinPeter
+
+# Backend code (Express, AI integrations)
+/server/ @FlorinPeter
+
+# Configuration files
+/.github/ @FlorinPeter
+/hack/ @FlorinPeter
+Dockerfile @FlorinPeter
+docker-compose.yml @FlorinPeter
+
+# Documentation
+*.md @FlorinPeter
+
+# Dependency files (will automatically assign reviewers for Dependabot PRs)
+package.json @FlorinPeter
+package-lock.json @FlorinPeter
+/server/package.json @FlorinPeter
+/server/package-lock.json @FlorinPeter
