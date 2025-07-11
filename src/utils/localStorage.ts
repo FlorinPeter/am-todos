@@ -62,22 +62,36 @@ export const loadSettings = (): GitHubSettings | null => {
 
 export const encodeSettingsToUrl = (settings: GitHubSettings): string => {
   try {
-    const settingsToEncode = {
-      pat: settings.pat,
-      owner: settings.owner,
-      repo: settings.repo,
-      folder: settings.folder,
-      geminiApiKey: settings.geminiApiKey || '',
-      aiProvider: settings.aiProvider || 'gemini',
-      openRouterApiKey: settings.openRouterApiKey || '',
-      aiModel: settings.aiModel || '',
-      gitProvider: settings.gitProvider || 'github',
-      instanceUrl: settings.instanceUrl || '',
-      projectId: settings.projectId || '',
-      token: settings.token || '',
-      branch: settings.branch || 'main'
-    };
-    const encoded = btoa(JSON.stringify(settingsToEncode));
+    // Create compressed object with short keys and only non-default values
+    const compressed: any = {};
+    
+    // Git provider (g: github=0, gitlab=1)
+    const gitProvider = settings.gitProvider || 'github';
+    if (gitProvider !== 'github') compressed.g = gitProvider === 'gitlab' ? 1 : gitProvider;
+    
+    // GitHub settings
+    if (settings.pat) compressed.p = settings.pat;
+    if (settings.owner) compressed.o = settings.owner;
+    if (settings.repo) compressed.r = settings.repo;
+    
+    // GitLab settings
+    if (settings.instanceUrl) compressed.u = settings.instanceUrl;
+    if (settings.projectId) compressed.i = settings.projectId;
+    if (settings.token) compressed.t = settings.token;
+    
+    // Common settings
+    if (settings.folder && settings.folder !== 'todos') compressed.f = settings.folder;
+    if (settings.branch && settings.branch !== 'main') compressed.b = settings.branch;
+    
+    // AI settings (a: gemini=0, openrouter=1)
+    const aiProvider = settings.aiProvider || 'gemini';
+    if (aiProvider !== 'gemini') compressed.a = aiProvider === 'openrouter' ? 1 : aiProvider;
+    
+    if (settings.geminiApiKey) compressed.gk = settings.geminiApiKey;
+    if (settings.openRouterApiKey) compressed.ok = settings.openRouterApiKey;
+    if (settings.aiModel) compressed.m = settings.aiModel;
+    
+    const encoded = btoa(JSON.stringify(compressed));
     return `${window.location.origin}${window.location.pathname}?config=${encoded}`;
   } catch (error) {
     console.error("Error encoding settings to URL", error);
@@ -88,34 +102,80 @@ export const encodeSettingsToUrl = (settings: GitHubSettings): string => {
 export const decodeSettingsFromUrl = (configParam: string): GitHubSettings | null => {
   try {
     const decoded = atob(configParam);
-    const settings = JSON.parse(decoded);
+    const compressed = JSON.parse(decoded);
     
-    // Validate required fields based on Git provider
-    const gitProvider = settings.gitProvider || 'github';
+    // Check if this is the old format (has full field names) or new compressed format
+    const isOldFormat = 'pat' in compressed || 'gitProvider' in compressed;
     
-    if (gitProvider === 'github') {
-      if (!settings.pat || !settings.owner || !settings.repo) {
-        console.error("Invalid GitHub settings configuration - missing required fields");
-        return null;
+    if (isOldFormat) {
+      // Handle legacy format
+      const settings = compressed;
+      const gitProvider = settings.gitProvider || 'github';
+      
+      if (gitProvider === 'github') {
+        if (!settings.pat || !settings.owner || !settings.repo) {
+          console.error("Invalid GitHub settings configuration - missing required fields");
+          return null;
+        }
+      } else if (gitProvider === 'gitlab') {
+        if (!settings.instanceUrl || !settings.projectId || !settings.token) {
+          console.error("Invalid GitLab settings configuration - missing required fields");
+          return null;
+        }
       }
-    } else if (gitProvider === 'gitlab') {
-      if (!settings.instanceUrl || !settings.projectId || !settings.token) {
-        console.error("Invalid GitLab settings configuration - missing required fields");
-        return null;
+      
+      settings.folder = settings.folder || 'todos';
+      settings.branch = settings.branch || 'main';
+      return settings;
+    } else {
+      // Handle new compressed format
+      const settings: GitHubSettings = {
+        pat: '',
+        owner: '',
+        repo: '',
+        folder: 'todos',
+        geminiApiKey: '',
+        aiProvider: 'gemini',
+        openRouterApiKey: '',
+        aiModel: '',
+        gitProvider: 'github',
+        instanceUrl: '',
+        projectId: '',
+        token: '',
+        branch: 'main'
+      };
+      
+      // Decompress values
+      settings.gitProvider = compressed.g === 1 ? 'gitlab' : (compressed.g || 'github');
+      settings.pat = compressed.p || '';
+      settings.owner = compressed.o || '';
+      settings.repo = compressed.r || '';
+      settings.instanceUrl = compressed.u || '';
+      settings.projectId = compressed.i || '';
+      settings.token = compressed.t || '';
+      settings.folder = compressed.f || 'todos';
+      settings.branch = compressed.b || 'main';
+      settings.aiProvider = compressed.a === 1 ? 'openrouter' : (compressed.a || 'gemini');
+      settings.geminiApiKey = compressed.gk || '';
+      settings.openRouterApiKey = compressed.ok || '';
+      settings.aiModel = compressed.m || '';
+      
+      // Validate required fields
+      const gitProvider = settings.gitProvider;
+      if (gitProvider === 'github') {
+        if (!settings.pat || !settings.owner || !settings.repo) {
+          console.error("Invalid GitHub settings configuration - missing required fields");
+          return null;
+        }
+      } else if (gitProvider === 'gitlab') {
+        if (!settings.instanceUrl || !settings.projectId || !settings.token) {
+          console.error("Invalid GitLab settings configuration - missing required fields");
+          return null;
+        }
       }
+      
+      return settings;
     }
-    
-    // Ensure folder field exists
-    if (!settings.folder) {
-      settings.folder = 'todos';
-    }
-    
-    // Ensure branch field exists
-    if (!settings.branch) {
-      settings.branch = 'main';
-    }
-    
-    return settings;
   } catch (error) {
     console.error("Error decoding settings from URL", error);
     return null;

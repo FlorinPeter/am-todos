@@ -31,10 +31,13 @@ const SettingsSharing: React.FC<SettingsSharingProps> = ({ isVisible, onClose })
       const url = encodeSettingsToUrl(settings);
       setShareUrl(url);
 
-      // Generate QR code
+      // Generate QR code with optimized settings for smaller data
       const qrDataUrl = await QRCode.toDataURL(url, {
         width: 256,
-        margin: 2,
+        margin: 1,
+        errorCorrectionLevel: 'L', // Low error correction for smaller QR code
+        type: 'image/png',
+        quality: 0.92,
         color: {
           dark: '#1f2937',
           light: '#ffffff'
@@ -75,7 +78,7 @@ const SettingsSharing: React.FC<SettingsSharingProps> = ({ isVisible, onClose })
           </div>
 
           <p className="text-gray-300 mb-6">
-            Share your configuration settings with another device or browser. The settings include your GitHub PAT, repository details, and Gemini API key.
+            Share your configuration settings with another device or browser. The settings include your Git provider credentials (GitHub/GitLab), repository details, and AI API keys.
           </p>
 
           {isGenerating ? (
