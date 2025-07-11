@@ -213,6 +213,10 @@ jobs:
           echo "## Container Registry Status" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
+          # Set variables
+          REPO_OWNER="${{ github.repository_owner }}"
+          PACKAGE_NAME="${IMAGE_NAME##*/}"
+          
           # Get current package versions
           VERSIONS=$(gh api \
             -H "Accept: application/vnd.github+json" \
