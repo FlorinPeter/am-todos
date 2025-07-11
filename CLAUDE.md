@@ -26,10 +26,6 @@ This is "Agentic Markdown Todos" - an AI-powered todo application that transform
 ```bash
 # Start both servers (recommended for development)
 ./hack/restart-dev.sh
-
-# Manual start (if needed)
-cd server && node server.js &  # Backend (port 3001)
-npm start                      # Frontend (port 3000)
 ```
 
 **Hot Reload**: Both servers support automatic reloading on code changes.  
@@ -118,7 +114,7 @@ NODE_ENV=production node server/server.js
 
 ### File Structure Patterns
 - `src/components/`: React components
-  - `GitHubSettings.tsx`: Configuration interface for GitHub PAT and repository
+  - `GitSettings.tsx`: Configuration interface for GitHub/GitLab PAT and repository
   - `SettingsSharing.tsx`: Configuration sharing modal with QR codes and copyable links
   - `MarkdownViewer.tsx`: Interactive markdown display with AI chat integration
   - `TodoSidebar.tsx`: Priority-sorted task list with mobile hamburger menu
@@ -155,11 +151,11 @@ NODE_ENV=production node server/server.js
 - Unified API endpoint (`/api/ai`) handles both providers with OpenAI-compatible format
 
 ### Markdown Processing
-- Files use **YAML frontmatter** for metadata (title, createdAt, priority, isArchived, chatHistory)
+- Files use **YAML frontmatter** for metadata (title, createdAt, priority, isArchived)
 - `react-markdown` with `remark-gfm` for GitHub-flavored markdown rendering
 - **Interactive checkboxes**: Click to toggle with real-time GitHub sync
 - **Fixed regex bug**: Proper checkbox pattern matching (`\[[ xX]\]`)
-- **Chat history storage**: Persistent AI conversation history in frontmatter
+- **Chat interface**: AI chat available but stateless (no persistent history)
 - **Priority system**: P1 (Critical/Red) to P5 (Very Low/Gray) with color coding
 - **Archive functionality**: Toggle task visibility without deletion
 
@@ -170,9 +166,6 @@ title: 'Plan a weekend trip to the mountains'
 createdAt: '2023-10-27T10:00:00.000Z'
 priority: 3
 isArchived: false
-chatHistory:
-  - role: 'user'
-    content: 'Add a task to book a cabin'
 ---
 ```
 
@@ -225,7 +218,7 @@ All core functionality is implemented and production-ready:
 ## Key Workflows
 
 ### Configuration Sharing
-1. User clicks "Share Config" in GitHub Settings → Modal opens with generation progress
+1. User clicks "Share Config" in Git Settings → Modal opens with generation progress
 2. **QR Code Generation**: Creates high-quality QR code for mobile device scanning
 3. **URL Generation**: Encodes all settings (PAT, repo details, API keys) in Base64 URL parameter
 4. **Copy/Share**: User can copy link or scan QR code to share configuration
@@ -280,10 +273,10 @@ All core functionality is implemented and production-ready:
 ### Using AI Chat Assistant
 1. User clicks "AI Chat Assistant" at bottom of task → Chat interface expands
 2. User types natural language command (e.g., "Add a step for user authentication")
-3. `processChatMessage()` calls `/api/gemini` with current content and chat history
+3. `processChatMessage()` calls `/api/gemini` with current content (stateless)
 4. AI returns updated markdown content
 5. App updates task and saves to GitHub with commit message
-6. Chat history stored in frontmatter for context
+6. AI chat updates task content without persistent history
 
 ### Managing Tasks
 - **Priority changes**: Dropdown selector (P1-P5) with color-coded badges
