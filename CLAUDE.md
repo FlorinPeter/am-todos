@@ -14,23 +14,15 @@ This is "Agentic Markdown Todos" - an AI-powered todo application that transform
 - **AI as a Partner**: AI assists with planning, task decomposition, and administrative work
 - **Markdown-Native**: Primary interface uses rich markdown for flexibility and structure
 
-### Core Features
+### Core Features Overview
+> **📋 Complete Feature List**: See [FEATURES.md](FEATURES.md) for detailed implementation evidence
+
+Key development features:
 - **AI-Powered Task Generation**: High-level goals → detailed actionable checklists
-- **Multi-Folder Support**: Organize tasks in configurable folders for different projects/contexts
-- **Two-Panel Responsive Layout**: Sidebar task list + main content area with mobile support
-- **AI Chat Assistant**: Natural language commands to modify task lists (integrated at bottom of tasks)
-- **Interactive Checkboxes**: Click to toggle task completion with real-time GitHub sync
-- **Markdown Edit Mode**: Toggle between view and edit modes with full markdown editing capabilities
-- **Task Management**: Create, edit, delete, archive, and prioritize tasks (P1-P5)
-- **Mobile-First Design**: Hamburger menu, responsive layout, touch-friendly interface
-- **Progress Tracking**: Visual progress bars for create, save, and delete operations with step-by-step feedback
-- **Smart File Naming**: User-friendly names like `2025-01-05-task-name.md` instead of timestamps
-- **Auto-Directory Setup**: Automatically creates chosen folder and `/archive` subfolder if missing
-- **Real-Time Updates**: Instant refresh and auto-selection of new tasks
-- **Conventional Commits**: AI-generated semantic commit messages for clean Git history
-- **Unsaved Changes Protection**: Clear indicators and confirmation dialogs prevent data loss
-- **Configuration Sharing**: Generate shareable URLs and QR codes for seamless setup across devices
-- **Multi-AI Provider Support**: Choose between Google Gemini or OpenRouter (400+ models including GPT, Claude, Llama)
+- **Multi-Folder Support**: Organize tasks in configurable folders for different projects
+- **Interactive Checkboxes**: Click to toggle task completion with real-time Git sync
+- **Markdown Edit Mode**: Toggle between view and edit modes with full editing capabilities
+- **Multi-AI Provider Support**: Choose between Google Gemini or OpenRouter (400+ models)
 
 ## Development Commands
 
