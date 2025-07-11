@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm';
 import AIChat from './AIChat';
 import GitHistory from './GitHistory';
 import { processChatMessage } from '../services/aiService';
+import { parseMarkdownWithFrontmatter } from '../utils/markdown';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -175,25 +176,31 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
       }
     }
     
-    // Set the restored content
-    setEditContent(restoredContent);
-    setViewContent(restoredContent);
+    // Parse the restored content to separate frontmatter from markdown for display
+    const { markdownContent } = parseMarkdownWithFrontmatter(restoredContent);
+    
+    // Set the restored content for display
+    setEditContent(markdownContent);
+    setViewContent(markdownContent);
     setHasUnsavedChanges(true); // Mark as unsaved since we need to commit the restore
     setIsEditMode(false); // Switch to view mode to show the restored content
     
-    // Optionally auto-save the restored content
+    // Optionally auto-save the restored content - pass only the markdown content 
     if (window.confirm(`Restore content from commit ${commitSha.substring(0, 7)}? This will save the restored version immediately.`)) {
-      onMarkdownChange(restoredContent);
+      onMarkdownChange(markdownContent);
       setHasUnsavedChanges(false);
     }
   };
 
   const handleCheckpointRestore = (restoredContent: string) => {
-    // Set the restored content (always mark as unsaved for manual save)
+    // Parse the restored content to separate frontmatter from markdown for display
+    const { markdownContent } = parseMarkdownWithFrontmatter(restoredContent);
+    
+    // Set the restored content for display (always mark as unsaved for manual save)
     if (isEditMode) {
-      setEditContent(restoredContent);
+      setEditContent(markdownContent);
     } else {
-      setViewContent(restoredContent);
+      setViewContent(markdownContent);
     }
     setHasUnsavedChanges(true); // Mark as unsaved since user needs to save manually
   };

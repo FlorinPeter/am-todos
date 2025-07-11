@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getFileHistory, getFileAtCommit } from '../services/gitService';
+import { parseMarkdownWithFrontmatter } from '../utils/markdown';
 
 interface GitCommit {
   sha: string;
@@ -25,6 +26,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [selectedCommit, setSelectedCommit] = useState<string | null>(null);
   const [previewContent, setPreviewContent] = useState<string | null>(null);
+  const [rawContent, setRawContent] = useState<string | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [mobileView, setMobileView] = useState<'commits' | 'preview'>('commits');
 
@@ -49,7 +51,14 @@ const GitHistory: React.FC<GitHistoryProps> = ({
       setLoadingPreview(true);
       setSelectedCommit(commitSha);
       const fileData = await getFileAtCommit(filePath, commitSha);
-      setPreviewContent(fileData.content);
+      
+      // Store the raw content for restoration
+      setRawContent(fileData.content);
+      
+      // Parse and display only the markdown content (without frontmatter)
+      const { markdownContent } = parseMarkdownWithFrontmatter(fileData.content);
+      setPreviewContent(markdownContent);
+      
       // Auto-switch to preview on mobile after selecting a commit
       setMobileView('preview');
     } catch (err) {
@@ -60,8 +69,8 @@ const GitHistory: React.FC<GitHistoryProps> = ({
   };
 
   const handleRestore = () => {
-    if (selectedCommit && previewContent) {
-      onRestore(previewContent, selectedCommit);
+    if (selectedCommit && rawContent !== null) {
+      onRestore(rawContent, selectedCommit);
       onClose();
     }
   };
@@ -190,7 +199,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
                     <h3 className="font-semibold text-gray-200">Preview</h3>
                     <button
                       onClick={handleRestore}
-                      disabled={!previewContent}
+                      disabled={rawContent === null}
                       className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       Restore This Version
@@ -262,7 +271,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
                       </button>
                       <button
                         onClick={handleRestore}
-                        disabled={!previewContent}
+                        disabled={rawContent === null}
                         className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
                         Restore

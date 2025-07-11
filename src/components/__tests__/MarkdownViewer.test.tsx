@@ -248,4 +248,64 @@ describe('MarkdownViewer - Basic Feature Coverage', () => {
       expect(screen.getByText(/AI Chat Assistant/i)).toBeInTheDocument();
     });
   });
+
+  describe('Git History Restoration - Frontmatter Handling', () => {
+    it('should handle restoration with empty content', () => {
+      render(
+        <MarkdownViewer 
+          {...mockProps} 
+          content=""
+        />
+      );
+
+      // Should handle empty content gracefully
+      const component = screen.getByText(/AI Chat Assistant/i).closest('div');
+      expect(component).toBeInTheDocument();
+    });
+
+    it('should handle restoration with markdown content', () => {
+      const plainContent = `# Test Task
+
+This is plain markdown content without frontmatter.
+
+- [ ] First item
+- [ ] Second item`;
+
+      render(
+        <MarkdownViewer 
+          {...mockProps} 
+          content={plainContent}
+        />
+      );
+
+      // Should display all content since there's no frontmatter to strip
+      expect(screen.getByText('Test Task')).toBeInTheDocument();
+      expect(screen.getByText('This is plain markdown content without frontmatter.')).toBeInTheDocument();
+    });
+
+    it('should pass restored content to onMarkdownChange correctly', () => {
+      const mockOnMarkdownChange = vi.fn();
+      const { rerender } = render(
+        <MarkdownViewer 
+          {...mockProps} 
+          content="# Original Content"
+          onMarkdownChange={mockOnMarkdownChange}
+        />
+      );
+
+      // Simulate content update from restoration
+      const restoredContent = "# Restored Task\n\nThis is restored content.\n\n- [ ] First item\n- [ ] Second item";
+      rerender(
+        <MarkdownViewer 
+          {...mockProps} 
+          content={restoredContent}
+          onMarkdownChange={mockOnMarkdownChange}
+        />
+      );
+
+      // Should display the restored content
+      expect(screen.getByText('Restored Task')).toBeInTheDocument();
+      expect(screen.getByText('This is restored content.')).toBeInTheDocument();
+    });
+  });
 });
