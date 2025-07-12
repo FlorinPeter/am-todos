@@ -446,6 +446,41 @@ describe('AIChat Component', () => {
       expect(localStorage.getChatSession).toHaveBeenCalledWith('todo-2', '/todos/test2.md');
     });
 
+    it('clears both chat history and checkpoints when clear chat is clicked', async () => {
+      window.confirm = vi.fn().mockReturnValue(true);
+      
+      render(<AIChat {...mockProps} taskId="test-task-id" />);
+      const toggleButton = screen.getByText(/AI Chat Assistant/i);
+      await userEvent.click(toggleButton);
+      
+      // Send a message to create chat history and checkpoint
+      const input = screen.getByPlaceholderText(/ask me to modify/i);
+      const sendButton = screen.getByRole('button', { name: '' });
+      
+      await userEvent.type(input, 'Test message');
+      await userEvent.click(sendButton);
+      
+      await waitFor(() => {
+        expect(screen.getByText('Test message')).toBeInTheDocument();
+        expect(screen.getByText(/checkpoint/)).toBeInTheDocument();
+      });
+      
+      // Click clear chat button
+      const clearChatButtons = screen.getAllByText(/Clear Chat/);
+      const clearChatButton = clearChatButtons[0].closest('button');
+      await userEvent.click(clearChatButton!);
+      
+      expect(window.confirm).toHaveBeenCalledWith(
+        'Clear chat history and all checkpoints? This cannot be undone.'
+      );
+      
+      // Should clear both chat history and checkpoints
+      await waitFor(() => {
+        expect(screen.queryByText('Test message')).not.toBeInTheDocument();
+        expect(screen.queryByText(/checkpoint/)).not.toBeInTheDocument();
+      });
+    });
+
     it('truncates long descriptions in checkpoint creation', async () => {
       const longMessage = 'This is a very long message that should be truncated when creating checkpoint description';
       

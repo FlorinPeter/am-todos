@@ -161,6 +161,13 @@ const AIChat: React.FC<AIChatProps> = ({
     }
   };
 
+  const handleClearChat = () => {
+    if (window.confirm('Clear chat history and all checkpoints? This cannot be undone.')) {
+      setLocalChatHistory([]);
+      setCheckpoints([]);
+    }
+  };
+
   return (
     <div className="border-t border-gray-700 mt-4">
       {/* Chat Toggle Button */}
@@ -268,7 +275,7 @@ const AIChat: React.FC<AIChatProps> = ({
                     )}
                     {localChatHistory.length > 0 && (
                       <button
-                        onClick={() => setLocalChatHistory([])}
+                        onClick={handleClearChat}
                         className="text-xs text-gray-400 hover:text-red-400 transition-colors px-2 py-1 sm:px-0 sm:py-0 rounded sm:rounded-none bg-gray-700 sm:bg-transparent"
                       >
                         <span className="sm:hidden">Clear Chat</span>
