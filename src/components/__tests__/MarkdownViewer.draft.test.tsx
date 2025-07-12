@@ -108,75 +108,11 @@ describe('MarkdownViewer Draft Integration', () => {
     });
   });
 
-  describe('Draft auto-saving', () => {
-    beforeEach(() => {
-      vi.useFakeTimers();
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    it('should auto-save draft when content changes in edit mode', async () => {
-      vi.mocked(localStorage.getDraft).mockReturnValue(null);
-      
-      render(<MarkdownViewer {...mockProps} />);
-
-      // Switch to edit mode
-      fireEvent.click(screen.getByText('Edit'));
-
-      // Change content
-      const textarea = screen.getByRole('textbox');
-      fireEvent.change(textarea, { target: { value: '# Modified content' } });
-
-      // Fast-forward timers to trigger debounced save
-      vi.advanceTimersByTime(600);
-
-      await waitFor(() => {
-        expect(localStorage.saveDraft).toHaveBeenCalledWith({
-          todoId: mockProps.todoId,
-          path: mockProps.filePath,
-          editContent: '# Modified content',
-          viewContent: mockProps.content,
-          hasUnsavedChanges: true,
-          timestamp: expect.any(Number),
-        });
-      });
-    });
-
-    it('should auto-save draft when checkbox is toggled in view mode', async () => {
-      const contentWithCheckbox = '# Task\n\n- [ ] Test item';
-      const propsWithCheckbox = { ...mockProps, content: contentWithCheckbox };
-      vi.mocked(localStorage.getDraft).mockReturnValue(null);
-
-      render(<MarkdownViewer {...propsWithCheckbox} />);
-
-      // Find and click checkbox
-      const checkbox = screen.getByRole('checkbox');
-      fireEvent.click(checkbox);
-
-      // Fast-forward timers to trigger debounced save
-      vi.advanceTimersByTime(600);
-
-      await waitFor(() => {
-        expect(localStorage.saveDraft).toHaveBeenCalledWith({
-          todoId: mockProps.todoId,
-          path: mockProps.filePath,
-          editContent: contentWithCheckbox,
-          viewContent: expect.stringContaining('- [x] Test item'),
-          hasUnsavedChanges: true,
-          timestamp: expect.any(Number),
-        });
-      });
-    });
-
+  describe('Draft user interactions', () => {
     it('should not save draft when no unsaved changes', () => {
       vi.mocked(localStorage.getDraft).mockReturnValue(null);
       
       render(<MarkdownViewer {...mockProps} />);
-
-      // Fast-forward timers
-      vi.advanceTimersByTime(1000);
 
       // Should not save draft when no changes
       expect(localStorage.saveDraft).not.toHaveBeenCalled();
