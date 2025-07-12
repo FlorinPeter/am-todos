@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { saveCheckpoint, getCheckpoints, clearCheckpoints, generateCheckpointId, Checkpoint } from '../utils/localStorage';
+import { saveCheckpoint, getCheckpoints, clearCheckpoints, generateCheckpointId, Checkpoint, saveChatSession, getChatSession, clearChatSession, AIChatSession, ChatMessage as StoredChatMessage } from '../utils/localStorage';
 import logger from '../utils/logger';
 
 interface ChatMessage {
@@ -14,6 +14,8 @@ interface AIChatProps {
   onContentUpdate: (newContent: string) => void;
   onChatMessage: (message: string, currentContent: string) => Promise<string>;
   taskId?: string; // Unique identifier for the current task
+  todoId?: string; // SHA-based unique identifier for the todo
+  filePath?: string; // File path for the todo
   onCheckpointRestore?: (content: string) => void; // Callback for checkpoint restore
 }
 
@@ -22,6 +24,8 @@ const AIChat: React.FC<AIChatProps> = ({
   onContentUpdate, 
   onChatMessage,
   taskId,
+  todoId,
+  filePath,
   onCheckpointRestore
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -35,30 +39,50 @@ const AIChat: React.FC<AIChatProps> = ({
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [localChatHistory]);
 
-  // Clear checkpoints on component mount (page refresh) and load only session checkpoints
+  // Session restoration and initialization
   useEffect(() => {
-    if (taskId) {
+    if (todoId && filePath) {
       try {
-        // Clear any persisted checkpoints on page load to make them session-only
-        clearCheckpoints(taskId);
-        setCheckpoints([]);
+        // Try to restore existing chat session
+        const savedSession = getChatSession(todoId, filePath);
+        
+        if (savedSession) {
+          // Restore session state
+          setLocalChatHistory(savedSession.chatHistory);
+          setCheckpoints(savedSession.checkpoints);
+          setIsExpanded(savedSession.isExpanded);
+          logger.log(`Chat session restored for todo: ${filePath}`);
+          return;
+        }
       } catch (error) {
-        logger.error('Error clearing checkpoints on load:', error);
-        setCheckpoints([]);
+        logger.error('Failed to restore chat session:', error);
       }
-    } else {
-      setCheckpoints([]);
     }
-  }, [taskId]);
+    
+    // No session found or no session info - initialize empty state
+    setLocalChatHistory([]);
+    setCheckpoints([]);
+    setIsExpanded(false);
+  }, [todoId, filePath]);
 
-  // Clear checkpoints and chat history when task changes
+  // Auto-save session when state changes
   useEffect(() => {
-    if (taskId) {
-      // Clear both chat history and checkpoints when switching tasks
-      setLocalChatHistory([]);
-      setCheckpoints([]);
+    if (todoId && filePath && (localChatHistory.length > 0 || checkpoints.length > 0 || isExpanded)) {
+      try {
+        const session: AIChatSession = {
+          todoId,
+          path: filePath,
+          chatHistory: localChatHistory,
+          checkpoints: checkpoints,
+          isExpanded,
+          timestamp: Date.now()
+        };
+        saveChatSession(session);
+      } catch (error) {
+        logger.error('Failed to save chat session:', error);
+      }
     }
-  }, [taskId]);
+  }, [todoId, filePath, localChatHistory, checkpoints, isExpanded]);
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;

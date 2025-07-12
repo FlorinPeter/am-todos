@@ -369,3 +369,104 @@ export const clearOtherDrafts = (currentTodoId: string): void => {
     logger.error("Error clearing other drafts from localStorage", error);
   }
 };
+
+// AI Chat Persistence
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  checkpointId?: string;
+}
+
+export interface AIChatSession {
+  todoId: string;
+  path: string;
+  chatHistory: ChatMessage[];
+  checkpoints: Checkpoint[];
+  isExpanded: boolean;
+  timestamp: number; // Unix timestamp of last activity
+}
+
+const CHAT_SESSION_KEY = 'aiChatSession';
+const CHAT_SESSION_EXPIRY_HOURS = 24; // Chat sessions expire after 24 hours
+
+export const saveChatSession = (session: AIChatSession): void => {
+  try {
+    // Clear any existing chat session first (only one session at a time)
+    localStorage.removeItem(CHAT_SESSION_KEY);
+    
+    // Save the new session with current timestamp
+    const sessionWithTimestamp = {
+      ...session,
+      timestamp: Date.now()
+    };
+    
+    localStorage.setItem(CHAT_SESSION_KEY, JSON.stringify(sessionWithTimestamp));
+    logger.log(`Chat session saved for todo: ${session.path}`);
+  } catch (error) {
+    logger.error("Error saving chat session to localStorage", error);
+  }
+};
+
+export const getChatSession = (todoId: string, path: string): AIChatSession | null => {
+  try {
+    const sessionString = localStorage.getItem(CHAT_SESSION_KEY);
+    if (!sessionString) return null;
+    
+    const session = JSON.parse(sessionString) as AIChatSession;
+    
+    // Validate session matches current todo
+    if (session.todoId !== todoId || session.path !== path) {
+      logger.log(`Chat session found but doesn't match current todo. Session: ${session.path}, Current: ${path}`);
+      return null;
+    }
+    
+    // Check if session has expired
+    if (typeof session.timestamp !== 'number') {
+      logger.log('Chat session missing timestamp - clearing');
+      clearChatSession();
+      return null;
+    }
+    
+    const expiryTime = CHAT_SESSION_EXPIRY_HOURS * 60 * 60 * 1000; // Convert hours to milliseconds
+    const sessionAge = Date.now() - session.timestamp;
+    if (sessionAge > expiryTime) {
+      logger.log(`Chat session expired (${Math.round(sessionAge / 1000 / 60 / 60)} hours old)`);
+      clearChatSession();
+      return null;
+    }
+    
+    logger.log(`Chat session restored for todo: ${path}`);
+    return session;
+  } catch (error) {
+    logger.error("Error loading chat session from localStorage", error);
+    return null;
+  }
+};
+
+export const clearChatSession = (): void => {
+  try {
+    localStorage.removeItem(CHAT_SESSION_KEY);
+    logger.log("Chat session cleared from localStorage");
+  } catch (error) {
+    logger.error("Error clearing chat session from localStorage", error);
+  }
+};
+
+export const clearOtherChatSessions = (currentTodoId: string): void => {
+  // Implementation for clearing chat sessions for other todos
+  // Since we only store one session at a time, we check if the current session
+  // belongs to a different todo and clear it if so
+  try {
+    const sessionString = localStorage.getItem(CHAT_SESSION_KEY);
+    if (sessionString) {
+      const session = JSON.parse(sessionString) as AIChatSession;
+      if (session.todoId !== currentTodoId) {
+        clearChatSession();
+        logger.log(`Cleared chat session for different todo: ${session.path}`);
+      }
+    }
+  } catch (error) {
+    logger.error("Error clearing other chat sessions", error);
+  }
+};

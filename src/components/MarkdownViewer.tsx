@@ -534,6 +534,8 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
           onContentUpdate={handleContentUpdate}
           onChatMessage={handleChatMessage}
           taskId={taskId}
+          todoId={todoId}
+          filePath={filePath}
           onCheckpointRestore={handleCheckpointRestore}
         />
       </div>
