@@ -278,3 +278,94 @@ export const clearSelectedTodoId = (): void => {
     logger.error("Error clearing selected todo ID from localStorage", error);
   }
 };
+
+// Draft Management
+export interface TodoDraft {
+  todoId: string;          // SHA-based ID for the todo
+  path: string;            // File path for validation
+  editContent: string;     // The edited markdown content
+  viewContent: string;     // The view mode content (with checkbox states)
+  hasUnsavedChanges: boolean;
+  timestamp: number;       // Unix timestamp of last save
+}
+
+const DRAFT_KEY = 'todoDraft';
+const DRAFT_EXPIRY_HOURS = 24; // Drafts expire after 24 hours
+
+export const saveDraft = (draft: TodoDraft): void => {
+  try {
+    // Clear any existing drafts first (only one draft at a time)
+    localStorage.removeItem(DRAFT_KEY);
+    
+    // Save the new draft with current timestamp
+    const draftWithTimestamp = {
+      ...draft,
+      timestamp: Date.now()
+    };
+    
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draftWithTimestamp));
+    logger.log(`Draft saved for todo: ${draft.path}`);
+  } catch (error) {
+    logger.error("Error saving draft to localStorage", error);
+  }
+};
+
+export const getDraft = (todoId: string, path: string): TodoDraft | null => {
+  try {
+    const draftString = localStorage.getItem(DRAFT_KEY);
+    if (!draftString) return null;
+    
+    const draft = JSON.parse(draftString) as TodoDraft;
+    
+    // Validate draft matches current todo
+    if (draft.todoId !== todoId || draft.path !== path) {
+      logger.log(`Draft found but doesn't match current todo. Draft: ${draft.path}, Current: ${path}`);
+      return null;
+    }
+    
+    // Check if draft has expired
+    const expiryTime = DRAFT_EXPIRY_HOURS * 60 * 60 * 1000; // Convert hours to milliseconds
+    const draftAge = Date.now() - draft.timestamp;
+    if (draftAge > expiryTime) {
+      logger.log(`Draft expired (${Math.round(draftAge / 1000 / 60 / 60)} hours old)`);
+      clearDraft();
+      return null;
+    }
+    
+    logger.log(`Draft restored for todo: ${path}`);
+    return draft;
+  } catch (error) {
+    logger.error("Error loading draft from localStorage", error);
+    return null;
+  }
+};
+
+export const clearDraft = (): void => {
+  try {
+    const draftString = localStorage.getItem(DRAFT_KEY);
+    if (draftString) {
+      const draft = JSON.parse(draftString) as TodoDraft;
+      logger.log(`Clearing draft for todo: ${draft.path}`);
+    }
+    localStorage.removeItem(DRAFT_KEY);
+  } catch (error) {
+    logger.error("Error clearing draft from localStorage", error);
+  }
+};
+
+export const clearOtherDrafts = (currentTodoId: string): void => {
+  try {
+    const draftString = localStorage.getItem(DRAFT_KEY);
+    if (!draftString) return;
+    
+    const draft = JSON.parse(draftString) as TodoDraft;
+    
+    // Clear draft if it's for a different todo
+    if (draft.todoId !== currentTodoId) {
+      logger.log(`Clearing draft for different todo: ${draft.path}`);
+      clearDraft();
+    }
+  } catch (error) {
+    logger.error("Error clearing other drafts from localStorage", error);
+  }
+};
