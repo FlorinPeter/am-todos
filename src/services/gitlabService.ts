@@ -309,36 +309,44 @@ export const getProject = async (settings: GitLabSettings) => {
 
 export const listProjectFolders = async (settings: GitLabSettings): Promise<string[]> => {
   try {
-    // GitLab API doesn't reliably return directories in root listing
-    // So we'll try to discover directories by testing known patterns
-    const potentialFolders = [
-      'todos', 'todo', 'tasks', 'task', 'work', 'personal', 'projects', 'project',
-      'test', 'test1', 'test2', 'main', 'dev', 'work-tasks', 'personal-tasks'
-    ];
+    logger.log('GitLab: Discovering actual repository directories...');
     
-    const existingFolders: string[] = [];
+    // Use GitLab repository tree API to get actual directories at root level
+    const response = await makeGitLabRequest('getRepositoryTree', settings, { 
+      path: '', // Root level
+      recursive: false // Only top-level directories
+    });
     
-    // Test each potential folder by trying to access it
-    for (const folderName of potentialFolders) {
-      try {
-        const testResponse = await makeGitLabRequest('listFiles', settings, { path: folderName });
-        if (testResponse.ok) {
-          existingFolders.push(folderName);
-          logger.log(`GitLab: Found existing folder: ${folderName}`);
-        }
-      } catch (error) {
-        // Folder doesn't exist, continue
-      }
+    const treeItems = await response.json();
+    logger.log('GitLab: Raw tree response:', treeItems.length, 'items');
+    
+    // Filter for directories only (type === 'tree')
+    const directories = treeItems
+      .filter((item: any) => item.type === 'tree')
+      .map((item: any) => item.name);
+    
+    logger.log('GitLab: Found actual directories:', directories);
+    
+    // Filter directories that might be project folders (contain common patterns or be reasonably named)
+    const projectFolders = directories.filter((name: string) => 
+      // Include common project folder patterns
+      name.includes('todo') || 
+      name.includes('task') || 
+      name.includes('project') ||
+      name.includes('work') ||
+      name.includes('personal') ||
+      name === 'todos' || // Default
+      name.match(/^[a-zA-Z][a-zA-Z0-9_-]*$/) // Valid folder names (exclude system folders like .git, .github, etc.)
+    );
+    
+    logger.log('GitLab: Filtered project folders:', projectFolders);
+    
+    // Always include 'todos' as default if no project folders found
+    if (projectFolders.length === 0) {
+      projectFolders.push('todos');
     }
     
-    // Always include 'todos' as default if no folders found
-    if (existingFolders.length === 0) {
-      existingFolders.push('todos');
-    }
-    
-    logger.log('GitLab discovered folders:', existingFolders);
-    
-    return [...new Set(existingFolders)]; // Remove duplicates
+    return [...new Set(projectFolders)]; // Remove duplicates
   } catch (error) {
     logger.error('Error listing GitLab project folders:', error);
     return ['todos']; // Default fallback

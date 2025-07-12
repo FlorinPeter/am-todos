@@ -206,6 +206,10 @@ app.post('/api/gitlab', async (req, res) => {
         result = await gitlab.getFileAtCommit(params.filePath, params.sha);
         break;
 
+      case 'getRepositoryTree':
+        result = await gitlab.getRepositoryTree(params.path || '', params.recursive || false, branch);
+        break;
+
       default:
         return res.status(400).json({ error: 'Unknown action' });
     }
