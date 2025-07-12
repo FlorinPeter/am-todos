@@ -35,6 +35,7 @@ const AIChat: React.FC<AIChatProps> = ({
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const isMountedRef = useRef(true);
+  const isProcessingRef = useRef(false);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -42,6 +43,7 @@ const AIChat: React.FC<AIChatProps> = ({
 
   // Cleanup effect to mark component as unmounted
   useEffect(() => {
+    isMountedRef.current = true; // Ensure it's set to true on mount
     return () => {
       isMountedRef.current = false;
     };
@@ -105,6 +107,7 @@ const AIChat: React.FC<AIChatProps> = ({
     setLocalChatHistory(newLocalHistory);
     setInputMessage('');
     setIsLoading(true);
+    isProcessingRef.current = true;
 
     // Create checkpoint BEFORE AI response to capture the state before changes
     const checkpointId = generateCheckpointId();
@@ -125,12 +128,12 @@ const AIChat: React.FC<AIChatProps> = ({
       const updatedContent = await onChatMessage(inputMessage.trim(), currentContent);
       
       // Check if component is still mounted before updating state
-      // TEMPORARILY DISABLED: Seems to be incorrectly detecting unmount
-      // if (!isMountedRef.current) {
-      //   logger.log('Component unmounted, skipping state update');
-      //   return;
-      // }
-      logger.log('Processing successful AI response, updating state', { isMounted: isMountedRef.current });
+      // Only skip if unmounted AND not currently processing (to handle remount during requests)
+      if (!isMountedRef.current && !isProcessingRef.current) {
+        logger.log('Component unmounted and not processing, skipping state update');
+        return;
+      }
+      logger.log('Processing successful AI response, updating state', { isMounted: isMountedRef.current, isProcessing: isProcessingRef.current });
       
       const assistantMessage: ChatMessage = {
         role: 'assistant',
@@ -146,8 +149,11 @@ const AIChat: React.FC<AIChatProps> = ({
       logger.error('Error processing chat message:', error);
       
       // Check if component is still mounted before updating state
-      // TEMPORARILY DISABLED: Seems to be incorrectly detecting unmount
-      // if (!isMountedRef.current) return;
+      // Only skip if unmounted AND not currently processing
+      if (!isMountedRef.current && !isProcessingRef.current) {
+        logger.log('Component unmounted and not processing, skipping error state update');
+        return;
+      }
       
       // Provide more specific error messages to help with debugging
       let errorContent = 'Sorry, I encountered an error processing your request.';
@@ -168,11 +174,18 @@ const AIChat: React.FC<AIChatProps> = ({
       };
       setLocalChatHistory([...newLocalHistory, errorMessage]);
     } finally {
-      // Check if component is still mounted before updating state
-      // TEMPORARILY DISABLED: Always clear loading state
-      // if (isMountedRef.current) {
+      // Always clear processing flag and loading state to prevent stuck UI
+      const wasProcessing = isProcessingRef.current;
+      isProcessingRef.current = false;
+      
+      // Always clear loading state if we were processing to prevent stuck UI
+      // Only skip if component is unmounted AND we weren't processing
+      if (isMountedRef.current || wasProcessing) {
         setIsLoading(false);
-      // }
+        logger.log('Clearing loading state', { isMounted: isMountedRef.current, wasProcessing });
+      } else {
+        logger.log('Skipping loading state clear - component unmounted and not processing');
+      }
     }
   };
 

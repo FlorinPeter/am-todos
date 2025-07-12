@@ -161,7 +161,7 @@ export const processChatMessage = async (
     }
 
     const data = await response.json();
-    logger.log('AI Service: Response received successfully', { data, hasText: !!data.text, textLength: data.text?.length });
+    logger.log('AI Service: Response received successfully', { hasText: !!data.text, textLength: data.text?.length });
     return data.text;
   } catch (error) {
     logger.error('AI Service: processChatMessage error:', error);
