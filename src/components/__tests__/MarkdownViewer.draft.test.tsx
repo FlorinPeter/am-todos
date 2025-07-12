@@ -70,6 +70,9 @@ describe('MarkdownViewer Draft Integration', () => {
 
       // Should show draft restored indicator
       expect(screen.getByText('• Draft restored')).toBeInTheDocument();
+      
+      // Should automatically enter edit mode when draft is restored
+      expect(screen.getByRole('textbox')).toBeInTheDocument();
     });
 
     it('should use original content when no draft exists', () => {
@@ -130,7 +133,7 @@ describe('MarkdownViewer Draft Integration', () => {
       fireEvent.click(saveButton);
 
       expect(localStorage.clearDraft).toHaveBeenCalled();
-      expect(mockProps.onMarkdownChange).toHaveBeenCalledWith(mockDraft.viewContent);
+      expect(mockProps.onMarkdownChange).toHaveBeenCalledWith(mockDraft.editContent);
     });
 
     it('should clear draft when canceling changes', async () => {

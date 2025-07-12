@@ -50,11 +50,12 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
         const savedDraft = getDraft(todoId, filePath);
         
         if (savedDraft) {
-          // Restore draft content
+          // Restore draft content and enter edit mode
           setEditContent(savedDraft.editContent);
           setViewContent(savedDraft.viewContent);
           setHasUnsavedChanges(savedDraft.hasUnsavedChanges);
           setDraftRestored(true);
+          setIsEditMode(true); // Automatically enter edit mode when draft is restored
           logger.log(`Draft restored for todo: ${filePath}`);
           return;
         }
