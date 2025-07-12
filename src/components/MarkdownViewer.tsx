@@ -169,27 +169,15 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   };
 
   const handleEditModeToggle = () => {
-    if (hasUnsavedChanges) {
-      if (window.confirm('You have unsaved changes. Are you sure you want to switch modes?')) {
-        if (isEditMode) {
-          // Switching from edit to view - sync viewContent with editContent
-          setViewContent(editContent);
-          setIsEditMode(false);
-        } else {
-          // Switching from view to edit - sync editContent with viewContent
-          setEditContent(viewContent);
-          setIsEditMode(true);
-        }
-      }
+    // Mode switching is always safe since content gets synced between edit and view states
+    if (isEditMode) {
+      // Switching from edit to view - sync viewContent with editContent
+      setViewContent(editContent);
+      setIsEditMode(false);
     } else {
-      setIsEditMode(!isEditMode);
-      if (!isEditMode) {
-        // Switching to edit mode - sync editContent with viewContent
-        setEditContent(viewContent);
-      } else {
-        // Switching to view mode - sync viewContent with editContent
-        setViewContent(editContent);
-      }
+      // Switching from view to edit - sync editContent with viewContent
+      setEditContent(viewContent);
+      setIsEditMode(true);
     }
   };
 
