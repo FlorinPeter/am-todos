@@ -46,12 +46,9 @@ const getAISettings = () => {
 };
 
 export const generateInitialPlan = async (goal: string) => {
-  logger.log('AI Service: Generating initial plan for goal:', goal);
-  
   try {
     const aiSettings = getAISettings();
     const apiUrl = getApiUrl();
-    logger.log('AI Service: Using API URL:', apiUrl);
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -66,8 +63,6 @@ export const generateInitialPlan = async (goal: string) => {
       }),
     });
 
-    logger.log('AI Service: Response status:', response.status);
-
     if (!response.ok) {
       const errorText = await response.text();
       logger.error('AI Service error response:', errorText);
@@ -75,7 +70,6 @@ export const generateInitialPlan = async (goal: string) => {
     }
 
     const data = await response.json();
-    logger.log('AI Service: Plan generated successfully, length:', data.text?.length || 0);
     return data.text;
   } catch (error) {
     logger.error('AI Service: Network or fetch error:', error);
@@ -90,7 +84,6 @@ export const generateCommitMessage = async (changeDescription: string) => {
   try {
     const aiSettings = getAISettings();
     const apiUrl = getApiUrl();
-    logger.log('AI Service: Using API URL:', apiUrl);
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -128,12 +121,8 @@ export const processChatMessage = async (
   chatHistory: Array<{ role: string; content: string }>
 ) => {
   try {
-    logger.log('AI Service: Starting processChatMessage');
     const aiSettings = getAISettings();
-    logger.log('AI Service: Settings loaded successfully', { provider: aiSettings.provider, hasApiKey: !!aiSettings.apiKey });
-    
     const apiUrl = getApiUrl();
-    logger.log('AI Service: Using API URL:', apiUrl);
     const response = await fetch(apiUrl, {
     method: 'POST',
     headers: {
@@ -152,8 +141,6 @@ export const processChatMessage = async (
     }),
   });
 
-    logger.log('AI Service: Fetch request sent, response status:', response.status);
-
     if (!response.ok) {
       const errorText = await response.text();
       logger.error('AI Service: API error response:', errorText);
@@ -161,7 +148,6 @@ export const processChatMessage = async (
     }
 
     const data = await response.json();
-    logger.log('AI Service: Response received successfully', { hasText: !!data.text, textLength: data.text?.length });
     return data.text;
   } catch (error) {
     logger.error('AI Service: processChatMessage error:', error);

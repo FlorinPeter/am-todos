@@ -164,7 +164,6 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
       setEditContent(newContent);
       setViewContent(newContent);
       setHasUnsavedChanges(newContent !== content);
-      logger.log('AI updated content - switched to edit mode for draft persistence');
     }
     // No chat history saving - AI chat is now stateless
   };
@@ -206,7 +205,6 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
 
   const handleSave = () => {
     const contentToSave = isEditMode ? editContent : viewContent;
-    logger.log('MarkdownViewer: Saving content...', contentToSave.substring(0, 100));
     
     // Clear draft since we're saving to GitHub
     try {

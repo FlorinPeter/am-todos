@@ -133,7 +133,6 @@ const AIChat: React.FC<AIChatProps> = ({
         logger.log('Component unmounted and not processing, skipping state update');
         return;
       }
-      logger.log('Processing successful AI response, updating state', { isMounted: isMountedRef.current, isProcessing: isProcessingRef.current });
       
       const assistantMessage: ChatMessage = {
         role: 'assistant',
@@ -182,9 +181,6 @@ const AIChat: React.FC<AIChatProps> = ({
       // Only skip if component is unmounted AND we weren't processing
       if (isMountedRef.current || wasProcessing) {
         setIsLoading(false);
-        logger.log('Clearing loading state', { isMounted: isMountedRef.current, wasProcessing });
-      } else {
-        logger.log('Skipping loading state clear - component unmounted and not processing');
       }
     }
   };
