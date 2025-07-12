@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import MarkdownViewer from './MarkdownViewer';
 import { formatDate } from '../utils/dateFormat';
+import { clearOtherDrafts, clearOtherChatSessions } from '../utils/localStorage';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -59,6 +60,19 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
 }) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState('');
+
+  // Clear drafts and chat sessions for other todos when selectedTodo changes
+  React.useEffect(() => {
+    if (selectedTodo) {
+      try {
+        clearOtherDrafts(selectedTodo.id);
+        clearOtherChatSessions(selectedTodo.id);
+      } catch (error) {
+        // Silently handle localStorage errors - cleanup is not critical
+        console.warn('Failed to clear other drafts/chat sessions:', error);
+      }
+    }
+  }, [selectedTodo?.id]);
 
   if (!selectedTodo) {
     return (
@@ -185,6 +199,7 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
           onChatHistoryChange={(newChatHistory) => onTodoUpdate(selectedTodo.id, selectedTodo.content, newChatHistory)}
           filePath={selectedTodo.path}
           taskId={selectedTodo.id}
+          todoId={selectedTodo.id}
         />
       </div>
     </div>

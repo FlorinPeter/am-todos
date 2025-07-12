@@ -15,7 +15,11 @@ vi.mock('../../utils/localStorage', () => ({
   loadSettings: vi.fn(),
   encodeSettingsToUrl: vi.fn(),
   decodeSettingsFromUrl: vi.fn(),
-  getUrlConfig: vi.fn()
+  getUrlConfig: vi.fn(),
+  saveChatSession: vi.fn(),
+  getChatSession: vi.fn(() => null),
+  clearChatSession: vi.fn(),
+  clearOtherChatSessions: vi.fn(),
 }));
 
 // Mock scrollIntoView
@@ -76,11 +80,11 @@ describe('Checkpoint System Edge Cases', () => {
 
   describe('Component Lifecycle', () => {
     it('handles taskId changes', () => {
-      const { rerender } = render(<AIChat {...mockProps} taskId="task-1" />);
+      const { rerender } = render(<AIChat {...mockProps} taskId="task-1" todoId="todo-1" filePath="/todos/test1.md" />);
       
-      rerender(<AIChat {...mockProps} taskId="task-2" />);
+      rerender(<AIChat {...mockProps} taskId="task-2" todoId="todo-2" filePath="/todos/test2.md" />);
 
-      expect(localStorage.clearCheckpoints).toHaveBeenCalledWith('task-2');
+      expect(localStorage.getChatSession).toHaveBeenCalledWith('todo-2', '/todos/test2.md');
     });
 
     it('handles component unmounting', () => {

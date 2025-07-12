@@ -5,6 +5,7 @@ import AIChat from './AIChat';
 import GitHistory from './GitHistory';
 import { processChatMessage } from '../services/aiService';
 import { parseMarkdownWithFrontmatter } from '../utils/markdown';
+import { saveDraft, getDraft, clearDraft, TodoDraft } from '../utils/localStorage';
 import logger from '../utils/logger';
 
 interface ChatMessage {
@@ -20,6 +21,7 @@ interface MarkdownViewerProps {
   onChatHistoryChange: (newChatHistory: ChatMessage[]) => void;
   filePath?: string;
   taskId?: string; // Add taskId for checkpoint management
+  todoId?: string; // SHA-based ID for draft persistence
 }
 
 const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ 
@@ -28,20 +30,75 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   onMarkdownChange, 
   onChatHistoryChange,
   filePath,
-  taskId
+  taskId,
+  todoId
 }) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editContent, setEditContent] = useState(content);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [viewContent, setViewContent] = useState(content); // Track content for view mode
   const [showHistory, setShowHistory] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false); // Track if draft was restored
 
-  // Update both editContent and viewContent when content prop changes
+  // Draft restoration and content initialization
   React.useEffect(() => {
+    setDraftRestored(false);
+    
+    // Try to restore draft if we have todoId and filePath
+    if (todoId && filePath) {
+      try {
+        const savedDraft = getDraft(todoId, filePath);
+        
+        if (savedDraft) {
+          // Restore draft content and enter edit mode
+          setEditContent(savedDraft.editContent);
+          setViewContent(savedDraft.viewContent);
+          setHasUnsavedChanges(savedDraft.hasUnsavedChanges);
+          setDraftRestored(true);
+          setIsEditMode(true); // Automatically enter edit mode when draft is restored
+          logger.log(`Draft restored for todo: ${filePath}`);
+          return;
+        }
+      } catch (error) {
+        // Handle corrupted draft data gracefully
+        logger.error('Failed to restore draft:', error);
+      }
+    }
+    
+    // No draft found or no draft info - use original content
     setEditContent(content);
     setViewContent(content);
     setHasUnsavedChanges(false);
-  }, [content]);
+  }, [content, todoId, filePath]);
+
+  // Auto-save draft when content changes
+  const saveDraftIfNeeded = React.useCallback(() => {
+    if (todoId && filePath && hasUnsavedChanges) {
+      try {
+        const draft: TodoDraft = {
+          todoId,
+          path: filePath,
+          editContent,
+          viewContent,
+          hasUnsavedChanges,
+          timestamp: Date.now()
+        };
+        saveDraft(draft);
+      } catch (error) {
+        // Handle localStorage errors gracefully - auto-save is not critical
+        logger.error('Failed to auto-save draft:', error);
+      }
+    }
+  }, [todoId, filePath, editContent, viewContent, hasUnsavedChanges]);
+
+  // Auto-save draft when content changes (debounced)
+  React.useEffect(() => {
+    if (hasUnsavedChanges) {
+      const timeoutId = setTimeout(saveDraftIfNeeded, 500); // 500ms debounce
+      return () => clearTimeout(timeoutId);
+    }
+  }, [hasUnsavedChanges, saveDraftIfNeeded]);
+
   // Create checkbox coordinate mapping (line, char position)
   const createCheckboxCoordinates = React.useMemo(() => {
     const currentContent = isEditMode ? editContent : viewContent;
@@ -101,7 +158,10 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
       setEditContent(newContent);
       setHasUnsavedChanges(newContent !== content);
     } else {
-      // In view mode, update the view content without saving
+      // In view mode, switch to edit mode and update the edit content
+      // This ensures AI updates are treated as manual edits and get drafted
+      setIsEditMode(true);
+      setEditContent(newContent);
       setViewContent(newContent);
       setHasUnsavedChanges(newContent !== content);
     }
@@ -109,27 +169,15 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   };
 
   const handleEditModeToggle = () => {
-    if (hasUnsavedChanges) {
-      if (window.confirm('You have unsaved changes. Are you sure you want to switch modes?')) {
-        if (isEditMode) {
-          // Switching from edit to view - sync viewContent with editContent
-          setViewContent(editContent);
-          setIsEditMode(false);
-        } else {
-          // Switching from view to edit - sync editContent with viewContent
-          setEditContent(viewContent);
-          setIsEditMode(true);
-        }
-      }
+    // Mode switching is always safe since content gets synced between edit and view states
+    if (isEditMode) {
+      // Switching from edit to view - sync viewContent with editContent
+      setViewContent(editContent);
+      setIsEditMode(false);
     } else {
-      setIsEditMode(!isEditMode);
-      if (!isEditMode) {
-        // Switching to edit mode - sync editContent with viewContent
-        setEditContent(viewContent);
-      } else {
-        // Switching to view mode - sync viewContent with editContent
-        setViewContent(editContent);
-      }
+      // Switching from view to edit - sync editContent with viewContent
+      setEditContent(viewContent);
+      setIsEditMode(true);
     }
   };
 
@@ -145,7 +193,14 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
 
   const handleSave = () => {
     const contentToSave = isEditMode ? editContent : viewContent;
-    logger.log('MarkdownViewer: Saving content...', contentToSave.substring(0, 100));
+    
+    // Clear draft since we're saving to GitHub
+    try {
+      clearDraft();
+    } catch (error) {
+      logger.error('Failed to clear draft:', error);
+    }
+    setDraftRestored(false);
     
     // Update the view content immediately to show the saved version
     setViewContent(contentToSave);
@@ -160,6 +215,14 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   const handleCancel = () => {
     if (hasUnsavedChanges) {
       if (window.confirm('You have unsaved changes. Are you sure you want to cancel?')) {
+        // Clear draft since we're discarding changes
+        try {
+          clearDraft();
+        } catch (error) {
+          logger.error('Failed to clear draft:', error);
+        }
+        setDraftRestored(false);
+        
         setEditContent(content);
         setViewContent(content);
         setHasUnsavedChanges(false);
@@ -223,7 +286,9 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
               {isEditMode ? 'View' : 'Edit'}
             </button>
             {hasUnsavedChanges && (
-              <span className="text-yellow-400 text-xs sm:text-sm whitespace-nowrap">• Unsaved</span>
+              <span className="text-yellow-400 text-xs sm:text-sm whitespace-nowrap">
+                • {draftRestored ? 'Draft restored' : 'Unsaved'}
+              </span>
             )}
           </div>
           
@@ -459,6 +524,8 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
           onContentUpdate={handleContentUpdate}
           onChatMessage={handleChatMessage}
           taskId={taskId}
+          todoId={todoId}
+          filePath={filePath}
           onCheckpointRestore={handleCheckpointRestore}
         />
       </div>
