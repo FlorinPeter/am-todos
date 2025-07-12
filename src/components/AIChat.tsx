@@ -34,10 +34,18 @@ const AIChat: React.FC<AIChatProps> = ({
   const [localChatHistory, setLocalChatHistory] = useState<ChatMessage[]>([]);
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [localChatHistory]);
+
+  // Cleanup effect to mark component as unmounted
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Session restoration and initialization
   useEffect(() => {
@@ -116,6 +124,9 @@ const AIChat: React.FC<AIChatProps> = ({
     try {
       const updatedContent = await onChatMessage(inputMessage.trim(), currentContent);
       
+      // Check if component is still mounted before updating state
+      if (!isMountedRef.current) return;
+      
       const assistantMessage: ChatMessage = {
         role: 'assistant',
         content: 'Task updated successfully',
@@ -128,6 +139,10 @@ const AIChat: React.FC<AIChatProps> = ({
       onContentUpdate(updatedContent);
     } catch (error) {
       logger.error('Error processing chat message:', error);
+      
+      // Check if component is still mounted before updating state
+      if (!isMountedRef.current) return;
+      
       const errorMessage: ChatMessage = {
         role: 'assistant',
         content: 'Sorry, I encountered an error processing your request.',
@@ -135,7 +150,10 @@ const AIChat: React.FC<AIChatProps> = ({
       };
       setLocalChatHistory([...newLocalHistory, errorMessage]);
     } finally {
-      setIsLoading(false);
+      // Check if component is still mounted before updating state
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
