@@ -18,6 +18,10 @@ vi.mock('../../utils/localStorage', () => ({
   clearCheckpoints: vi.fn(),
   generateCheckpointId: vi.fn(() => 'test-checkpoint-id'),
   saveSettings: vi.fn(),
+  saveChatSession: vi.fn(),
+  getChatSession: vi.fn(() => null),
+  clearChatSession: vi.fn(),
+  clearOtherChatSessions: vi.fn(),
   loadSettings: vi.fn(),
   encodeSettingsToUrl: vi.fn(),
   decodeSettingsFromUrl: vi.fn(),
@@ -201,10 +205,10 @@ describe('AIChat Component', () => {
       vi.mocked(localStorage.generateCheckpointId).mockReturnValue('test-checkpoint-id');
     });
 
-    it('clears existing checkpoints on component mount for session-only behavior', () => {
-      render(<AIChat {...mockProps} taskId="test-task-id" />);
+    it('tries to restore chat session on component mount', () => {
+      render(<AIChat {...mockProps} taskId="test-task-id" todoId="todo-123" filePath="/todos/test.md" />);
       
-      expect(localStorage.clearCheckpoints).toHaveBeenCalledWith('test-task-id');
+      expect(localStorage.getChatSession).toHaveBeenCalledWith('todo-123', '/todos/test.md');
     });
 
     it('creates checkpoint in session state only (not localStorage)', async () => {
@@ -396,8 +400,8 @@ describe('AIChat Component', () => {
         'Clear all checkpoints for this session? This cannot be undone.'
       );
       
-      // Should have called localStorage.clearCheckpoints on mount (session-only behavior)
-      expect(localStorage.clearCheckpoints).toHaveBeenCalledWith('test-task-id');
+      // Should have cleared checkpoints from the session (checkpoints are now part of chat sessions)
+      expect(screen.queryByText(/checkpoint/)).not.toBeInTheDocument();
       
       // Should clear the checkpoint count from UI
       await waitFor(() => {
@@ -432,18 +436,49 @@ describe('AIChat Component', () => {
       expect(screen.getByText('1 checkpoint')).toBeInTheDocument();
     });
 
-    it('clears chat history when taskId changes', () => {
-      const { rerender } = render(<AIChat {...mockProps} taskId="task-1" />);
+    it('tries to restore chat session when taskId changes', () => {
+      const { rerender } = render(<AIChat {...mockProps} taskId="task-1" todoId="todo-1" filePath="/todos/test1.md" />);
       
-      // Simulate user interaction to create chat history
+      // Change taskId with different todo
+      rerender(<AIChat {...mockProps} taskId="task-2" todoId="todo-2" filePath="/todos/test2.md" />);
+      
+      // Should try to restore session for new todo
+      expect(localStorage.getChatSession).toHaveBeenCalledWith('todo-2', '/todos/test2.md');
+    });
+
+    it('clears both chat history and checkpoints when clear chat is clicked', async () => {
+      window.confirm = vi.fn().mockReturnValue(true);
+      
+      render(<AIChat {...mockProps} taskId="test-task-id" />);
       const toggleButton = screen.getByText(/AI Chat Assistant/i);
-      userEvent.click(toggleButton);
+      await userEvent.click(toggleButton);
       
-      // Change taskId
-      rerender(<AIChat {...mockProps} taskId="task-2" />);
+      // Send a message to create chat history and checkpoint
+      const input = screen.getByPlaceholderText(/ask me to modify/i);
+      const sendButton = screen.getByRole('button', { name: '' });
       
-      // Should clear checkpoints for new task (session-only behavior)
-      expect(localStorage.clearCheckpoints).toHaveBeenCalledWith('task-2');
+      await userEvent.type(input, 'Test message');
+      await userEvent.click(sendButton);
+      
+      await waitFor(() => {
+        expect(screen.getByText('Test message')).toBeInTheDocument();
+        expect(screen.getByText(/checkpoint/)).toBeInTheDocument();
+      });
+      
+      // Click clear chat button
+      const clearChatButtons = screen.getAllByText(/Clear Chat/);
+      const clearChatButton = clearChatButtons[0].closest('button');
+      await userEvent.click(clearChatButton!);
+      
+      expect(window.confirm).toHaveBeenCalledWith(
+        'Clear chat history and all checkpoints? This cannot be undone.'
+      );
+      
+      // Should clear both chat history and checkpoints
+      await waitFor(() => {
+        expect(screen.queryByText('Test message')).not.toBeInTheDocument();
+        expect(screen.queryByText(/checkpoint/)).not.toBeInTheDocument();
+      });
     });
 
     it('truncates long descriptions in checkpoint creation', async () => {

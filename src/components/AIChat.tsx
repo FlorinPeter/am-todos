@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { saveCheckpoint, getCheckpoints, clearCheckpoints, generateCheckpointId, Checkpoint } from '../utils/localStorage';
+import { saveCheckpoint, getCheckpoints, clearCheckpoints, generateCheckpointId, Checkpoint, saveChatSession, getChatSession, clearChatSession, AIChatSession, ChatMessage as StoredChatMessage } from '../utils/localStorage';
 import logger from '../utils/logger';
 
 interface ChatMessage {
@@ -14,6 +14,8 @@ interface AIChatProps {
   onContentUpdate: (newContent: string) => void;
   onChatMessage: (message: string, currentContent: string) => Promise<string>;
   taskId?: string; // Unique identifier for the current task
+  todoId?: string; // SHA-based unique identifier for the todo
+  filePath?: string; // File path for the todo
   onCheckpointRestore?: (content: string) => void; // Callback for checkpoint restore
 }
 
@@ -22,6 +24,8 @@ const AIChat: React.FC<AIChatProps> = ({
   onContentUpdate, 
   onChatMessage,
   taskId,
+  todoId,
+  filePath,
   onCheckpointRestore
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -30,35 +34,63 @@ const AIChat: React.FC<AIChatProps> = ({
   const [localChatHistory, setLocalChatHistory] = useState<ChatMessage[]>([]);
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [localChatHistory]);
 
-  // Clear checkpoints on component mount (page refresh) and load only session checkpoints
+  // Cleanup effect to mark component as unmounted
   useEffect(() => {
-    if (taskId) {
-      try {
-        // Clear any persisted checkpoints on page load to make them session-only
-        clearCheckpoints(taskId);
-        setCheckpoints([]);
-      } catch (error) {
-        logger.error('Error clearing checkpoints on load:', error);
-        setCheckpoints([]);
-      }
-    } else {
-      setCheckpoints([]);
-    }
-  }, [taskId]);
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
-  // Clear checkpoints and chat history when task changes
+  // Session restoration and initialization
   useEffect(() => {
-    if (taskId) {
-      // Clear both chat history and checkpoints when switching tasks
-      setLocalChatHistory([]);
-      setCheckpoints([]);
+    if (todoId && filePath) {
+      try {
+        // Try to restore existing chat session
+        const savedSession = getChatSession(todoId, filePath);
+        
+        if (savedSession) {
+          // Restore session state
+          setLocalChatHistory(savedSession.chatHistory);
+          setCheckpoints(savedSession.checkpoints);
+          setIsExpanded(savedSession.isExpanded);
+          logger.log(`Chat session restored for todo: ${filePath}`);
+          return;
+        }
+      } catch (error) {
+        logger.error('Failed to restore chat session:', error);
+      }
     }
-  }, [taskId]);
+    
+    // No session found or no session info - initialize empty state
+    setLocalChatHistory([]);
+    setCheckpoints([]);
+    setIsExpanded(false);
+  }, [todoId, filePath]);
+
+  // Auto-save session when state changes
+  useEffect(() => {
+    if (todoId && filePath && (localChatHistory.length > 0 || checkpoints.length > 0 || isExpanded)) {
+      try {
+        const session: AIChatSession = {
+          todoId,
+          path: filePath,
+          chatHistory: localChatHistory,
+          checkpoints: checkpoints,
+          isExpanded,
+          timestamp: Date.now()
+        };
+        saveChatSession(session);
+      } catch (error) {
+        logger.error('Failed to save chat session:', error);
+      }
+    }
+  }, [todoId, filePath, localChatHistory, checkpoints, isExpanded]);
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
@@ -92,6 +124,9 @@ const AIChat: React.FC<AIChatProps> = ({
     try {
       const updatedContent = await onChatMessage(inputMessage.trim(), currentContent);
       
+      // Check if component is still mounted before updating state
+      if (!isMountedRef.current) return;
+      
       const assistantMessage: ChatMessage = {
         role: 'assistant',
         content: 'Task updated successfully',
@@ -104,6 +139,10 @@ const AIChat: React.FC<AIChatProps> = ({
       onContentUpdate(updatedContent);
     } catch (error) {
       logger.error('Error processing chat message:', error);
+      
+      // Check if component is still mounted before updating state
+      if (!isMountedRef.current) return;
+      
       const errorMessage: ChatMessage = {
         role: 'assistant',
         content: 'Sorry, I encountered an error processing your request.',
@@ -111,7 +150,10 @@ const AIChat: React.FC<AIChatProps> = ({
       };
       setLocalChatHistory([...newLocalHistory, errorMessage]);
     } finally {
-      setIsLoading(false);
+      // Check if component is still mounted before updating state
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -137,6 +179,13 @@ const AIChat: React.FC<AIChatProps> = ({
     }
   };
 
+  const handleClearChat = () => {
+    if (window.confirm('Clear chat history and all checkpoints? This cannot be undone.')) {
+      setLocalChatHistory([]);
+      setCheckpoints([]);
+    }
+  };
+
   return (
     <div className="border-t border-gray-700 mt-4">
       {/* Chat Toggle Button */}
@@ -148,7 +197,7 @@ const AIChat: React.FC<AIChatProps> = ({
           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
-          AI Chat Assistant (Session Only)
+          AI Chat Assistant
           {localChatHistory.length > 0 && (
             <span className="ml-2 px-2 py-1 text-xs bg-blue-600 text-white rounded-full">
               {localChatHistory.length}
@@ -225,7 +274,6 @@ const AIChat: React.FC<AIChatProps> = ({
                 {/* Mobile: Stack vertically, Desktop: Side by side */}
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-2 sm:space-y-0">
                   <div className="flex items-center space-x-3 sm:space-x-4">
-                    <span className="text-xs text-gray-400">Session chat (not saved)</span>
                     {checkpoints.length > 0 && (
                       <span className="text-xs text-green-400">
                         {checkpoints.length} checkpoint{checkpoints.length !== 1 ? 's' : ''}
@@ -244,7 +292,7 @@ const AIChat: React.FC<AIChatProps> = ({
                     )}
                     {localChatHistory.length > 0 && (
                       <button
-                        onClick={() => setLocalChatHistory([])}
+                        onClick={handleClearChat}
                         className="text-xs text-gray-400 hover:text-red-400 transition-colors px-2 py-1 sm:px-0 sm:py-0 rounded sm:rounded-none bg-gray-700 sm:bg-transparent"
                       >
                         <span className="sm:hidden">Clear Chat</span>
