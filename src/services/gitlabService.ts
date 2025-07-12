@@ -328,16 +328,28 @@ export const listProjectFolders = async (settings: GitLabSettings): Promise<stri
     logger.log('GitLab: Found actual directories:', directories);
     
     // Filter directories that might be project folders (contain common patterns or be reasonably named)
-    const projectFolders = directories.filter((name: string) => 
+    const projectFolders = directories.filter((name: string) => {
+      // Exclude common system/technical folders
+      const systemFolders = [
+        'src', 'lib', 'bin', 'build', 'dist', 'node_modules', '.git', '.github', 
+        '.gitlab', 'vendor', 'target', 'out', 'public', 'static', 'assets',
+        'docs', 'documentation', 'spec', 'test', 'tests', '__tests__', 'cypress',
+        'coverage', '.next', '.nuxt', '.vscode', '.idea', 'tmp', 'temp'
+      ];
+      
+      if (systemFolders.includes(name.toLowerCase())) {
+        return false;
+      }
+      
       // Include common project folder patterns
-      name.includes('todo') || 
-      name.includes('task') || 
-      name.includes('project') ||
-      name.includes('work') ||
-      name.includes('personal') ||
-      name === 'todos' || // Default
-      name.match(/^[a-zA-Z][a-zA-Z0-9_-]*$/) // Valid folder names (exclude system folders like .git, .github, etc.)
-    );
+      return name.includes('todo') || 
+             name.includes('task') || 
+             name.includes('project') ||
+             name.includes('work') ||
+             name.includes('personal') ||
+             name === 'todos' || // Default
+             name.match(/^[a-zA-Z][a-zA-Z0-9_-]*$/) // Valid folder names
+    });
     
     logger.log('GitLab: Filtered project folders:', projectFolders);
     
