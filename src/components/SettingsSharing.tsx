@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { loadSettings, encodeSettingsToUrl } from '../utils/localStorage';
 import QRCode from 'qrcode';
+import logger from '../utils/logger';
 
 interface SettingsSharingProps {
   isVisible: boolean;
@@ -24,7 +25,7 @@ const SettingsSharing: React.FC<SettingsSharingProps> = ({ isVisible, onClose })
     try {
       const settings = loadSettings();
       if (!settings) {
-        console.error('No settings found to share');
+        logger.error('No settings found to share');
         return;
       }
 
@@ -45,7 +46,7 @@ const SettingsSharing: React.FC<SettingsSharingProps> = ({ isVisible, onClose })
       });
       setQrCodeDataUrl(qrDataUrl);
     } catch (error) {
-      console.error('Error generating share URL:', error);
+      logger.error('Error generating share URL:', error);
     } finally {
       setIsGenerating(false);
     }
@@ -57,7 +58,7 @@ const SettingsSharing: React.FC<SettingsSharingProps> = ({ isVisible, onClose })
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (error) {
-      console.error('Failed to copy to clipboard:', error);
+      logger.error('Failed to copy to clipboard:', error);
     }
   };
 

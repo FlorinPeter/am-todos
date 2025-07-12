@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { saveCheckpoint, getCheckpoints, clearCheckpoints, generateCheckpointId, Checkpoint } from '../utils/localStorage';
+import logger from '../utils/logger';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -42,7 +43,7 @@ const AIChat: React.FC<AIChatProps> = ({
         clearCheckpoints(taskId);
         setCheckpoints([]);
       } catch (error) {
-        console.error('Error clearing checkpoints on load:', error);
+        logger.error('Error clearing checkpoints on load:', error);
         setCheckpoints([]);
       }
     } else {
@@ -102,7 +103,7 @@ const AIChat: React.FC<AIChatProps> = ({
       setLocalChatHistory(finalLocalHistory);
       onContentUpdate(updatedContent);
     } catch (error) {
-      console.error('Error processing chat message:', error);
+      logger.error('Error processing chat message:', error);
       const errorMessage: ChatMessage = {
         role: 'assistant',
         content: 'Sorry, I encountered an error processing your request.',
