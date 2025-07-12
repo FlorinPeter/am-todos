@@ -1,4 +1,5 @@
 import yaml from 'js-yaml';
+import logger from './logger';
 
 export interface TodoFrontmatter {
   title: string;
@@ -19,7 +20,7 @@ export const parseMarkdownWithFrontmatter = (content: string) => {
       const frontmatter = yaml.load(frontmatterYaml) as TodoFrontmatter;
       return { frontmatter, markdownContent };
     } catch (e) {
-      console.error("Error parsing YAML frontmatter:", e);
+      logger.error("Error parsing YAML frontmatter:", e);
       return { frontmatter: null, markdownContent: content };
     }
   } else {

@@ -5,6 +5,7 @@ import AIChat from './AIChat';
 import GitHistory from './GitHistory';
 import { processChatMessage } from '../services/aiService';
 import { parseMarkdownWithFrontmatter } from '../utils/markdown';
+import logger from '../utils/logger';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -144,7 +145,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
 
   const handleSave = () => {
     const contentToSave = isEditMode ? editContent : viewContent;
-    console.log('MarkdownViewer: Saving content...', contentToSave.substring(0, 100));
+    logger.log('MarkdownViewer: Saving content...', contentToSave.substring(0, 100));
     
     // Update the view content immediately to show the saved version
     setViewContent(contentToSave);

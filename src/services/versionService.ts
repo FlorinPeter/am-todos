@@ -1,3 +1,5 @@
+import logger from '../utils/logger';
+
 export interface VersionInfo {
   version: string;
   gitSha: string;
@@ -20,7 +22,7 @@ export const getVersionInfo = async (): Promise<VersionInfo> => {
     }
     return await response.json();
   } catch (error) {
-    console.error('Failed to fetch version info:', error);
+    logger.error('Failed to fetch version info:', error);
     // Return fallback version info
     return {
       version: process.env.REACT_APP_VERSION || '0.1.0',

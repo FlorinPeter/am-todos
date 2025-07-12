@@ -4,6 +4,7 @@
 import { loadSettings } from '../utils/localStorage';
 import * as githubService from './githubService';
 import * as gitlabService from './gitlabService';
+import logger from '../utils/logger';
 
 export interface GitSettings {
   // Common fields
@@ -397,14 +398,14 @@ export const getFileAtCommit = async (path: string, sha: string) => {
  */
 export const listProjectFolders = async (): Promise<string[]> => {
   const settings = getGitSettings();
-  console.log('gitService: listProjectFolders called with provider:', settings.provider);
+  logger.log('gitService: listProjectFolders called with provider:', settings.provider);
   
   if (settings.provider === 'github') {
     if (!settings.pat || !settings.owner || !settings.repo) {
       throw new Error('GitHub settings incomplete. Please configure PAT, owner, and repo.');
     }
     const folders = await githubService.listProjectFolders(settings.pat, settings.owner, settings.repo);
-    console.log('gitService: GitHub folders:', folders);
+    logger.log('gitService: GitHub folders:', folders);
     return folders;
   } else if (settings.provider === 'gitlab') {
     if (!settings.instanceUrl || !settings.projectId || !settings.token) {
@@ -417,10 +418,10 @@ export const listProjectFolders = async (): Promise<string[]> => {
         token: settings.token,
         branch: 'main'
       });
-      console.log('gitService: GitLab folders:', folders);
+      logger.log('gitService: GitLab folders:', folders);
       return folders;
     } catch (error) {
-      console.error('gitService: GitLab listProjectFolders error:', error);
+      logger.error('gitService: GitLab listProjectFolders error:', error);
       throw error;
     }
   } else {

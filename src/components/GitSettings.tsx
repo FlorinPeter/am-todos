@@ -3,6 +3,7 @@ import { saveSettings, loadSettings } from '../utils/localStorage';
 import { listProjectFolders, createProjectFolder } from '../services/gitService';
 import SettingsSharing from './SettingsSharing';
 import VersionInfo from './VersionInfo';
+import logger from '../utils/logger';
 
 interface GitSettingsProps {
   onSettingsSaved: () => void;
@@ -80,7 +81,7 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
       const folders = await listProjectFolders();
       setAvailableFolders(folders);
     } catch (error) {
-      console.error('Failed to load folders:', error);
+      logger.error('Failed to load folders:', error);
       setAvailableFolders(['todos']); // Fallback
     } finally {
       setIsLoadingFolders(false);
@@ -120,7 +121,7 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
       setNewFolderName('');
       setShowCreateFolder(false);
     } catch (error) {
-      console.error('Failed to create folder:', error);
+      logger.error('Failed to create folder:', error);
       alert('Failed to create folder: ' + (error as Error).message);
     } finally {
       setIsCreatingFolder(false);

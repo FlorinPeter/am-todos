@@ -8,6 +8,7 @@ import { loadSettings, getUrlConfig, saveSettings, saveSelectedTodoId, loadSelec
 import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDirectory, moveTaskToArchive, moveTaskFromArchive, deleteFile } from './services/gitService';
 import { generateInitialPlan, generateCommitMessage } from './services/aiService';
 import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, TodoFrontmatter } from './utils/markdown';
+import logger from './utils/logger';
 
 function App() {
   const [settings, setSettings] = useState(loadSettings());
@@ -59,17 +60,17 @@ function App() {
   const fetchTodosWithSettings = useCallback(async (useSettings?: any, useViewMode?: 'active' | 'archived', preserveTodoPath?: string) => {
     const currentSettings = useSettings || settings;
     const currentViewMode = useViewMode || viewMode;
-    console.log('Fetching todos with settings...', currentSettings ? 'Settings available' : 'No settings');
-    console.log('Current folder:', currentSettings?.folder || 'todos');
+    logger.log('Fetching todos with settings...', currentSettings ? 'Settings available' : 'No settings');
+    logger.log('Current folder:', currentSettings?.folder || 'todos');
     
     if (!currentSettings) {
-      console.log('No settings, skipping fetch');
+      logger.log('No settings, skipping fetch');
       return;
     }
     
     try {
-      console.log(`Fetching from: ${currentSettings.gitProvider || 'github'} - ${currentSettings.owner}/${currentSettings.repo} or ${currentSettings.instanceUrl}/${currentSettings.projectId}`);
-      console.log('Current timestamp:', new Date().toISOString());
+      logger.log(`Fetching from: ${currentSettings.gitProvider || 'github'} - ${currentSettings.owner}/${currentSettings.repo} or ${currentSettings.instanceUrl}/${currentSettings.projectId}`);
+      logger.log('Current timestamp:', new Date().toISOString());
       
       // Fetch both active and archived todos
       const [activeFiles, archivedFiles] = await Promise.all([
@@ -77,14 +78,14 @@ function App() {
         getTodos(currentSettings.folder || 'todos', true)
       ]);
       
-      console.log('Active files retrieved:', activeFiles.length, 'files');
-      console.log('Archived files retrieved:', archivedFiles.length, 'files');
+      logger.log('Active files retrieved:', activeFiles.length, 'files');
+      logger.log('Archived files retrieved:', archivedFiles.length, 'files');
       
       const allFiles = [...activeFiles, ...archivedFiles];
-      console.log('Total files:', allFiles.length);
+      logger.log('Total files:', allFiles.length);
       
       if (allFiles.length === 0) {
-        console.log('No todo files found, setting empty arrays');
+        logger.log('No todo files found, setting empty arrays');
         setAllTodos([]);
         setTodos([]);
         setSelectedTodoId(null);
@@ -94,11 +95,11 @@ function App() {
       
       const fetchedTodos = await Promise.all(
         allFiles.map(async (file: any) => {
-          console.log('Processing file:', file.name, 'path:', file.path);
+          logger.log('Processing file:', file.name, 'path:', file.path);
           const content = await getFileContent(file.path);
-          console.log('File content length:', content.length);
+          logger.log('File content length:', content.length);
           const { frontmatter, markdownContent } = parseMarkdownWithFrontmatter(content);
-          console.log('Parsed frontmatter:', frontmatter);
+          logger.log('Parsed frontmatter:', frontmatter);
           const todo = {
             id: file.sha, // Using SHA as a unique ID for now
             title: frontmatter?.title || file.name,
@@ -107,12 +108,12 @@ function App() {
             path: file.path,
             sha: file.sha,
           };
-          console.log('Created todo object:', { id: todo.id, title: todo.title, path: todo.path });
+          logger.log('Created todo object:', { id: todo.id, title: todo.title, path: todo.path });
           return todo;
         })
       );
-      console.log('All todos processed:', fetchedTodos.length);
-      console.log('Final todos array:', fetchedTodos.map((t: any) => ({ id: t.id, title: t.title, path: t.path })));
+      logger.log('All todos processed:', fetchedTodos.length);
+      logger.log('Final todos array:', fetchedTodos.map((t: any) => ({ id: t.id, title: t.title, path: t.path })));
       
       // Store all todos and filter based on current view mode
       setAllTodos(fetchedTodos);
@@ -120,7 +121,7 @@ function App() {
         ? fetchedTodos.filter((todo: any) => todo.path.includes('/archive/'))
         : fetchedTodos.filter((todo: any) => !todo.path.includes('/archive/'));
       
-      console.log(`Filtered todos for ${currentViewMode} view:`, filteredTodos.length);
+      logger.log(`Filtered todos for ${currentViewMode} view:`, filteredTodos.length);
       setTodos(filteredTodos);
       
       // Auto-select logic with preserve path support and localStorage persistence
@@ -129,7 +130,7 @@ function App() {
         if (preserveTodoPath) {
           const preservedTodo = filteredTodos.find((todo: any) => todo.path === preserveTodoPath);
           if (preservedTodo) {
-            console.log('Re-selected preserved todo:', preservedTodo.title);
+            logger.log('Re-selected preserved todo:', preservedTodo.title);
             return preservedTodo.id;
           }
         }
@@ -137,7 +138,7 @@ function App() {
         // Check if current selection still exists in the filtered todos
         const currentTodoExists = filteredTodos.some((todo: any) => todo.id === currentSelectedId);
         if (currentTodoExists) {
-          console.log('Keeping current selection:', filteredTodos.find((todo: any) => todo.id === currentSelectedId)?.title);
+          logger.log('Keeping current selection:', filteredTodos.find((todo: any) => todo.id === currentSelectedId)?.title);
           return currentSelectedId;
         }
         
@@ -146,7 +147,7 @@ function App() {
         if (persistedTodoId && filteredTodos.length > 0) {
           const persistedTodo = filteredTodos.find((todo: any) => todo.id === persistedTodoId);
           if (persistedTodo) {
-            console.log('Restored todo from localStorage:', persistedTodo.title);
+            logger.log('Restored todo from localStorage:', persistedTodo.title);
             return persistedTodoId;
           }
         }
@@ -154,7 +155,7 @@ function App() {
         // Finally, fall back to first todo if no selection or persisted todo exists
         if (filteredTodos.length > 0) {
           const firstTodo = filteredTodos[0];
-          console.log('Auto-selected first todo:', firstTodo.title);
+          logger.log('Auto-selected first todo:', firstTodo.title);
           return firstTodo.id;
         }
         
@@ -162,8 +163,8 @@ function App() {
       });
       
     } catch (error) {
-      console.error('Error fetching todos:', error);
-      console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+      logger.error('Error fetching todos:', error);
+      logger.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
       setTodos([]);
       setAllTodos([]);
     }
@@ -195,9 +196,9 @@ function App() {
   };
 
   const handleGoalSubmit = async (goal: string) => {
-    console.log('Goal submitted:', goal);
+    logger.log('Goal submitted:', goal);
     if (!settings) {
-      console.error('No settings available for goal submission');
+      logger.error('No settings available for goal submission');
       return;
     }
     
@@ -205,13 +206,13 @@ function App() {
       setShowNewTodoInput(false);
       setIsCreatingTask(true);
       setCreationStep('Starting...');
-      console.log('Starting todo creation process...');
+      logger.log('Starting todo creation process...');
       
       // 1. Generate Initial Plan
       setCreationStep('🤖 Generating task plan with AI...');
-      console.log('Generating initial plan...');
+      logger.log('Generating initial plan...');
       const markdownContent = await generateInitialPlan(goal);
-      console.log('Initial plan generated:', markdownContent?.substring(0, 100) + '...');
+      logger.log('Initial plan generated:', markdownContent?.substring(0, 100) + '...');
 
       // 2. Prepare File with Frontmatter
       setCreationStep('📝 Preparing task content...');
@@ -223,17 +224,17 @@ function App() {
         chatHistory: [],
       };
       const fullContent = stringifyMarkdownWithFrontmatter(newTodoFrontmatter, markdownContent);
-      console.log('Full content prepared, length:', fullContent.length);
+      logger.log('Full content prepared, length:', fullContent.length);
 
       // 3. Generate Commit Message
       setCreationStep('💬 Generating commit message...');
-      console.log('Generating commit message...');
+      logger.log('Generating commit message...');
       const commitMessage = await generateCommitMessage(`feat: Add new todo for "${goal}"`);
-      console.log('Commit message generated:', commitMessage);
+      logger.log('Commit message generated:', commitMessage);
 
       // 4. Ensure directory exists and create file with user-friendly name
       setCreationStep(`📂 Setting up ${getProviderName()} repository...`);
-      console.log('Ensuring directory exists...');
+      logger.log('Ensuring directory exists...');
       await ensureDirectory(settings.folder || 'todos');
       
       const createSlug = (title: string) => {
@@ -267,22 +268,22 @@ function App() {
           const basePath = pathParts.join('.');
           finalFilename = `${basePath}-${counter}.${extension}`;
           counter++;
-          console.log(`File conflict detected, trying: ${finalFilename}`);
+          logger.log(`File conflict detected, trying: ${finalFilename}`);
         } catch (error) {
           // File doesn't exist, we can use this filename
-          console.log(`Using filename: ${finalFilename}`);
+          logger.log(`Using filename: ${finalFilename}`);
           break;
         }
       }
       
       setCreationStep(`💾 Saving to ${getProviderName()}...`);
-      console.log('Creating file on Git provider:', finalFilename);
+      logger.log('Creating file on Git provider:', finalFilename);
       const createResult = await createOrUpdateTodo(finalFilename, fullContent, commitMessage);
-      console.log('File created successfully on Git provider');
+      logger.log('File created successfully on Git provider');
 
       // 5. Wait for Git provider to process, then refresh
       setCreationStep('🔄 Refreshing task list...');
-      console.log('Refreshing todos list...');
+      logger.log('Refreshing todos list...');
       
       // Wait for Git provider processing
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -290,7 +291,7 @@ function App() {
       
       // Auto-select the newly created task
       if (createResult?.content?.sha) {
-        console.log('Auto-selecting newly created task with SHA:', createResult.content.sha);
+        logger.log('Auto-selecting newly created task with SHA:', createResult.content.sha);
         setSelectedTodoId(createResult.content.sha);
       }
       
@@ -300,7 +301,7 @@ function App() {
         setCreationStep('');
       }, 1000);
     } catch (error) {
-      console.error("Error creating new todo:", error);
+      logger.error("Error creating new todo:", error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       alert(`Failed to create task: ${errorMessage}`);
       setIsCreatingTask(false);
@@ -314,11 +315,11 @@ function App() {
     try {
       setIsSavingTask(true);
       setSaveStep('🔍 Preparing to save...');
-      console.log('App: handleTodoUpdate called with id:', id, 'content length:', newContent.length);
+      logger.log('App: handleTodoUpdate called with id:', id, 'content length:', newContent.length);
       
       const todoToUpdate = todos.find(todo => todo.id === id);
       if (!todoToUpdate) {
-        console.error("Todo not found for update:", id);
+        logger.error("Todo not found for update:", id);
         return;
       }
 
@@ -328,26 +329,26 @@ function App() {
         ...(newChatHistory && { chatHistory: newChatHistory })
       };
       const fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, newContent);
-      console.log('App: Full content prepared, generating commit message...');
+      logger.log('App: Full content prepared, generating commit message...');
 
       setSaveStep('🤖 Generating commit message...');
       const commitMessage = await generateCommitMessage(`fix: Update todo "${todoToUpdate.title}"`);
-      console.log('App: Commit message generated:', commitMessage);
+      logger.log('App: Commit message generated:', commitMessage);
 
       setSaveStep('🔄 Getting latest file version...');
-      console.log('App: Fetching latest SHA for file...');
+      logger.log('App: Fetching latest SHA for file...');
       // Get the latest SHA to avoid conflicts
       let latestSha = todoToUpdate.sha;
       try {
         const latestMetadata = await getFileMetadata(todoToUpdate.path);
         latestSha = latestMetadata.sha;
-        console.log('App: Latest SHA retrieved:', latestSha);
+        logger.log('App: Latest SHA retrieved:', latestSha);
       } catch (shaError) {
-        console.log('App: Could not fetch latest SHA, using existing:', latestSha);
+        logger.log('App: Could not fetch latest SHA, using existing:', latestSha);
       }
 
       setSaveStep(`💾 Saving to ${getProviderName()}...`);
-      console.log('App: Calling createOrUpdateTodo with SHA:', latestSha);
+      logger.log('App: Calling createOrUpdateTodo with SHA:', latestSha);
       
       // Retry logic for SHA conflicts
       let retryCount = 0;
@@ -358,11 +359,11 @@ function App() {
         try {
           await createOrUpdateTodo(todoToUpdate.path, fullContent, commitMessage, latestSha);
           saveSuccessful = true;
-          console.log('App: Todo updated successfully');
+          logger.log('App: Todo updated successfully');
         } catch (saveError) {
           if (saveError instanceof Error && saveError.message.includes('does not match')) {
             retryCount++;
-            console.log(`App: SHA conflict detected, retry ${retryCount}/${maxRetries}`);
+            logger.log(`App: SHA conflict detected, retry ${retryCount}/${maxRetries}`);
             setSaveStep(`🔄 SHA conflict, retrying (${retryCount}/${maxRetries})...`);
             
             if (retryCount < maxRetries) {
@@ -370,9 +371,9 @@ function App() {
               try {
                 const retryMetadata = await getFileMetadata(todoToUpdate.path);
                 latestSha = retryMetadata.sha;
-                console.log('App: Fetched new SHA for retry:', latestSha);
+                logger.log('App: Fetched new SHA for retry:', latestSha);
               } catch (retryError) {
-                console.log('App: Could not fetch SHA for retry, giving up');
+                logger.log('App: Could not fetch SHA for retry, giving up');
                 throw saveError;
               }
             }
@@ -397,7 +398,7 @@ function App() {
       }, 1000);
       
     } catch (error) {
-      console.error("Error updating todo:", error);
+      logger.error("Error updating todo:", error);
       setSaveStep('❌ Save failed!');
       setTimeout(() => {
         setIsSavingTask(false);
@@ -426,9 +427,9 @@ function App() {
       try {
         const latestMetadata = await getFileMetadata(todoToUpdate.path);
         latestSha = latestMetadata.sha;
-        console.log('Priority update: Latest SHA retrieved:', latestSha);
+        logger.log('Priority update: Latest SHA retrieved:', latestSha);
       } catch (shaError) {
-        console.log('Priority update: Could not fetch latest SHA, using existing:', latestSha);
+        logger.log('Priority update: Could not fetch latest SHA, using existing:', latestSha);
       }
 
       setSaveStep('📝 Preparing content...');
@@ -455,7 +456,7 @@ function App() {
       }, 1000);
       
     } catch (error) {
-      console.error("Error updating priority:", error);
+      logger.error("Error updating priority:", error);
       setSaveStep('❌ Priority update failed!');
       setTimeout(() => {
         setIsSavingTask(false);
@@ -491,9 +492,9 @@ function App() {
       try {
         const latestMetadata = await getFileMetadata(todoToUpdate.path);
         latestSha = latestMetadata.sha;
-        console.log('Title update: Latest SHA retrieved:', latestSha);
+        logger.log('Title update: Latest SHA retrieved:', latestSha);
       } catch (shaError) {
-        console.log('Title update: Could not fetch latest SHA, using existing:', latestSha);
+        logger.log('Title update: Could not fetch latest SHA, using existing:', latestSha);
       }
 
       setSaveStep('📝 Preparing content... (3/6)');
@@ -577,7 +578,7 @@ function App() {
       }, 1000);
       
     } catch (error) {
-      console.error("Error updating title:", error);
+      logger.error("Error updating title:", error);
       setSaveStep('❌ Title update failed!');
       setTimeout(() => {
         setIsSavingTask(false);
@@ -636,7 +637,7 @@ function App() {
       }, 1000);
       
     } catch (error) {
-      console.error("Error toggling archive:", error);
+      logger.error("Error toggling archive:", error);
       const currentTodo = todos.find(todo => todo.id === id);
       const isArchived = currentTodo?.path.includes('/archive/') || false;
       setSaveStep('❌ Archive operation failed!');
@@ -649,34 +650,34 @@ function App() {
   };
 
   const handleDeleteTodo = async (id: string) => {
-    console.log('Delete button clicked for ID:', id);
+    logger.log('Delete button clicked for ID:', id);
     if (!settings) {
-      console.error('No settings available');
+      logger.error('No settings available');
       return;
     }
     
     if (!window.confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
-      console.log('Delete cancelled by user');
+      logger.log('Delete cancelled by user');
       return;
     }
     
     try {
       const todoToDelete = todos.find(todo => todo.id === id);
       if (!todoToDelete) {
-        console.error('Todo not found for ID:', id);
+        logger.error('Todo not found for ID:', id);
         return;
       }
 
       setIsDeletingTask(true);
       setDeletionStep('🔄 Preparing to delete...');
-      console.log('Deleting todo:', todoToDelete.path);
+      logger.log('Deleting todo:', todoToDelete.path);
 
       setDeletionStep('🗑️ Deleting task...');
       
       // Use the deleteFile service which handles both GitHub and GitLab
       await deleteFile(todoToDelete.path, `Delete ${todoToDelete.title}`);
 
-      console.log('Todo deleted successfully');
+      logger.log('Todo deleted successfully');
 
       // If deleted todo was selected, clear selection
       if (selectedTodoId === id) {
@@ -697,7 +698,7 @@ function App() {
             setDeletionStep('');
           }, 1000);
         } catch (error) {
-          console.log('Fetch error after deletion - likely empty directory:', error);
+          logger.log('Fetch error after deletion - likely empty directory:', error);
           // If fetch fails, it's probably because directory is empty
           setTodos([]);
           setSelectedTodoId(null);
@@ -710,7 +711,7 @@ function App() {
         }
       }, 2000); // Wait 2 seconds for processing
     } catch (error) {
-      console.error("Error deleting todo:", error);
+      logger.error("Error deleting todo:", error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       alert(`Failed to delete task: ${errorMessage}`);
       setIsDeletingTask(false);

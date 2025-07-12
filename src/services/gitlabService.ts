@@ -1,6 +1,8 @@
 // GitLab API service for frontend
 // This service handles GitLab API calls through the backend proxy
 
+import logger from '../utils/logger';
+
 // Environment-aware backend URL detection
 const isCloudRun = window.location.hostname.includes('run.app') || 
                    window.location.hostname.includes('run.googleapis.com');
@@ -18,7 +20,7 @@ if (isCloudRun) {
   BACKEND_URL = ''; // Default to relative URLs
 }
 
-console.log('GitLab Service - Environment detection:', {
+logger.log('GitLab Service - Environment detection:', {
   'window.location.hostname': window.location.hostname,
   'window.location.port': window.location.port,
   'isCloudRun': isCloudRun,
@@ -43,8 +45,8 @@ interface GitLabSettings {
 
 const makeGitLabRequest = async (action: string, settings: GitLabSettings, params: any = {}) => {
   const proxyUrl = `${BACKEND_URL}/api/gitlab`;
-  console.log('Making GitLab proxy request to:', proxyUrl);
-  console.log('GitLab request data:', { action, instanceUrl: settings.instanceUrl, projectId: settings.projectId, branch: settings.branch, ...params });
+  logger.log('Making GitLab proxy request to:', proxyUrl);
+  logger.log('GitLab request data:', { action, instanceUrl: settings.instanceUrl, projectId: settings.projectId, branch: settings.branch, ...params });
   
   const response = await fetch(proxyUrl, {
     method: 'POST',
@@ -61,11 +63,11 @@ const makeGitLabRequest = async (action: string, settings: GitLabSettings, param
     })
   });
   
-  console.log('GitLab proxy response status:', response.status);
+  logger.log('GitLab proxy response status:', response.status);
   
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('GitLab proxy error:', errorText);
+    logger.error('GitLab proxy error:', errorText);
     throw new Error(`GitLab API proxy error: ${response.statusText} - ${errorText}`);
   }
   
@@ -78,9 +80,9 @@ export const createOrUpdateTodo = async (
   content: string,
   commitMessage: string
 ) => {
-  console.log('GitLab createOrUpdateTodo:', path);
-  console.log('Commit message:', commitMessage);
-  console.log('Content length:', content.length);
+  logger.log('GitLab createOrUpdateTodo:', path);
+  logger.log('Commit message:', commitMessage);
+  logger.log('Content length:', content.length);
   
   const response = await makeGitLabRequest('createOrUpdateFile', settings, {
     filePath: path,
@@ -89,7 +91,7 @@ export const createOrUpdateTodo = async (
   });
 
   const result = await response.json();
-  console.log('GitLab createOrUpdateTodo response:', result);
+  logger.log('GitLab createOrUpdateTodo response:', result);
   return result;
 };
 
@@ -99,25 +101,25 @@ export const ensureDirectory = async (settings: GitLabSettings, folder: string, 
     await getTodos(settings, folder);
   } catch (error) {
     // Directory doesn't exist, create it with a .gitkeep file
-    console.log(`${folder}/ directory not found, creating it...`);
+    logger.log(`${folder}/ directory not found, creating it...`);
     const gitkeepPath = `${folder}/.gitkeep`;
     const gitkeepContent = `# This file ensures the ${folder} directory exists\n`;
     
     await createOrUpdateTodo(settings, gitkeepPath, gitkeepContent, commitMessage || `feat: Create ${folder} directory`);
-    console.log(`${folder}/ directory created successfully`);
+    logger.log(`${folder}/ directory created successfully`);
   }
 };
 
 export const getTodos = async (settings: GitLabSettings, folder: string = 'todos', includeArchived = false) => {
   const path = includeArchived ? `${folder}/archive` : folder;
-  console.log('Fetching GitLab todos from:', path);
+  logger.log('Fetching GitLab todos from:', path);
   
   try {
     const response = await makeGitLabRequest('listFiles', settings, { path });
     const files: GitLabFile[] = await response.json();
     
-    console.log('Raw files from GitLab:', files.length);
-    console.log('All files:', files.map(f => ({ name: f.name, type: f.type, path: f.path })));
+    logger.log('Raw files from GitLab:', files.length);
+    logger.log('All files:', files.map(f => ({ name: f.name, type: f.type, path: f.path })));
     
     // Filter out .gitkeep file and any non-markdown files
     const todoFiles = files.filter(file => 
@@ -125,14 +127,14 @@ export const getTodos = async (settings: GitLabSettings, folder: string = 'todos
       file.name.endsWith('.md')
     );
     
-    console.log('Filtered todo files:', todoFiles.length);
-    console.log('Todo files:', todoFiles.map(f => ({ name: f.name, path: f.path })));
+    logger.log('Filtered todo files:', todoFiles.length);
+    logger.log('Todo files:', todoFiles.map(f => ({ name: f.name, path: f.path })));
     return todoFiles;
   } catch (error) {
-    console.error('Error fetching GitLab todos:', error);
+    logger.error('Error fetching GitLab todos:', error);
     // Handle network errors more gracefully
     if (error instanceof TypeError && (error.message.includes('fetch') || error.message.includes('Load failed'))) {
-      console.log('Network error detected, retrying once...');
+      logger.log('Network error detected, retrying once...');
       try {
         await new Promise(resolve => setTimeout(resolve, 1000));
         const retryResponse = await makeGitLabRequest('listFiles', settings, { path });
@@ -143,7 +145,7 @@ export const getTodos = async (settings: GitLabSettings, folder: string = 'todos
         );
         return todoFiles;
       } catch (retryError) {
-        console.error('Retry also failed:', retryError);
+        logger.error('Retry also failed:', retryError);
         return [];
       }
     }
@@ -152,7 +154,7 @@ export const getTodos = async (settings: GitLabSettings, folder: string = 'todos
 };
 
 export const getFileContent = async (settings: GitLabSettings, path: string) => {
-  console.log('Getting GitLab file content:', path);
+  logger.log('Getting GitLab file content:', path);
   
   const response = await makeGitLabRequest('getRawFile', settings, { filePath: path });
   const data = await response.json();
@@ -160,24 +162,24 @@ export const getFileContent = async (settings: GitLabSettings, path: string) => 
 };
 
 export const getFileMetadata = async (settings: GitLabSettings, path: string) => {
-  console.log('Getting GitLab file metadata:', path);
+  logger.log('Getting GitLab file metadata:', path);
   
   const response = await makeGitLabRequest('getFile', settings, { filePath: path });
-  console.log('GitLab getFileMetadata response status:', response.status);
+  logger.log('GitLab getFileMetadata response status:', response.status);
   
   const responseText = await response.text();
-  console.log('GitLab getFileMetadata raw response:', responseText.substring(0, 200) + '...');
+  logger.log('GitLab getFileMetadata raw response:', responseText.substring(0, 200) + '...');
   
   let metadata;
   try {
     metadata = JSON.parse(responseText);
   } catch (parseError) {
-    console.error('GitLab getFileMetadata JSON parse error:', parseError);
-    console.error('GitLab getFileMetadata full response:', responseText);
+    logger.error('GitLab getFileMetadata JSON parse error:', parseError);
+    logger.error('GitLab getFileMetadata full response:', responseText);
     throw new Error(`Failed to parse GitLab API response: ${parseError.message}`);
   }
   
-  console.log('GitLab getFileMetadata parsed keys:', Object.keys(metadata));
+  logger.log('GitLab getFileMetadata parsed keys:', Object.keys(metadata));
   
   return {
     sha: metadata.sha,
@@ -194,12 +196,12 @@ export const ensureArchiveDirectory = async (settings: GitLabSettings, folder: s
     await getTodos(settings, folder, true); // Try to list archived todos
   } catch (error) {
     // Directory doesn't exist, create it with a .gitkeep file
-    console.log(`${archivePath}/ directory not found, creating it...`);
+    logger.log(`${archivePath}/ directory not found, creating it...`);
     const gitkeepPath = `${archivePath}/.gitkeep`;
     const gitkeepContent = `# This file ensures the archive directory exists\n`;
     
     await createOrUpdateTodo(settings, gitkeepPath, gitkeepContent, `feat: Create ${archivePath} directory`);
-    console.log(`${archivePath}/ directory created successfully`);
+    logger.log(`${archivePath}/ directory created successfully`);
   }
 };
 
@@ -210,7 +212,7 @@ export const moveTaskToArchive = async (
   commitMessage: string,
   folder: string = 'todos'
 ) => {
-  console.log('Moving GitLab task to archive:', currentPath);
+  logger.log('Moving GitLab task to archive:', currentPath);
   
   // Ensure archive directory exists
   await ensureArchiveDirectory(settings, folder);
@@ -220,11 +222,11 @@ export const moveTaskToArchive = async (
   const archivePath = `${folder}/archive/${fileName}`;
   
   // Create file in archive
-  console.log('Creating archived file at:', archivePath);
+  logger.log('Creating archived file at:', archivePath);
   await createOrUpdateTodo(settings, archivePath, content, commitMessage);
   
   // Delete from original location
-  console.log('Deleting original file at:', currentPath);
+  logger.log('Deleting original file at:', currentPath);
   await deleteFile(settings, currentPath, `Archive: Remove ${fileName} from active ${folder}`);
   
   return archivePath;
@@ -237,18 +239,18 @@ export const moveTaskFromArchive = async (
   commitMessage: string,
   folder: string = 'todos'
 ) => {
-  console.log('Moving GitLab task from archive:', currentPath);
+  logger.log('Moving GitLab task from archive:', currentPath);
   
   // Determine new path in active folder
   const fileName = currentPath.split('/').pop();
   const activePath = `${folder}/${fileName}`;
   
   // Create file in active folder
-  console.log('Creating unarchived file at:', activePath);
+  logger.log('Creating unarchived file at:', activePath);
   await createOrUpdateTodo(settings, activePath, content, commitMessage);
   
   // Delete from archive location
-  console.log('Deleting archived file at:', currentPath);
+  logger.log('Deleting archived file at:', currentPath);
   await deleteFile(settings, currentPath, `Unarchive: Remove ${fileName} from ${folder}/archive`);
   
   return activePath;
@@ -259,7 +261,7 @@ export const deleteFile = async (
   path: string,
   commitMessage: string
 ) => {
-  console.log('Deleting GitLab file:', path);
+  logger.log('Deleting GitLab file:', path);
   
   const response = await makeGitLabRequest('deleteFile', settings, {
     filePath: path,
@@ -267,7 +269,7 @@ export const deleteFile = async (
   });
   
   const result = await response.json();
-  console.log('GitLab file deleted successfully:', path);
+  logger.log('GitLab file deleted successfully:', path);
   return result;
 };
 
@@ -275,7 +277,7 @@ export const getFileHistory = async (
   settings: GitLabSettings,
   path: string
 ) => {
-  console.log('Getting GitLab file history:', path);
+  logger.log('Getting GitLab file history:', path);
   
   const response = await makeGitLabRequest('getFileHistory', settings, { filePath: path });
   const commits = await response.json();
@@ -288,7 +290,7 @@ export const getFileAtCommit = async (
   path: string,
   sha: string
 ) => {
-  console.log('Getting GitLab file at commit:', path, sha);
+  logger.log('Getting GitLab file at commit:', path, sha);
   
   const response = await makeGitLabRequest('getFileAtCommit', settings, { filePath: path, sha });
   const data = await response.json();
@@ -297,7 +299,7 @@ export const getFileAtCommit = async (
 };
 
 export const getProject = async (settings: GitLabSettings) => {
-  console.log('Getting GitLab project info');
+  logger.log('Getting GitLab project info');
   
   const response = await makeGitLabRequest('getProject', settings);
   const project = await response.json();
@@ -322,7 +324,7 @@ export const listProjectFolders = async (settings: GitLabSettings): Promise<stri
         const testResponse = await makeGitLabRequest('listFiles', settings, { path: folderName });
         if (testResponse.ok) {
           existingFolders.push(folderName);
-          console.log(`GitLab: Found existing folder: ${folderName}`);
+          logger.log(`GitLab: Found existing folder: ${folderName}`);
         }
       } catch (error) {
         // Folder doesn't exist, continue
@@ -334,11 +336,11 @@ export const listProjectFolders = async (settings: GitLabSettings): Promise<stri
       existingFolders.push('todos');
     }
     
-    console.log('GitLab discovered folders:', existingFolders);
+    logger.log('GitLab discovered folders:', existingFolders);
     
     return [...new Set(existingFolders)]; // Remove duplicates
   } catch (error) {
-    console.error('Error listing GitLab project folders:', error);
+    logger.error('Error listing GitLab project folders:', error);
     return ['todos']; // Default fallback
   }
 };

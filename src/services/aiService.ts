@@ -1,4 +1,5 @@
 import { loadSettings } from '../utils/localStorage';
+import logger from '../utils/logger';
 
 const AI_API_URL = '/api/ai';
 
@@ -33,7 +34,7 @@ const getAISettings = () => {
 };
 
 export const generateInitialPlan = async (goal: string) => {
-  console.log('AI Service: Generating initial plan for goal:', goal);
+  logger.log('AI Service: Generating initial plan for goal:', goal);
   
   try {
     const aiSettings = getAISettings();
@@ -51,19 +52,19 @@ export const generateInitialPlan = async (goal: string) => {
       }),
     });
 
-    console.log('AI Service: Response status:', response.status);
+    logger.log('AI Service: Response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('AI Service error response:', errorText);
+      logger.error('AI Service error response:', errorText);
       throw new Error(`AI API error: ${response.statusText} - ${errorText}`);
     }
 
     const data = await response.json();
-    console.log('AI Service: Plan generated successfully, length:', data.text?.length || 0);
+    logger.log('AI Service: Plan generated successfully, length:', data.text?.length || 0);
     return data.text;
   } catch (error) {
-    console.error('AI Service: Network or fetch error:', error);
+    logger.error('AI Service: Network or fetch error:', error);
     if (error instanceof TypeError && error.message.includes('fetch')) {
       throw new Error('Network error: Unable to connect to AI service. Please check if the backend server is running.');
     }
@@ -90,14 +91,14 @@ export const generateCommitMessage = async (changeDescription: string) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('AI Service commit message error:', errorText);
+      logger.error('AI Service commit message error:', errorText);
       throw new Error(`AI API error: ${response.statusText} - ${errorText}`);
     }
 
     const data = await response.json();
     return data.text;
   } catch (error) {
-    console.error('AI Service: Commit message generation error:', error);
+    logger.error('AI Service: Commit message generation error:', error);
     if (error instanceof TypeError && error.message.includes('fetch')) {
       throw new Error('Network error: Unable to connect to AI service for commit message generation.');
     }
