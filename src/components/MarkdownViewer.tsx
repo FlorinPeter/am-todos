@@ -158,9 +158,13 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
       setEditContent(newContent);
       setHasUnsavedChanges(newContent !== content);
     } else {
-      // In view mode, update the view content without saving
+      // In view mode, switch to edit mode and update the edit content
+      // This ensures AI updates are treated as manual edits and get drafted
+      setIsEditMode(true);
+      setEditContent(newContent);
       setViewContent(newContent);
       setHasUnsavedChanges(newContent !== content);
+      logger.log('AI updated content - switched to edit mode for draft persistence');
     }
     // No chat history saving - AI chat is now stateless
   };
