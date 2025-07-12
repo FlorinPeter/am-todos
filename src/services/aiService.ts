@@ -1,7 +1,19 @@
 import { loadSettings } from '../utils/localStorage';
 import logger from '../utils/logger';
 
-const AI_API_URL = '/api/ai';
+// Dynamically determine the API URL based on the current hostname
+const getApiUrl = () => {
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    // Use proxy when accessing via localhost
+    return '/api/ai';
+  } else {
+    // Use direct backend URL when accessing via external IP
+    return `http://${hostname}:3001/api/ai`;
+  }
+};
+
+const AI_API_URL = getApiUrl();
 
 const getAISettings = () => {
   const settings = loadSettings();
@@ -38,7 +50,9 @@ export const generateInitialPlan = async (goal: string) => {
   
   try {
     const aiSettings = getAISettings();
-    const response = await fetch(AI_API_URL, {
+    const apiUrl = getApiUrl();
+    logger.log('AI Service: Using API URL:', apiUrl);
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -75,7 +89,9 @@ export const generateInitialPlan = async (goal: string) => {
 export const generateCommitMessage = async (changeDescription: string) => {
   try {
     const aiSettings = getAISettings();
-    const response = await fetch(AI_API_URL, {
+    const apiUrl = getApiUrl();
+    logger.log('AI Service: Using API URL:', apiUrl);
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -111,8 +127,14 @@ export const processChatMessage = async (
   currentContent: string, 
   chatHistory: Array<{ role: string; content: string }>
 ) => {
-  const aiSettings = getAISettings();
-  const response = await fetch(AI_API_URL, {
+  try {
+    logger.log('AI Service: Starting processChatMessage');
+    const aiSettings = getAISettings();
+    logger.log('AI Service: Settings loaded successfully', { provider: aiSettings.provider, hasApiKey: !!aiSettings.apiKey });
+    
+    const apiUrl = getApiUrl();
+    logger.log('AI Service: Using API URL:', apiUrl);
+    const response = await fetch(apiUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -130,10 +152,19 @@ export const processChatMessage = async (
     }),
   });
 
-  if (!response.ok) {
-    throw new Error(`AI API error: ${response.statusText}`);
-  }
+    logger.log('AI Service: Fetch request sent, response status:', response.status);
 
-  const data = await response.json();
-  return data.text;
+    if (!response.ok) {
+      const errorText = await response.text();
+      logger.error('AI Service: API error response:', errorText);
+      throw new Error(`AI API error: ${response.statusText} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    logger.log('AI Service: Response received successfully', { data, hasText: !!data.text, textLength: data.text?.length });
+    return data.text;
+  } catch (error) {
+    logger.error('AI Service: processChatMessage error:', error);
+    throw error;
+  }
 };

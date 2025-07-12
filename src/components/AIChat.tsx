@@ -125,7 +125,12 @@ const AIChat: React.FC<AIChatProps> = ({
       const updatedContent = await onChatMessage(inputMessage.trim(), currentContent);
       
       // Check if component is still mounted before updating state
-      if (!isMountedRef.current) return;
+      // TEMPORARILY DISABLED: Seems to be incorrectly detecting unmount
+      // if (!isMountedRef.current) {
+      //   logger.log('Component unmounted, skipping state update');
+      //   return;
+      // }
+      logger.log('Processing successful AI response, updating state', { isMounted: isMountedRef.current });
       
       const assistantMessage: ChatMessage = {
         role: 'assistant',
@@ -141,19 +146,33 @@ const AIChat: React.FC<AIChatProps> = ({
       logger.error('Error processing chat message:', error);
       
       // Check if component is still mounted before updating state
-      if (!isMountedRef.current) return;
+      // TEMPORARILY DISABLED: Seems to be incorrectly detecting unmount
+      // if (!isMountedRef.current) return;
+      
+      // Provide more specific error messages to help with debugging
+      let errorContent = 'Sorry, I encountered an error processing your request.';
+      if (error instanceof Error) {
+        if (error.message.includes('API key')) {
+          errorContent = 'Error: Invalid or missing AI API key. Please check your API key in Settings.';
+        } else if (error.message.includes('Network error')) {
+          errorContent = 'Error: Unable to connect to AI service. Please check if the backend server is running.';
+        } else if (error.message.includes('AI API error')) {
+          errorContent = `Error: ${error.message}`;
+        }
+      }
       
       const errorMessage: ChatMessage = {
         role: 'assistant',
-        content: 'Sorry, I encountered an error processing your request.',
+        content: errorContent,
         timestamp: new Date().toISOString()
       };
       setLocalChatHistory([...newLocalHistory, errorMessage]);
     } finally {
       // Check if component is still mounted before updating state
-      if (isMountedRef.current) {
+      // TEMPORARILY DISABLED: Always clear loading state
+      // if (isMountedRef.current) {
         setIsLoading(false);
-      }
+      // }
     }
   };
 
