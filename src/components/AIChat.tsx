@@ -197,7 +197,7 @@ const AIChat: React.FC<AIChatProps> = ({
           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
-          AI Chat Assistant (Session Only)
+          AI Chat Assistant
           {localChatHistory.length > 0 && (
             <span className="ml-2 px-2 py-1 text-xs bg-blue-600 text-white rounded-full">
               {localChatHistory.length}
@@ -274,7 +274,6 @@ const AIChat: React.FC<AIChatProps> = ({
                 {/* Mobile: Stack vertically, Desktop: Side by side */}
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-2 sm:space-y-0">
                   <div className="flex items-center space-x-3 sm:space-x-4">
-                    <span className="text-xs text-gray-400">Session chat (not saved)</span>
                     {checkpoints.length > 0 && (
                       <span className="text-xs text-green-400">
                         {checkpoints.length} checkpoint{checkpoints.length !== 1 ? 's' : ''}

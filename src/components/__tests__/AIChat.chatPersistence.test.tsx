@@ -107,7 +107,7 @@ describe('AIChat Chat Persistence Integration', () => {
       );
 
       // Should show collapsed state  
-      expect(screen.getByText('AI Chat Assistant (Session Only)')).toBeInTheDocument();
+      expect(screen.getByText('AI Chat Assistant')).toBeInTheDocument();
       expect(screen.queryByPlaceholderText('Ask me to modify this task...')).not.toBeInTheDocument();
     });
 
@@ -117,7 +117,7 @@ describe('AIChat Chat Persistence Integration', () => {
       render(<AIChat {...propsWithoutTodoId} />);
 
       expect(localStorage.getChatSession).not.toHaveBeenCalled();
-      expect(screen.getByText('AI Chat Assistant (Session Only)')).toBeInTheDocument();
+      expect(screen.getByText('AI Chat Assistant')).toBeInTheDocument();
     });
 
     it('should handle missing filePath gracefully', () => {
@@ -126,7 +126,7 @@ describe('AIChat Chat Persistence Integration', () => {
       render(<AIChat {...propsWithoutFilePath} />);
 
       expect(localStorage.getChatSession).not.toHaveBeenCalled();
-      expect(screen.getByText('AI Chat Assistant (Session Only)')).toBeInTheDocument();
+      expect(screen.getByText('AI Chat Assistant')).toBeInTheDocument();
     });
 
     it('should handle corrupted session data gracefully', () => {
@@ -137,7 +137,7 @@ describe('AIChat Chat Persistence Integration', () => {
       render(<AIChat {...mockProps} />);
 
       // Should still render but with empty state
-      expect(screen.getByText('AI Chat Assistant (Session Only)')).toBeInTheDocument();
+      expect(screen.getByText('AI Chat Assistant')).toBeInTheDocument();
       expect(screen.queryByText('Add a new feature')).not.toBeInTheDocument();
     });
   });
@@ -150,7 +150,7 @@ describe('AIChat Chat Persistence Integration', () => {
       render(<AIChat {...mockProps} />);
 
       // Expand chat and send a message
-      fireEvent.click(screen.getByText('AI Chat Assistant (Session Only)'));
+      fireEvent.click(screen.getByText('AI Chat Assistant'));
       
       const input = screen.getByPlaceholderText('Ask me to modify this task...');
       fireEvent.change(input, { target: { value: 'Test message' } });
@@ -185,7 +185,7 @@ describe('AIChat Chat Persistence Integration', () => {
       render(<AIChat {...mockProps} />);
 
       // Expand chat
-      fireEvent.click(screen.getByText('AI Chat Assistant (Session Only)'));
+      fireEvent.click(screen.getByText('AI Chat Assistant'));
 
       expect(localStorage.saveChatSession).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -203,7 +203,7 @@ describe('AIChat Chat Persistence Integration', () => {
       render(<AIChat {...propsWithoutIds} />);
 
       // Expand chat
-      fireEvent.click(screen.getByText('AI Chat Assistant (Session Only)'));
+      fireEvent.click(screen.getByText('AI Chat Assistant'));
 
       expect(localStorage.saveChatSession).not.toHaveBeenCalled();
     });
@@ -217,7 +217,7 @@ describe('AIChat Chat Persistence Integration', () => {
       render(<AIChat {...mockProps} />);
 
       // Should not crash when save fails
-      fireEvent.click(screen.getByText('AI Chat Assistant (Session Only)'));
+      fireEvent.click(screen.getByText('AI Chat Assistant'));
       
       expect(screen.getByPlaceholderText('Ask me to modify this task...')).toBeInTheDocument();
     });
@@ -240,7 +240,7 @@ describe('AIChat Chat Persistence Integration', () => {
       render(<AIChat {...mockProps} />);
 
       // Expand chat and send a message (this creates a checkpoint)
-      fireEvent.click(screen.getByText('AI Chat Assistant (Session Only)'));
+      fireEvent.click(screen.getByText('AI Chat Assistant'));
       
       const input = screen.getByPlaceholderText('Ask me to modify this task...');
       fireEvent.change(input, { target: { value: 'Test message' } });
@@ -304,7 +304,7 @@ describe('AIChat Chat Persistence Integration', () => {
       
       render(<AIChat {...mockProps} />);
 
-      expect(screen.getByText('AI Chat Assistant (Session Only)')).toBeInTheDocument();
+      expect(screen.getByText('AI Chat Assistant')).toBeInTheDocument();
       expect(screen.queryByPlaceholderText('Ask me to modify this task...')).not.toBeInTheDocument();
     });
 
