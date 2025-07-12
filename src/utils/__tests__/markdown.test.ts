@@ -1,6 +1,19 @@
 import { describe, it, expect, vi } from 'vitest';
 import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, TodoFrontmatter } from '../markdown';
 
+// Mock logger
+vi.mock('../logger', () => ({
+  default: {
+    log: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn()
+  }
+}));
+
+import logger from '../logger';
+
 describe('markdown utils', () => {
   describe('parseMarkdownWithFrontmatter', () => {
     it('parses valid frontmatter and content', () => {
@@ -84,19 +97,19 @@ priority: 3
 ---
 # Content`;
 
-      // Mock console.error to avoid noise in tests
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      // Mock logger.error to avoid noise in tests
+      const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
 
       const result = parseMarkdownWithFrontmatter(input);
 
       expect(result.frontmatter).toBeNull();
       expect(result.markdownContent).toBe(input);
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(loggerSpy).toHaveBeenCalledWith(
         'Error parsing YAML frontmatter:',
         expect.any(Error)
       );
 
-      consoleSpy.mockRestore();
+      loggerSpy.mockRestore();
     });
 
     it('handles frontmatter without closing delimiter', () => {

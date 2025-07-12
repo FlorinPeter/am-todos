@@ -1,3 +1,5 @@
+import logger from '../utils/logger';
+
 // Use relative URL for production, falls back to specific backend URL for development
 // Detect Cloud Run production environment specifically
 const isCloudRun = window.location.hostname.includes('run.app') || 
@@ -18,7 +20,7 @@ if (isCloudRun) {
 }
 
 // Debug logging to help troubleshoot environment detection
-console.log('Environment detection:', {
+logger.log('Environment detection:', {
   'process.env.NODE_ENV': process.env.NODE_ENV,
   'window.location.hostname': window.location.hostname,
   'window.location.port': window.location.port,
@@ -38,8 +40,8 @@ interface GitHubFile {
 
 const makeGitHubRequest = async (path: string, method = 'GET', headers = {}, body?: any, owner?: string, repo?: string) => {
   const proxyUrl = `${BACKEND_URL}/api/github`;
-  console.log('Making proxy request to:', proxyUrl);
-  console.log('Proxy request data:', { path, method, headers: Object.keys(headers), owner, repo });
+  logger.log('Making proxy request to:', proxyUrl);
+  logger.log('Proxy request data:', { path, method, headers: Object.keys(headers), owner, repo });
   
   const response = await fetch(proxyUrl, {
     method: 'POST',
@@ -56,11 +58,11 @@ const makeGitHubRequest = async (path: string, method = 'GET', headers = {}, bod
     })
   });
   
-  console.log('Proxy response status:', response.status);
+  logger.log('Proxy response status:', response.status);
   
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Proxy error:', errorText);
+    logger.error('Proxy error:', errorText);
     throw new Error(`GitHub API proxy error: ${response.statusText} - ${errorText}`);
   }
   
@@ -77,20 +79,20 @@ export const createOrUpdateTodo = async (
   sha?: string
 ) => {
   const apiPath = `/repos/${owner}/${repo}/contents/${path}`;
-  console.log('GitHub API path:', apiPath);
-  console.log('Commit message:', commitMessage);
-  console.log('Content length:', content.length);
-  console.log('SHA:', sha || 'none (new file)');
+  logger.log('GitHub API path:', apiPath);
+  logger.log('Commit message:', commitMessage);
+  logger.log('Content length:', content.length);
+  logger.log('SHA:', sha || 'none (new file)');
   
   // Check if file already exists if no SHA is provided
   if (!sha) {
     try {
-      console.log('Checking if file already exists...');
+      logger.log('Checking if file already exists...');
       const existingFile = await getFileMetadata(token, owner, repo, path);
-      console.log('File exists, using existing SHA:', existingFile.sha);
+      logger.log('File exists, using existing SHA:', existingFile.sha);
       sha = existingFile.sha;
     } catch (error) {
-      console.log('File does not exist, creating new file');
+      logger.log('File does not exist, creating new file');
     }
   }
   
@@ -114,12 +116,12 @@ export const createOrUpdateTodo = async (
     requestBody.sha = sha;
   }
 
-  console.log('Sending request to GitHub via proxy...');
+  logger.log('Sending request to GitHub via proxy...');
   const response = await makeGitHubRequest(apiPath, 'PUT', headers, requestBody, owner, repo);
-  console.log('GitHub response status:', response.status);
+  logger.log('GitHub response status:', response.status);
 
   const result = await response.json();
-  console.log('GitHub response:', result);
+  logger.log('GitHub response:', result);
   return result;
 };
 
@@ -132,7 +134,7 @@ export const ensureDirectory = async (token: string, owner: string, repo: string
     await makeGitHubRequest(checkPath, 'GET', headers, undefined, owner, repo);
   } catch (error) {
     // Directory doesn't exist, create it with a .gitkeep file
-    console.log(`${folder}/ directory not found, creating it...`);
+    logger.log(`${folder}/ directory not found, creating it...`);
     const createPath = `/repos/${owner}/${repo}/contents/${folder}/.gitkeep`;
     const createBody = {
       message: commitMessage || `feat: Create ${folder} directory`,
@@ -146,11 +148,11 @@ export const ensureDirectory = async (token: string, owner: string, repo: string
 
     if (!createResponse.ok) {
       const errorText = await createResponse.text();
-      console.error(`Failed to create ${folder} directory:`, errorText);
+      logger.error(`Failed to create ${folder} directory:`, errorText);
       throw new Error(`Failed to create ${folder} directory: ${createResponse.statusText}`);
     }
     
-    console.log(`${folder}/ directory created successfully`);
+    logger.log(`${folder}/ directory created successfully`);
   }
 };
 
@@ -166,51 +168,51 @@ export const getTodos = async (token: string, owner: string, repo: string, folde
     'Cache-Control': 'no-cache',
     'Pragma': 'no-cache'
   };
-  console.log('Fetching todos from:', apiPath);
+  logger.log('Fetching todos from:', apiPath);
   
   try {
-    console.log('Making fetch request with headers:', JSON.stringify(headers, null, 2));
-    console.log('Fetch path:', apiPath);
+    logger.log('Making fetch request with headers:', JSON.stringify(headers, null, 2));
+    logger.log('Fetch path:', apiPath);
     
     const response = await makeGitHubRequest(apiPath, 'GET', headers, undefined, owner, repo);
 
-    console.log('Response received:', response.status, response.statusText);
-    console.log('Response headers:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
+    logger.log('Response received:', response.status, response.statusText);
+    logger.log('Response headers:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
 
     if (!response.ok) {
       if (response.status === 404) {
-        console.log('todos/ directory not found, returning empty array');
+        logger.log('todos/ directory not found, returning empty array');
         return []; // Directory doesn't exist, return empty array
       }
       const errorText = await response.text();
-      console.error('GitHub API error response:', errorText);
+      logger.error('GitHub API error response:', errorText);
       throw new Error(`GitHub API error: ${response.statusText} - ${errorText}`);
     }
 
     const files: GitHubFile[] = await response.json();
-    console.log('Raw files from GitHub:', files.length);
-    console.log('All files:', files.map(f => ({ name: f.name, type: f.type, path: f.path })));
+    logger.log('Raw files from GitHub:', files.length);
+    logger.log('All files:', files.map(f => ({ name: f.name, type: f.type, path: f.path })));
     
     // Filter out .gitkeep file and any non-markdown files
     const todoFiles = files.filter(file => 
       file.name !== '.gitkeep' && 
       file.name.endsWith('.md')
     );
-    console.log('Filtered todo files:', todoFiles.length);
-    console.log('Todo files:', todoFiles.map(f => ({ name: f.name, path: f.path })));
+    logger.log('Filtered todo files:', todoFiles.length);
+    logger.log('Todo files:', todoFiles.map(f => ({ name: f.name, path: f.path })));
     return todoFiles;
   } catch (error) {
-    console.error('Error fetching todos:', error);
+    logger.error('Error fetching todos:', error);
     // Handle network errors more gracefully
     if (error instanceof TypeError && (error.message.includes('fetch') || error.message.includes('Load failed'))) {
-      console.log('Network error detected, retrying once...');
+      logger.log('Network error detected, retrying once...');
       try {
         // Wait a bit and retry once
         await new Promise(resolve => setTimeout(resolve, 1000));
         const retryResponse = await makeGitHubRequest(apiPath, 'GET', headers, undefined, owner, repo);
         if (!retryResponse.ok) {
           if (retryResponse.status === 404) {
-            console.log('todos/ directory not found after retry, returning empty array');
+            logger.log('todos/ directory not found after retry, returning empty array');
             return [];
           }
           const errorText = await retryResponse.text();
@@ -223,7 +225,7 @@ export const getTodos = async (token: string, owner: string, repo: string, folde
         );
         return todoFiles;
       } catch (retryError) {
-        console.error('Retry also failed:', retryError);
+        logger.error('Retry also failed:', retryError);
         return [];
       }
     }
@@ -278,7 +280,7 @@ export const ensureArchiveDirectory = async (token: string, owner: string, repo:
     await makeGitHubRequest(checkPath, 'GET', headers, undefined, owner, repo);
   } catch (error) {
     // Directory doesn't exist, create it with a .gitkeep file
-    console.log(`${folder}/archive/ directory not found, creating it...`);
+    logger.log(`${folder}/archive/ directory not found, creating it...`);
     const createPath = `/repos/${owner}/${repo}/contents/${folder}/archive/.gitkeep`;
     const createBody = {
       message: `feat: Create ${folder}/archive directory`,
@@ -292,11 +294,11 @@ export const ensureArchiveDirectory = async (token: string, owner: string, repo:
 
     if (!createResponse.ok) {
       const errorText = await createResponse.text();
-      console.error(`Failed to create ${folder}/archive directory:`, errorText);
+      logger.error(`Failed to create ${folder}/archive directory:`, errorText);
       throw new Error(`Failed to create ${folder}/archive directory: ${createResponse.statusText}`);
     }
     
-    console.log(`${folder}/archive/ directory created successfully`);
+    logger.log(`${folder}/archive/ directory created successfully`);
   }
 };
 
@@ -309,7 +311,7 @@ export const moveTaskToArchive = async (
   commitMessage: string,
   folder: string = 'todos'
 ) => {
-  console.log('Moving task to archive:', currentPath);
+  logger.log('Moving task to archive:', currentPath);
   
   // Ensure archive directory exists
   await ensureArchiveDirectory(token, owner, repo, folder);
@@ -322,11 +324,11 @@ export const moveTaskToArchive = async (
   const archivePath = `${folder}/archive/${fileName}`;
   
   // Create file in archive
-  console.log('Creating archived file at:', archivePath);
+  logger.log('Creating archived file at:', archivePath);
   await createOrUpdateTodo(token, owner, repo, archivePath, content, commitMessage);
   
   // Delete from original location
-  console.log('Deleting original file at:', currentPath);
+  logger.log('Deleting original file at:', currentPath);
   await deleteFile(token, owner, repo, currentPath, currentFile.sha, `Archive: Remove ${fileName} from active ${folder}`);
   
   return archivePath;
@@ -341,7 +343,7 @@ export const moveTaskFromArchive = async (
   commitMessage: string,
   folder: string = 'todos'
 ) => {
-  console.log('Moving task from archive:', currentPath);
+  logger.log('Moving task from archive:', currentPath);
   
   // Get current file SHA for deletion
   const currentFile = await getFileMetadata(token, owner, repo, currentPath);
@@ -351,11 +353,11 @@ export const moveTaskFromArchive = async (
   const activePath = `${folder}/${fileName}`;
   
   // Create file in active folder
-  console.log('Creating unarchived file at:', activePath);
+  logger.log('Creating unarchived file at:', activePath);
   await createOrUpdateTodo(token, owner, repo, activePath, content, commitMessage);
   
   // Delete from archive location
-  console.log('Deleting archived file at:', currentPath);
+  logger.log('Deleting archived file at:', currentPath);
   await deleteFile(token, owner, repo, currentPath, currentFile.sha, `Unarchive: Remove ${fileName} from ${folder}/archive`);
   
   return activePath;
@@ -380,16 +382,16 @@ export const deleteFile = async (
     sha: sha,
   };
 
-  console.log('Deleting file via proxy:', apiPath);
+  logger.log('Deleting file via proxy:', apiPath);
   const response = await makeGitHubRequest(apiPath, 'DELETE', headers, requestBody, owner, repo);
   
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Failed to delete file:', errorText);
+    logger.error('Failed to delete file:', errorText);
     throw new Error(`Failed to delete file: ${response.statusText} - ${errorText}`);
   }
   
-  console.log('File deleted successfully:', path);
+  logger.log('File deleted successfully:', path);
   return await response.json();
 };
 
@@ -410,7 +412,7 @@ export const getFileHistory = async (
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Failed to fetch file history:', errorText);
+    logger.error('Failed to fetch file history:', errorText);
     throw new Error(`Failed to fetch file history: ${response.statusText}`);
   }
 
@@ -430,7 +432,7 @@ export const listProjectFolders = async (
     const response = await makeGitHubRequest(apiPath, 'GET', headers, undefined, owner, repo);
     
     if (!response.ok) {
-      console.error('Failed to list repository contents');
+      logger.error('Failed to list repository contents');
       return ['todos']; // Default fallback
     }
     
@@ -458,7 +460,7 @@ export const listProjectFolders = async (
     
     return folders;
   } catch (error) {
-    console.error('Error listing project folders:', error);
+    logger.error('Error listing project folders:', error);
     return ['todos']; // Default fallback
   }
 };
@@ -507,7 +509,7 @@ export const getFileAtCommit = async (
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Failed to fetch file at commit:', errorText);
+    logger.error('Failed to fetch file at commit:', errorText);
     throw new Error(`Failed to fetch file at commit: ${response.statusText}`);
   }
 

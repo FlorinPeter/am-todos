@@ -23,6 +23,17 @@ Object.defineProperty(global, 'localStorage', {
   writable: true
 });
 
+// Mock the logger
+vi.mock('../logger', () => ({
+  default: {
+    log: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn()
+  }
+}));
+
 // Now import the functions
 import { 
   saveSettings,
@@ -39,6 +50,7 @@ import {
   clearSelectedTodoId,
   Checkpoint 
 } from '../localStorage';
+import logger from '../logger';
 
 describe('localStorage functions', () => {
   beforeEach(() => {
@@ -126,18 +138,18 @@ describe('localStorage functions', () => {
     });
 
     it('handles localStorage errors gracefully', () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
       mockLocalStorage.setItem.mockImplementation(() => {
         throw new Error('localStorage full');
       });
 
       expect(() => saveCheckpoint('task-1', mockCheckpoint)).not.toThrow();
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(loggerSpy).toHaveBeenCalledWith(
         'Error saving checkpoint to localStorage',
         expect.any(Error)
       );
 
-      consoleSpy.mockRestore();
+      loggerSpy.mockRestore();
     });
   });
 
@@ -172,33 +184,33 @@ describe('localStorage functions', () => {
     });
 
     it('handles localStorage errors gracefully', () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
       mockLocalStorage.getItem.mockImplementation(() => {
         throw new Error('localStorage error');
       });
 
       const checkpoints = getCheckpoints('task-1');
       expect(checkpoints).toEqual([]);
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(loggerSpy).toHaveBeenCalledWith(
         'Error loading checkpoints from localStorage',
         expect.any(Error)
       );
 
-      consoleSpy.mockRestore();
+      loggerSpy.mockRestore();
     });
 
     it('handles corrupted JSON data gracefully', () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
       store['checkpoints_task-1'] = 'invalid json';
       
       const checkpoints = getCheckpoints('task-1');
       expect(checkpoints).toEqual([]);
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(loggerSpy).toHaveBeenCalledWith(
         'Error loading checkpoints from localStorage',
         expect.any(Error)
       );
 
-      consoleSpy.mockRestore();
+      loggerSpy.mockRestore();
     });
   });
 
@@ -213,18 +225,18 @@ describe('localStorage functions', () => {
     });
 
     it('handles localStorage errors gracefully', () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
       mockLocalStorage.removeItem.mockImplementation(() => {
         throw new Error('localStorage error');
       });
 
       expect(() => clearCheckpoints('task-1')).not.toThrow();
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(loggerSpy).toHaveBeenCalledWith(
         'Error clearing checkpoints from localStorage',
         expect.any(Error)
       );
 
-      consoleSpy.mockRestore();
+      loggerSpy.mockRestore();
     });
   });
 
@@ -352,18 +364,18 @@ describe('localStorage functions', () => {
       });
 
       it('handles localStorage errors gracefully', () => {
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
         mockLocalStorage.setItem.mockImplementation(() => {
           throw new Error('localStorage full');
         });
 
         expect(() => saveSettings(mockGitHubSettings)).not.toThrow();
-        expect(consoleSpy).toHaveBeenCalledWith(
+        expect(loggerSpy).toHaveBeenCalledWith(
           'Error saving settings to localStorage',
           expect.any(Error)
         );
 
-        consoleSpy.mockRestore();
+        loggerSpy.mockRestore();
       });
     });
 
@@ -415,33 +427,33 @@ describe('localStorage functions', () => {
       });
 
       it('handles localStorage errors gracefully', () => {
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
         mockLocalStorage.getItem.mockImplementation(() => {
           throw new Error('localStorage error');
         });
 
         const settings = loadSettings();
         expect(settings).toBeNull();
-        expect(consoleSpy).toHaveBeenCalledWith(
+        expect(loggerSpy).toHaveBeenCalledWith(
           'Error loading settings from localStorage',
           expect.any(Error)
         );
 
-        consoleSpy.mockRestore();
+        loggerSpy.mockRestore();
       });
 
       it('handles corrupted JSON data gracefully', () => {
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
         store['githubSettings'] = 'invalid json';
         
         const settings = loadSettings();
         expect(settings).toBeNull();
-        expect(consoleSpy).toHaveBeenCalledWith(
+        expect(loggerSpy).toHaveBeenCalledWith(
           'Error loading settings from localStorage',
           expect.any(Error)
         );
 
-        consoleSpy.mockRestore();
+        loggerSpy.mockRestore();
       });
     });
   });
@@ -505,7 +517,7 @@ describe('localStorage functions', () => {
       });
 
       it('handles encoding errors gracefully', () => {
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
         
         // Mock btoa to throw an error
         const originalBtoa = global.btoa;
@@ -516,13 +528,13 @@ describe('localStorage functions', () => {
         const url = encodeSettingsToUrl({} as any);
         
         expect(url).toBe('');
-        expect(consoleSpy).toHaveBeenCalledWith(
+        expect(loggerSpy).toHaveBeenCalledWith(
           'Error encoding settings to URL',
           expect.any(Error)
         );
 
         global.btoa = originalBtoa;
-        consoleSpy.mockRestore();
+        loggerSpy.mockRestore();
       });
     });
 
@@ -564,7 +576,7 @@ describe('localStorage functions', () => {
       });
 
       it('validates required GitHub fields', () => {
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
         const incompleteSettings = {
           pat: 'token',
           owner: 'user'
@@ -575,15 +587,15 @@ describe('localStorage functions', () => {
         const decoded = decodeSettingsFromUrl(encoded);
         
         expect(decoded).toBeNull();
-        expect(consoleSpy).toHaveBeenCalledWith(
+        expect(loggerSpy).toHaveBeenCalledWith(
           'Invalid GitHub settings configuration - missing required fields'
         );
 
-        consoleSpy.mockRestore();
+        loggerSpy.mockRestore();
       });
 
       it('validates required GitLab fields', () => {
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
         const incompleteSettings = {
           instanceUrl: 'https://gitlab.example.com',
           projectId: '12345'
@@ -597,40 +609,40 @@ describe('localStorage functions', () => {
         const decoded = decodeSettingsFromUrl(encoded);
         
         expect(decoded).toBeNull();
-        expect(consoleSpy).toHaveBeenCalledWith(
+        expect(loggerSpy).toHaveBeenCalledWith(
           'Invalid GitLab settings configuration - missing required fields'
         );
 
-        consoleSpy.mockRestore();
+        loggerSpy.mockRestore();
       });
 
       it('handles invalid base64 gracefully', () => {
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
         
         const decoded = decodeSettingsFromUrl('invalid-base64!@#');
         
         expect(decoded).toBeNull();
-        expect(consoleSpy).toHaveBeenCalledWith(
+        expect(loggerSpy).toHaveBeenCalledWith(
           'Error decoding settings from URL',
           expect.any(Error)
         );
 
-        consoleSpy.mockRestore();
+        loggerSpy.mockRestore();
       });
 
       it('handles invalid JSON gracefully', () => {
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
         
         const invalidJson = btoa('invalid json {');
         const decoded = decodeSettingsFromUrl(invalidJson);
         
         expect(decoded).toBeNull();
-        expect(consoleSpy).toHaveBeenCalledWith(
+        expect(loggerSpy).toHaveBeenCalledWith(
           'Error decoding settings from URL',
           expect.any(Error)
         );
 
-        consoleSpy.mockRestore();
+        loggerSpy.mockRestore();
       });
 
       it('adds default folder when missing', () => {
@@ -704,10 +716,10 @@ describe('localStorage functions', () => {
           writable: true
         });
 
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
         const config = getUrlConfig();
         expect(config).toBeNull();
-        consoleSpy.mockRestore();
+        loggerSpy.mockRestore();
       });
     });
   });
@@ -743,18 +755,18 @@ describe('localStorage functions', () => {
       });
 
       it('handles localStorage errors gracefully', () => {
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
         mockLocalStorage.setItem.mockImplementation(() => {
           throw new Error('localStorage error');
         });
 
         expect(() => saveSelectedTodoId('todo-123')).not.toThrow();
-        expect(consoleSpy).toHaveBeenCalledWith(
+        expect(loggerSpy).toHaveBeenCalledWith(
           'Error saving selected todo ID to localStorage',
           expect.any(Error)
         );
 
-        consoleSpy.mockRestore();
+        loggerSpy.mockRestore();
       });
     });
 
@@ -772,19 +784,19 @@ describe('localStorage functions', () => {
       });
 
       it('handles localStorage errors gracefully', () => {
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
         mockLocalStorage.getItem.mockImplementation(() => {
           throw new Error('localStorage error');
         });
 
         const todoId = loadSelectedTodoId();
         expect(todoId).toBeNull();
-        expect(consoleSpy).toHaveBeenCalledWith(
+        expect(loggerSpy).toHaveBeenCalledWith(
           'Error loading selected todo ID from localStorage',
           expect.any(Error)
         );
 
-        consoleSpy.mockRestore();
+        loggerSpy.mockRestore();
       });
     });
 
@@ -799,18 +811,18 @@ describe('localStorage functions', () => {
       });
 
       it('handles localStorage errors gracefully', () => {
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
         mockLocalStorage.removeItem.mockImplementation(() => {
           throw new Error('localStorage error');
         });
 
         expect(() => clearSelectedTodoId()).not.toThrow();
-        expect(consoleSpy).toHaveBeenCalledWith(
+        expect(loggerSpy).toHaveBeenCalledWith(
           'Error clearing selected todo ID from localStorage',
           expect.any(Error)
         );
 
-        consoleSpy.mockRestore();
+        loggerSpy.mockRestore();
       });
     });
   });

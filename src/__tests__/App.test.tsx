@@ -6,12 +6,22 @@ import * as localStorage from '../utils/localStorage';
 import * as gitService from '../services/gitService';
 import * as aiService from '../services/aiService';
 import * as markdown from '../utils/markdown';
+import logger from '../utils/logger';
 
 // Mock all the dependencies
 vi.mock('../utils/localStorage');
 vi.mock('../services/gitService');
 vi.mock('../services/aiService');
 vi.mock('../utils/markdown');
+vi.mock('../utils/logger', () => ({
+  default: {
+    log: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn()
+  }
+}));
 
 // Mock child components to isolate App component logic
 vi.mock('../components/NewTodoInput', () => ({
@@ -469,15 +479,15 @@ describe('App Component', () => {
   describe('Error Handling', () => {
     it('handles fetch todos error', async () => {
       mockGetTodos.mockRejectedValue(new Error('Network error'));
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
       
       render(<App />);
       
       await waitFor(() => {
-        expect(consoleSpy).toHaveBeenCalledWith('Error fetching todos:', expect.any(Error));
+        expect(loggerSpy).toHaveBeenCalledWith('Error fetching todos:', expect.any(Error));
       });
       
-      consoleSpy.mockRestore();
+      loggerSpy.mockRestore();
     });
 
     it('handles empty todos list', async () => {

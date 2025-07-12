@@ -1,15 +1,18 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
-// Mock console methods to avoid test output pollution
-const originalConsole = console;
-beforeEach(() => {
-  console.log = vi.fn();
-  console.error = vi.fn();
-});
+// Mock logger methods to avoid test output pollution
+vi.mock('../../utils/logger', () => ({
+  default: {
+    log: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn()
+  }
+}));
 
-afterEach(() => {
-  console.log = originalConsole.log;
-  console.error = originalConsole.error;
+beforeEach(() => {
+  vi.clearAllMocks();
 });
 
 describe('GitLab Service - Comprehensive Coverage', () => {

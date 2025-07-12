@@ -4,11 +4,18 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-// Mock console methods to avoid test output pollution
-const originalConsole = console;
+// Mock logger methods to avoid test output pollution
+vi.mock('../../utils/logger', () => ({
+  default: {
+    log: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn()
+  }
+}));
+
 beforeEach(() => {
-  console.log = vi.fn();
-  console.error = vi.fn();
   vi.clearAllMocks();
   
   // Mock window.location for environment detection
@@ -19,11 +26,6 @@ beforeEach(() => {
     },
     writable: true
   });
-});
-
-afterEach(() => {
-  console.log = originalConsole.log;
-  console.error = originalConsole.error;
 });
 
 describe('GitHub Service - Comprehensive Coverage', () => {

@@ -1,6 +1,8 @@
 // GitLab API service for handling GitLab repository operations
 // This service mirrors the functionality of the GitHub service but for GitLab API
 
+import logger from './logger.js';
+
 /**
  * GitLab API wrapper for file operations
  * Handles authentication, Base64 encoding, and API endpoint routing
@@ -37,13 +39,13 @@ class GitLabService {
       }
     };
 
-    console.log('GitLab API request:', options.method || 'GET', url);
+    logger.log('GitLab API request:', options.method || 'GET', url);
     
     const response = await fetch(url, mergedOptions);
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('GitLab API error:', response.status, errorText);
+      logger.error('GitLab API error:', response.status, errorText);
       throw new Error(`GitLab API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
@@ -57,7 +59,7 @@ class GitLabService {
     const encodedPath = encodeURIComponent(filePath);
     const endpoint = `/projects/${this.projectId}/repository/files/${encodedPath}?ref=${branch}`;
     
-    console.log(`GitLab getFile request: ${endpoint}`);
+    logger.log(`GitLab getFile request: ${endpoint}`);
     
     const response = await this.makeRequest(endpoint, {
       method: 'GET',
@@ -67,17 +69,17 @@ class GitLabService {
       }
     });
 
-    console.log(`GitLab getFile response status: ${response.status}`);
+    logger.log(`GitLab getFile response status: ${response.status}`);
     
     const responseText = await response.text();
-    console.log(`GitLab getFile response text (first 200 chars): ${responseText.substring(0, 200)}`);
+    logger.log(`GitLab getFile response text (first 200 chars): ${responseText.substring(0, 200)}`);
     
     let data;
     try {
       data = JSON.parse(responseText);
     } catch (parseError) {
-      console.error('GitLab getFile JSON parse error:', parseError.message);
-      console.error('GitLab getFile full response text:', responseText);
+      logger.error('GitLab getFile JSON parse error:', parseError.message);
+      logger.error('GitLab getFile full response text:', responseText);
       throw new Error(`Failed to parse GitLab getFile response: ${parseError.message}`);
     }
     
@@ -142,7 +144,7 @@ class GitLabService {
       fileExists = true;
     } catch (error) {
       // File doesn't exist, which is fine for creation
-      console.log('File does not exist, creating new file');
+      logger.log('File does not exist, creating new file');
     }
 
     // Encode content to Base64
@@ -184,17 +186,17 @@ class GitLabService {
 
     // GitLab DELETE operations may return empty response body
     const responseText = await response.text();
-    console.log('GitLab deleteFile response text:', responseText);
+    logger.log('GitLab deleteFile response text:', responseText);
     
     if (responseText.trim() === '') {
-      console.log('GitLab deleteFile: Empty response, file deleted successfully');
+      logger.log('GitLab deleteFile: Empty response, file deleted successfully');
       return { deleted: true };
     }
     
     try {
       return JSON.parse(responseText);
     } catch (parseError) {
-      console.log('GitLab deleteFile: Non-JSON response, but delete was successful');
+      logger.log('GitLab deleteFile: Non-JSON response, but delete was successful');
       return { deleted: true };
     }
   }

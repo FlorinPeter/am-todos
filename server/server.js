@@ -4,6 +4,7 @@ import path from 'path';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import GitLabService from './gitlabService.js';
 import { fileURLToPath } from 'url';
+import logger from './logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,12 +13,12 @@ const app = express();
 const port = process.env.PORT || 3001;
 
 // Debug logging for Cloud Run
-console.log('🚀 Starting server...');
-console.log('📝 Environment variables:');
-console.log('   NODE_ENV:', process.env.NODE_ENV);
-console.log('   PORT:', process.env.PORT);
-console.log('   FRONTEND_BUILD_PATH:', process.env.FRONTEND_BUILD_PATH);
-console.log('🔌 Server will listen on port:', port);
+logger.log('🚀 Starting server...');
+logger.log('📝 Environment variables:');
+logger.log('   NODE_ENV:', process.env.NODE_ENV);
+logger.log('   PORT:', process.env.PORT);
+logger.log('   FRONTEND_BUILD_PATH:', process.env.FRONTEND_BUILD_PATH);
+logger.log('🔌 Server will listen on port:', port);
 
 app.use(cors());
 app.use(express.json());
@@ -68,7 +69,7 @@ app.get('/api/memory', (req, res) => {
 // Serve static files from the React app build directory in production
 if (process.env.NODE_ENV === 'production') {
   const buildPath = process.env.FRONTEND_BUILD_PATH || path.join(__dirname, '../build');
-  console.log('📁 Static files path:', buildPath);
+  logger.log('📁 Static files path:', buildPath);
   app.use(express.static(buildPath));
 }
 
@@ -99,13 +100,13 @@ app.post('/api/github', async (req, res) => {
   const isAllowedEndpoint = allowedPatterns.some(pattern => pattern.test(path));
   
   if (!isAllowedEndpoint) {
-    console.log('Blocked endpoint:', path);
+    logger.log('Blocked endpoint:', path);
     return res.status(403).json({ error: 'Endpoint not allowed' });
   }
 
   try {
     const githubUrl = `https://api.github.com${path}`;
-    console.log('Proxying GitHub API request:', method, githubUrl);
+    logger.log('Proxying GitHub API request:', method, githubUrl);
     
     const fetchOptions = {
       method,
@@ -136,7 +137,7 @@ app.post('/api/github', async (req, res) => {
     
     res.send(responseData);
   } catch (error) {
-    console.error('GitHub API proxy error:', error);
+    logger.error('GitHub API proxy error:', error);
     res.status(500).json({ error: 'Failed to proxy GitHub API request' });
   }
 });
@@ -211,7 +212,7 @@ app.post('/api/gitlab', async (req, res) => {
 
     res.json(result);
   } catch (error) {
-    console.error('GitLab API proxy error:', error);
+    logger.error('GitLab API proxy error:', error);
     res.status(500).json({ error: 'Failed to process GitLab API request: ' + error.message });
   }
 });
@@ -310,7 +311,7 @@ Please return the updated markdown content:`;
 
       if (!openRouterResponse.ok) {
         const errorText = await openRouterResponse.text();
-        console.error('OpenRouter API error:', errorText);
+        logger.error('OpenRouter API error:', errorText);
         if (openRouterResponse.status === 401) {
           throw new Error('OpenRouter API key is invalid or not authorized. Please check your API key in settings.');
         }
@@ -324,7 +325,7 @@ Please return the updated markdown content:`;
       return res.status(400).json({ error: 'Unsupported AI provider' });
     }
   } catch (error) {
-    console.error(`Error calling ${provider} API:`, error);
+    logger.error(`Error calling ${provider} API:`, error);
     res.status(500).json({ error: `Failed to get response from ${provider} API` });
   }
 });
@@ -339,7 +340,7 @@ app.post('/api/git-history', async (req, res) => {
 
   try {
     const githubUrl = `https://api.github.com/repos/${owner}/${repo}/commits?path=${path}`;
-    console.log('Fetching git history:', githubUrl);
+    logger.log('Fetching git history:', githubUrl);
     
     const response = await fetch(githubUrl, {
       headers: {
@@ -365,7 +366,7 @@ app.post('/api/git-history', async (req, res) => {
 
     res.json({ commits: formattedCommits });
   } catch (error) {
-    console.error('Error fetching git history:', error);
+    logger.error('Error fetching git history:', error);
     res.status(500).json({ error: 'Failed to fetch git history' });
   }
 });
@@ -380,7 +381,7 @@ app.post('/api/file-at-commit', async (req, res) => {
 
   try {
     const githubUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${sha}`;
-    console.log('Fetching file at commit:', githubUrl);
+    logger.log('Fetching file at commit:', githubUrl);
     
     const response = await fetch(githubUrl, {
       headers: {
@@ -399,7 +400,7 @@ app.post('/api/file-at-commit', async (req, res) => {
     
     res.json({ content, sha: data.sha });
   } catch (error) {
-    console.error('Error fetching file at commit:', error);
+    logger.error('Error fetching file at commit:', error);
     res.status(500).json({ error: 'Failed to fetch file at commit' });
   }
 });
@@ -433,7 +434,7 @@ export default app;
 // Only start the server if this file is run directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   app.listen(port, '0.0.0.0', () => {
-    console.log(`✅ Server successfully listening at http://0.0.0.0:${port}`);
-    console.log(`🌐 Health check available at http://0.0.0.0:${port}/health`);
+    logger.log(`✅ Server successfully listening at http://0.0.0.0:${port}`);
+    logger.log(`🌐 Health check available at http://0.0.0.0:${port}/health`);
   });
 }
