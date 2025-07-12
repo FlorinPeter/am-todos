@@ -12,13 +12,13 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 3001;
 
-// Debug logging for Cloud Run
-logger.log('🚀 Starting server...');
-logger.log('📝 Environment variables:');
-logger.log('   NODE_ENV:', process.env.NODE_ENV);
-logger.log('   PORT:', process.env.PORT);
-logger.log('   FRONTEND_BUILD_PATH:', process.env.FRONTEND_BUILD_PATH);
-logger.log('🔌 Server will listen on port:', port);
+// Critical startup logging for Cloud Run (always visible)
+logger.startup('🚀 Starting server...');
+logger.startup('📝 Environment variables:');
+logger.startup('   NODE_ENV:', process.env.NODE_ENV);
+logger.startup('   PORT:', process.env.PORT);
+logger.startup('   FRONTEND_BUILD_PATH:', process.env.FRONTEND_BUILD_PATH);
+logger.startup('🔌 Server will listen on port:', port);
 
 app.use(cors());
 app.use(express.json());
@@ -434,7 +434,7 @@ export default app;
 // Only start the server if this file is run directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   app.listen(port, '0.0.0.0', () => {
-    logger.log(`✅ Server successfully listening at http://0.0.0.0:${port}`);
-    logger.log(`🌐 Health check available at http://0.0.0.0:${port}/health`);
+    logger.startup(`✅ Server successfully listening at http://0.0.0.0:${port}`);
+    logger.startup(`🌐 Health check available at http://0.0.0.0:${port}/health`);
   });
 }
