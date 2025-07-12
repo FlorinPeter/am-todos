@@ -20,14 +20,12 @@ const logger: Logger = {
     }
   },
   error: (...args: any[]) => {
-    if (isDevelopment) {
-      console.error(...args);
-    }
+    // Always log errors, even in production
+    console.error(...args);
   },
   warn: (...args: any[]) => {
-    if (isDevelopment) {
-      console.warn(...args);
-    }
+    // Always log warnings, even in production
+    console.warn(...args);
   },
   info: (...args: any[]) => {
     if (isDevelopment) {
