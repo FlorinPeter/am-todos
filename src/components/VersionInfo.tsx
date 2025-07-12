@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getVersionInfo, VersionInfo } from '../services/versionService';
+import logger from '../utils/logger';
 
 const VersionInfoComponent: React.FC = () => {
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
@@ -11,7 +12,7 @@ const VersionInfoComponent: React.FC = () => {
         const info = await getVersionInfo();
         setVersionInfo(info);
       } catch (error) {
-        console.error('Failed to load version info:', error);
+        logger.error('Failed to load version info:', error);
       } finally {
         setIsLoading(false);
       }

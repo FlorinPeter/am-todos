@@ -253,6 +253,34 @@ class GitLabService {
       sha: data.blob_id
     };
   }
+
+  /**
+   * Get repository tree (directories and files) using GitLab repository tree API
+   */
+  async getRepositoryTree(path = '', recursive = false, branch = 'main') {
+    const endpoint = `/projects/${this.projectId}/repository/tree`;
+    const params = new URLSearchParams({
+      ref: branch,
+      per_page: 100
+    });
+    
+    if (path) {
+      params.append('path', path);
+    }
+    
+    if (recursive) {
+      params.append('recursive', 'true');
+    }
+    
+    logger.log(`GitLab getRepositoryTree request: ${endpoint}?${params}`);
+    
+    const response = await this.makeRequest(`${endpoint}?${params}`);
+    const data = await response.json();
+    
+    logger.log(`GitLab getRepositoryTree response: ${data.length} items`);
+    
+    return data;
+  }
 }
 
 export default GitLabService;

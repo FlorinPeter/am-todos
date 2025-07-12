@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { loadSettings, saveSettings } from '../utils/localStorage';
 import { listProjectFolders, createProjectFolder } from '../services/gitService';
+import logger from '../utils/logger';
 
 interface ProjectManagerProps {
   onProjectChanged: (newSettings?: any) => void;
@@ -16,13 +17,13 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
 
   useEffect(() => {
     const loadedSettings = loadSettings();
-    console.log('ProjectManager: Settings loaded:', loadedSettings);
+    logger.log('ProjectManager: Settings loaded:', loadedSettings);
     setSettings(loadedSettings);
     
     // Force load folders if we have settings
     let timeoutId: NodeJS.Timeout | null = null;
     if (loadedSettings?.gitProvider === 'gitlab' && loadedSettings?.instanceUrl && loadedSettings?.projectId && loadedSettings?.token) {
-      console.log('ProjectManager: Force loading GitLab folders');
+      logger.log('ProjectManager: Force loading GitLab folders');
       timeoutId = setTimeout(() => loadFolders(), 100);
     }
     
@@ -39,18 +40,18 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
     const hasGitHubSettings = !!(settings?.pat && settings?.owner && settings?.repo);
     const hasGitLabSettings = !!(settings?.instanceUrl && settings?.projectId && settings?.token);
     
-    console.log('ProjectManager: loadFolders called', { hasGitHubSettings, hasGitLabSettings });
+    logger.log('ProjectManager: loadFolders called', { hasGitHubSettings, hasGitLabSettings });
     
     if (!hasGitHubSettings && !hasGitLabSettings) return;
     
     setIsLoading(true);
     try {
       const folders = await listProjectFolders();
-      console.log('ProjectManager: Folders loaded:', folders);
+      logger.log('ProjectManager: Folders loaded:', folders);
       setAvailableFolders(folders);
     } catch (error) {
-      console.error('ProjectManager: Failed to load folders:', error);
-      console.error('ProjectManager: Error details:', error.message, error.stack);
+      logger.error('ProjectManager: Failed to load folders:', error);
+      logger.error('ProjectManager: Error details:', error.message, error.stack);
       // Keep default folders on error
       setAvailableFolders(['todos']);
     } finally {
@@ -62,13 +63,13 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
     const hasGitHubSettings = !!(settings?.pat && settings?.owner && settings?.repo);
     const hasGitLabSettings = !!(settings?.instanceUrl && settings?.projectId && settings?.token);
     
-    console.log('ProjectManager: useEffect triggered', { hasGitHubSettings, hasGitLabSettings, settings });
+    logger.log('ProjectManager: useEffect triggered', { hasGitHubSettings, hasGitLabSettings, settings });
     
     if (hasGitHubSettings || hasGitLabSettings) {
-      console.log('ProjectManager: Calling loadFolders');
+      logger.log('ProjectManager: Calling loadFolders');
       loadFolders();
     } else {
-      console.log('ProjectManager: Not loading folders - no valid settings');
+      logger.log('ProjectManager: Not loading folders - no valid settings');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings?.pat, settings?.owner, settings?.repo, settings?.instanceUrl, settings?.projectId, settings?.token]);
@@ -101,7 +102,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
       setNewProjectName('');
       setShowCreateModal(false);
     } catch (error) {
-      console.error('Failed to create project:', error);
+      logger.error('Failed to create project:', error);
       alert('Failed to create project: ' + (error as Error).message);
     } finally {
       setIsCreating(false);
@@ -113,7 +114,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
   const hasGitHubSettings = settings?.pat && settings?.owner && settings?.repo;
   const hasGitLabSettings = settings?.instanceUrl && settings?.projectId && settings?.token;
   
-  console.log('ProjectManager: Render check', { 
+  logger.log('ProjectManager: Render check', { 
     hasGitHubSettings, 
     hasGitLabSettings, 
     availableFolders, 
@@ -124,7 +125,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
   });
   
   if (!hasGitHubSettings && !hasGitLabSettings) {
-    console.log('ProjectManager: Not rendering - no settings');
+    logger.log('ProjectManager: Not rendering - no settings');
     return null; // Don't show if not configured
   }
 

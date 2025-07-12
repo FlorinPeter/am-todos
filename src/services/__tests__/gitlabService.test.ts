@@ -266,54 +266,45 @@ describe('GitLab Service', () => {
 
   describe('listProjectFolders', () => {
     it('should list available project folders', async () => {
-      // Mock successful responses for 'todos' and 'work-tasks', failures for others
-      const mockSuccessResponse = {
+      // Mock repository tree response
+      const mockTreeResponse = {
         ok: true,
-        json: () => Promise.resolve([])
-      };
-      const mockFailResponse = {
-        ok: false,
-        json: () => Promise.resolve({ error: 'Not found' })
+        json: () => Promise.resolve([
+          { name: 'todos', type: 'tree', path: 'todos' },
+          { name: 'work-tasks', type: 'tree', path: 'work-tasks' },
+          { name: 'src', type: 'tree', path: 'src' },
+          { name: 'README.md', type: 'blob', path: 'README.md' },
+          { name: '.git', type: 'tree', path: '.git' }
+        ]),
+        text: () => Promise.resolve('[]')
       };
 
-      // Set up mocks for the potential folders that should exist
-      (fetch as any)
-        .mockResolvedValueOnce(mockSuccessResponse) // todos
-        .mockResolvedValueOnce(mockFailResponse)    // todo
-        .mockResolvedValueOnce(mockFailResponse)    // tasks
-        .mockResolvedValueOnce(mockFailResponse)    // task
-        .mockResolvedValueOnce(mockFailResponse)    // work
-        .mockResolvedValueOnce(mockFailResponse)    // personal
-        .mockResolvedValueOnce(mockFailResponse)    // projects
-        .mockResolvedValueOnce(mockFailResponse)    // project
-        .mockResolvedValueOnce(mockFailResponse)    // test
-        .mockResolvedValueOnce(mockFailResponse)    // test1
-        .mockResolvedValueOnce(mockFailResponse)    // test2
-        .mockResolvedValueOnce(mockFailResponse)    // main
-        .mockResolvedValueOnce(mockFailResponse)    // dev
-        .mockResolvedValueOnce(mockSuccessResponse) // work-tasks
-        .mockResolvedValueOnce(mockFailResponse);   // personal-tasks
+      // Mock fetch to return the repository tree
+      (fetch as any).mockResolvedValueOnce(mockTreeResponse);
 
       const result = await gitlabService.listProjectFolders(mockSettings);
 
-      // Should call with the first few potential folders
+      // Should call getRepositoryTree action
       expect(fetch).toHaveBeenCalledWith(
         'http://localhost:3001/api/gitlab',
         expect.objectContaining({
           body: JSON.stringify({
-            action: 'listFiles',
+            action: 'getRepositoryTree',
             instanceUrl: mockSettings.instanceUrl,
             projectId: mockSettings.projectId,
             token: mockSettings.token,
             branch: mockSettings.branch,
-            path: 'todos'
+            path: '',
+            recursive: false
           })
         })
       );
 
-      // Should include the folders that returned successful responses
+      // Should return filtered project folders (todos, work-tasks) but exclude system folders
       expect(result).toContain('todos');
       expect(result).toContain('work-tasks');
+      expect(result).not.toContain('src'); // Should be filtered out
+      expect(result).not.toContain('.git'); // Should be filtered out
       expect(result).toHaveLength(2);
     });
 
@@ -332,11 +323,13 @@ describe('GitLab Service', () => {
       (fetch as any)
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({ file_path: 'work-tasks/.gitkeep' })
+          json: () => Promise.resolve({ file_path: 'work-tasks/.gitkeep' }),
+          text: () => Promise.resolve('{"file_path":"work-tasks/.gitkeep"}')
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({ file_path: 'work-tasks/archive/.gitkeep' })
+          json: () => Promise.resolve({ file_path: 'work-tasks/archive/.gitkeep' }),
+          text: () => Promise.resolve('{"file_path":"work-tasks/archive/.gitkeep"}')
         });
 
       await gitlabService.createProjectFolder(mockSettings, 'work-tasks');
