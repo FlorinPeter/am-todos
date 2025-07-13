@@ -385,12 +385,6 @@ export const deleteFile = async (
   logger.log('Deleting file via proxy:', apiPath);
   const response = await makeGitHubRequest(apiPath, 'DELETE', headers, requestBody, owner, repo);
   
-  if (!response.ok) {
-    const errorText = await response.text();
-    logger.error('Failed to delete file:', errorText);
-    throw new Error(`Failed to delete file: ${response.statusText} - ${errorText}`);
-  }
-  
   logger.log('File deleted successfully:', path);
   return await response.json();
 };
@@ -430,11 +424,6 @@ export const listProjectFolders = async (
   
   try {
     const response = await makeGitHubRequest(apiPath, 'GET', headers, undefined, owner, repo);
-    
-    if (!response.ok) {
-      logger.error('Failed to list repository contents');
-      return ['todos']; // Default fallback
-    }
     
     const contents = await response.json();
     
