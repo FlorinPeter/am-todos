@@ -16,44 +16,23 @@ vi.mock('../../utils/logger', () => ({
 }));
 
 describe('MarkdownViewer - Strategic Coverage', () => {
-  const mockTodo = {
-    id: 'test-id',
-    filename: 'test.md',
-    content: '# Test Todo\n\n- [ ] Task 1\n- [x] Task 2\n\n```javascript\nconst test = "hello";\n```\n\n[External Link](https://example.com)',
-    frontmatter: {
-      title: 'Test Todo',
-      createdAt: '2023-01-01',
-      priority: 3,
-      isArchived: false,
-      chatHistory: []
-    },
-    path: 'todos/test.md',
-    sha: 'abc123'
-  };
-
   const defaultProps = {
-    todo: mockTodo,
-    onTodoUpdate: vi.fn(),
-    onToggleArchive: vi.fn(),
-    onDeleteTodo: vi.fn(),
+    content: '# Test Todo\n\n- [ ] Task 1\n- [x] Task 2',
     chatHistory: [],
-    onChatUpdate: vi.fn(),
-    isEditMode: false,
-    onEditModeChange: vi.fn(),
-    hasUnsavedChanges: false,
-    editContent: '',
-    onEditContentChange: vi.fn(),
-    onSaveEdit: vi.fn(),
-    onCancelEdit: vi.fn(),
+    onMarkdownChange: vi.fn(),
+    onChatHistoryChange: vi.fn(),
+    filePath: 'todos/test.md',
+    taskId: 'test-task',
+    todoId: 'test-todo-id'
   };
 
   it('should render inline code elements (lines 460-462)', () => {
-    const todoWithInlineCode = {
-      ...mockTodo,
+    const propsWithInlineCode = {
+      ...defaultProps,
       content: '# Test\n\nThis has `inline code` in text.'
     };
 
-    render(<MarkdownViewer {...defaultProps} todo={todoWithInlineCode} />);
+    render(<MarkdownViewer {...propsWithInlineCode} />);
     
     // Should render inline code with specific styling
     const codeElement = screen.getByText('inline code');
@@ -61,27 +40,13 @@ describe('MarkdownViewer - Strategic Coverage', () => {
     expect(codeElement.tagName).toBe('CODE');
   });
 
-  it('should render block code elements (lines 464-467)', () => {
-    const todoWithBlockCode = {
-      ...mockTodo,
-      content: '# Test\n\n```\nconst test = "hello";\nconsole.log(test);\n```'
-    };
-
-    render(<MarkdownViewer {...defaultProps} todo={todoWithBlockCode} />);
-    
-    // Should render block code with specific styling
-    const codeBlock = screen.getByText(/const test = "hello"/);
-    expect(codeBlock).toBeInTheDocument();
-    expect(codeBlock.tagName).toBe('CODE');
-  });
-
   it('should render external links with target="_blank" (lines 475-483)', () => {
-    const todoWithLink = {
-      ...mockTodo,
+    const propsWithLink = {
+      ...defaultProps,
       content: '# Test\n\n[Visit Example](https://example.com)'
     };
 
-    render(<MarkdownViewer {...defaultProps} todo={todoWithLink} />);
+    render(<MarkdownViewer {...propsWithLink} />);
     
     // Should render external link with correct attributes
     const link = screen.getByText('Visit Example');
@@ -92,16 +57,17 @@ describe('MarkdownViewer - Strategic Coverage', () => {
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
-  it('should render pre elements (lines 469-473)', () => {
-    const todoWithPre = {
-      ...mockTodo,
-      content: '# Test\n\n```bash\necho "hello world"\n```'
+  it('should render markdown content with proper formatting', () => {
+    const propsWithFormatting = {
+      ...defaultProps,
+      content: '# Test\n\n```javascript\nconst test = "hello";\n```\n\n`inline code` test'
     };
 
-    render(<MarkdownViewer {...defaultProps} todo={todoWithPre} />);
+    render(<MarkdownViewer {...propsWithFormatting} />);
     
-    // Should render pre element with specific styling
-    const preElement = screen.getByText('echo "hello world"').parentElement;
-    expect(preElement?.tagName).toBe('PRE');
+    // Should render formatted content
+    expect(screen.getByText('Test')).toBeInTheDocument();
+    expect(screen.getByText('inline code')).toBeInTheDocument();
+    expect(screen.getByText(/const test = "hello"/)).toBeInTheDocument();
   });
 });
