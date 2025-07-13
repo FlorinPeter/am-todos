@@ -296,12 +296,28 @@ All core functionality is implemented and production-ready:
 
 ### Testing
 
-#### Local Development
+#### Test File Naming Convention
+All test files follow a consistent naming pattern for clarity and organization:
+
+- `[component/service].test.ts` - **Main comprehensive tests** (primary functionality, happy paths)
+- `[component/service].unit.test.ts` - **Individual function/method tests** (isolated units, specific methods)
+- `[component/service].integration.test.ts` - **Workflow/cross-service tests** (real scenarios, API interactions)
+- `[component/service].edge.test.ts` - **Error handling, validation, edge cases** (boundary conditions, failures)
+
+#### NPM Test Scripts
 ```bash
-npm test              # Interactive test runner (watch mode)
-npm run test:basic    # Run feature validation tests only
-npm run test:coverage # Full coverage report (same as CI)
+npm test                 # Interactive test runner (watch mode)
+npm run test:unit        # Run only unit tests (*.unit.test.*)
+npm run test:integration # Run only integration tests (*.integration.test.*)
+npm run test:edge        # Run only edge case tests (*.edge.test.*)
+npm run test:coverage    # Full coverage report (same as CI)
 ```
+
+#### Examples
+- `githubService.test.ts` - Main GitHub API functionality
+- `githubService.unit.test.ts` - Individual helper functions (getFileMetadata, validateFolder)
+- `githubService.integration.test.ts` - Full workflows (createTodo → save → archive)
+- `githubService.edge.test.ts` - Error handling (network failures, invalid tokens)
 
 #### CI/CD Pipeline Testing
 The GitHub Actions CI pipeline runs `npm run test:coverage` in Ubuntu with Node.js 20.x and 22.x matrix testing.
