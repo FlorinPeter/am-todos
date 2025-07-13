@@ -17,7 +17,7 @@ This document provides detailed evidence for all implemented features in the Age
 
 **Evidence:**
 - **Backend GitLab Service:** `server/gitlabService.js` - Complete GitLab API wrapper with authentication and file operations
-- **Backend API Routes:** `server/server.js` lines 140-213 - GitLab proxy endpoint at `/api/gitlab` with comprehensive action routing
+- **Backend API Routes:** `server/server.js` lines 145-222 - GitLab proxy endpoint at `/api/gitlab` with comprehensive action routing
 - **Frontend GitLab Client:** `src/services/gitlabService.ts` - Full GitLab API client with environment detection and error handling
 - **Git Service Router:** `src/services/gitService.ts` - Provider abstraction layer that routes to GitHub/GitLab based on settings
 - **Updated Settings UI:** `src/components/GitSettings.tsx` (renamed from GitHubSettings) with provider selection and conditional configuration
@@ -144,8 +144,8 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
 **Status:** ✅ **FULLY FUNCTIONAL**
 
 **Evidence:**
-- **Frontend Service:** `src/services/aiService.ts` lines 37-67
-- **Backend Endpoint:** `server/server.js` lines 148-221 (`/api/ai`)
+- **Frontend Service:** `src/services/aiService.ts` around line 48
+- **Backend Endpoint:** `server/server.js` lines 224+ (`/api/ai`)
 - **Integration:** `App.tsx` line 189 during task creation
 - **AI Model:** Google Gemini 2.5 Flash with specialized system prompts
 - **Workflow:** User goal → AI analysis → Detailed markdown checklist
@@ -166,7 +166,7 @@ export const generateInitialPlan = async (goal: string): Promise<string> => {
 - **Service Layer:** `src/services/githubService.ts` (complete implementation)
 - **Create/Update:** `createOrUpdateTodo()` lines 47-101
 - **Read Operations:** `getTodos()`, `getFileContent()` lines 134-221
-- **Delete Operations:** Direct GitHub API calls in `App.tsx` lines 485-496
+- **Delete Operations:** Direct GitHub API calls in `App.tsx` around line 652
 - **Archive System:** `moveTaskToArchive()`, `moveTaskFromArchive()` lines 275-332
 - **Security:** Fine-grained PAT support with repository-specific access
 - **Error Handling:** Retry logic and comprehensive error recovery
@@ -213,8 +213,8 @@ const handleEditModeToggle = () => {
 
 **Evidence:**
 - **Frontend Component:** `src/components/AIChat.tsx`
-- **Backend Support:** `server/server.js` lines 113-132 (`/api/chat`)
-- **Natural Language Processing:** `processChatMessage()` in `aiService.ts` lines 68-94
+- **Backend Support:** Uses `/api/ai` endpoint with `processChatMessage` action
+- **Natural Language Processing:** `processChatMessage()` in `aiService.ts` around line 118
 - **Session Management:** Local chat history (lines 23-28), session-only storage
 - **Integration:** Embedded in MarkdownViewer (lines 376-388)
 - **Functionality:** Natural language task modification with context awareness
@@ -253,7 +253,7 @@ export const processChatMessage = async (
 **Status:** ✅ **FULLY FUNCTIONAL**
 
 **Evidence:**
-- **Implementation:** `App.tsx` lines 191-203
+- **Implementation:** `App.tsx` around line 240
 - **Format:** `YYYY-MM-DD-slug.md` (e.g., `2025-01-07-deploy-web-app.md`)
 - **Slug Generation:** Removes special characters, replaces spaces with hyphens
 - **Character Limit:** 50 characters maximum for readability
@@ -416,7 +416,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
 **Status:** ✅ **FULLY FUNCTIONAL**
 
 **Evidence:**
-- **Implementation:** `MarkdownViewer.tsx` lines 62-86 with `handleCheckboxToggle()` function
+- **Implementation:** `MarkdownViewer.tsx` around line 120 with `handleCheckboxToggle()` function
 - **Real-time Sync:** Automatic GitHub sync when checkboxes are toggled in view mode
 - **Coordinate Tracking:** Precise line and character position targeting for checkbox state changes
 - **Keyboard Accessibility:** Space/Enter key support for checkbox interaction
