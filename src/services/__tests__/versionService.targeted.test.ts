@@ -2,12 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getVersionInfo } from '../versionService';
 
 // Mock logger
-const mockLogger = {
-  error: vi.fn(),
-  log: vi.fn(),
-};
 vi.mock('../../utils/logger', () => ({
-  default: mockLogger,
+  default: {
+    error: vi.fn(),
+    log: vi.fn(),
+  },
 }));
 
 // Mock fetch
@@ -15,8 +14,14 @@ const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 describe('versionService - Targeted Coverage (lines 21-23)', () => {
-  beforeEach(() => {
+  let mockLogger: { error: ReturnType<typeof vi.fn>; log: ReturnType<typeof vi.fn> };
+
+  beforeEach(async () => {
     vi.clearAllMocks();
+    
+    // Get the mocked logger
+    const logger = await import('../../utils/logger');
+    mockLogger = vi.mocked(logger.default);
   });
 
   it('should handle HTTP error responses (line 21)', async () => {

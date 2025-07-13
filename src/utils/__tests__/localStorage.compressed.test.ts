@@ -2,17 +2,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { decodeSettingsFromUrl } from '../localStorage';
 
 // Mock logger
-const mockLogger = {
-  error: vi.fn(),
-  log: vi.fn(),
-};
 vi.mock('../logger', () => ({
-  default: mockLogger,
+  default: {
+    error: vi.fn(),
+    log: vi.fn(),
+  },
 }));
 
 describe('localStorage - Compressed Format Coverage', () => {
-  beforeEach(() => {
+  let mockLogger: { error: ReturnType<typeof vi.fn>; log: ReturnType<typeof vi.fn> };
+
+  beforeEach(async () => {
     vi.clearAllMocks();
+    
+    // Get the mocked logger
+    const logger = await import('../logger');
+    mockLogger = vi.mocked(logger.default);
   });
 
   describe('Compressed format decoding (lines 134-180)', () => {
