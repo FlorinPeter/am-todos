@@ -21,12 +21,14 @@ const mockGithubService = {
   getFileMetadata: vi.fn(),
   deleteFile: vi.fn(),
   getFileHistory: vi.fn(),
+  moveTaskFromArchive: vi.fn(),
 };
 const mockGitlabService = {
   getFileAtCommit: vi.fn(),
   getFileHistory: vi.fn(),
   deleteFile: vi.fn(),
   moveTaskFromArchive: vi.fn(),
+  moveTaskToArchive: vi.fn(),
 };
 
 vi.mock('../githubService', () => mockGithubService);
@@ -417,6 +419,114 @@ describe('gitService - Complete Delegation Coverage', () => {
 
       await expect(deleteFile('test/file.md', 'Delete file'))
         .rejects.toThrow('GitHub settings incomplete. Please configure PAT, owner, and repo.');
+    });
+  });
+
+  describe('moveTaskToArchive function - remaining delegation paths', () => {
+    it('should throw error for incomplete GitLab settings in moveTaskToArchive', async () => {
+      // Mock incomplete GitLab settings - covers lines 240-241
+      mockLoadSettings.mockReturnValue({
+        gitProvider: 'gitlab',
+        instanceUrl: 'https://gitlab.com',
+        projectId: 'testproject',
+        // token: missing
+      });
+
+      const { moveTaskToArchive } = await import('../gitService');
+
+      await expect(moveTaskToArchive('task.md', 'content', 'Archive task', 'todos'))
+        .rejects.toThrow('GitLab settings incomplete. Please configure instance URL, project ID, and token.');
+    });
+
+    it('should successfully call GitLab service for moveTaskToArchive', async () => {
+      // Mock complete GitLab settings - covers lines 243-254
+      mockLoadSettings.mockReturnValue({
+        gitProvider: 'gitlab',
+        instanceUrl: 'https://gitlab.com',
+        projectId: 'testproject',
+        token: 'testtoken',
+      });
+
+      const expectedPath = 'todos/archive/task.md';
+      mockGitlabService.moveTaskToArchive.mockResolvedValueOnce(expectedPath);
+
+      const { moveTaskToArchive } = await import('../gitService');
+
+      const result = await moveTaskToArchive('task.md', 'content', 'Archive task', 'todos');
+
+      expect(mockGitlabService.moveTaskToArchive).toHaveBeenCalledWith(
+        {
+          instanceUrl: 'https://gitlab.com',
+          projectId: 'testproject',
+          token: 'testtoken',
+          branch: 'main'
+        },
+        'task.md',
+        'content',
+        'Archive task',
+        'todos'
+      );
+      expect(result).toBe(expectedPath);
+    });
+
+    it('should throw error for unsupported Git provider in moveTaskToArchive', async () => {
+      // Mock unsupported provider - covers lines 256-257
+      mockLoadSettings.mockReturnValue({
+        gitProvider: 'unsupported',
+        pat: 'testpat',
+        owner: 'testowner',
+        repo: 'testrepo',
+      });
+
+      const { moveTaskToArchive } = await import('../gitService');
+
+      await expect(moveTaskToArchive('task.md', 'content', 'message', 'todos'))
+        .rejects.toThrow('Unsupported Git provider');
+    });
+  });
+
+  describe('moveTaskFromArchive function - GitHub error path', () => {
+    it('should throw error for incomplete GitHub settings in moveTaskFromArchive', async () => {
+      // Mock incomplete GitHub settings - covers lines 273-274
+      mockLoadSettings.mockReturnValue({
+        gitProvider: 'github',
+        owner: 'testowner',
+        repo: 'testrepo',
+        // pat: missing
+      });
+
+      const { moveTaskFromArchive } = await import('../gitService');
+
+      await expect(moveTaskFromArchive('archive/task.md', 'content', 'Unarchive task', 'todos'))
+        .rejects.toThrow('GitHub settings incomplete. Please configure PAT, owner, and repo.');
+    });
+
+    it('should successfully call GitHub service for moveTaskFromArchive', async () => {
+      // Test GitHub delegation path too
+      mockLoadSettings.mockReturnValue({
+        gitProvider: 'github',
+        pat: 'testpat',
+        owner: 'testowner',
+        repo: 'testrepo',
+      });
+
+      const expectedPath = 'todos/task.md';
+      mockGithubService.moveTaskFromArchive.mockResolvedValueOnce(expectedPath);
+
+      const { moveTaskFromArchive } = await import('../gitService');
+
+      const result = await moveTaskFromArchive('archive/task.md', 'content', 'Unarchive task', 'todos');
+
+      expect(mockGithubService.moveTaskFromArchive).toHaveBeenCalledWith(
+        'testpat',
+        'testowner',
+        'testrepo',
+        'archive/task.md',
+        'content',
+        'Unarchive task',
+        'todos'
+      );
+      expect(result).toBe(expectedPath);
     });
   });
 });
