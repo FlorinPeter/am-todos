@@ -296,6 +296,34 @@ All core functionality is implemented and production-ready:
 
 ### Testing
 
+#### Test File Naming Convention (Semantic Clarity)
+Test files follow semantic naming to indicate their specific purpose:
+
+**Services Tests:**
+- `[service].test.ts` - Core/comprehensive functionality tests
+- `[service].delegation.test.ts` - Service delegation patterns (gitService)
+- `[service].environment.test.ts` - Environment detection logic
+- `[service].errorHandling.test.ts` - Error scenarios and fallbacks
+- `[service].conditionalLogic.test.ts` - Specific conditional branches
+- `[service].folderFiltering.test.ts` - Folder pattern matching
+- `[service].apiUrl.test.ts` - API URL generation logic
+- `[service].taskMovement.test.ts` - Task archiving/unarchiving
+- `[service].integration.test.ts` - Real API integration tests
+- `[service].validation.test.ts` - Input validation and error paths
+
+**Utils Tests:**
+- `[util].test.ts` - Main functionality tests
+- `[util].urlEncoding.test.ts` - URL encoding/decoding logic
+- `[util].draft.test.ts` - Draft persistence functionality  
+- `[util].chatSession.test.ts` - Chat session management
+
+**Component Tests:**
+- `[component].test.tsx` - Core component functionality
+- `[component].draft.test.tsx` - Draft integration features
+- `[component].strategy.test.tsx` - Rendering strategies
+- `[component].quick.test.tsx` - Focused interaction tests
+- `[component].chatPersistence.test.tsx` - Chat persistence features
+
 #### Local Development
 ```bash
 npm test              # Interactive test runner (watch mode)
