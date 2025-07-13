@@ -26,6 +26,7 @@ const mockGitlabService = {
   getFileAtCommit: vi.fn(),
   getFileHistory: vi.fn(),
   deleteFile: vi.fn(),
+  moveTaskFromArchive: vi.fn(),
 };
 
 vi.mock('../githubService', () => mockGithubService);
@@ -336,6 +337,86 @@ describe('gitService - Complete Delegation Coverage', () => {
         'test/path.md'
       );
       expect(result).toEqual(expectedHistory);
+    });
+  });
+
+  describe('moveTaskFromArchive function - remaining delegation paths', () => {
+    it('should throw error for incomplete GitLab settings in moveTaskFromArchive', async () => {
+      // Mock incomplete GitLab settings - covers lines 285-286
+      mockLoadSettings.mockReturnValue({
+        gitProvider: 'gitlab',
+        instanceUrl: 'https://gitlab.com',
+        projectId: 'testproject',
+        // token: missing
+      });
+
+      const { moveTaskFromArchive } = await import('../gitService');
+
+      await expect(moveTaskFromArchive('archive/task.md', 'content', 'message', 'todos'))
+        .rejects.toThrow('GitLab settings incomplete. Please configure instance URL, project ID, and token.');
+    });
+
+    it('should successfully call GitLab service for moveTaskFromArchive', async () => {
+      // Mock complete GitLab settings - covers lines 288-299
+      mockLoadSettings.mockReturnValue({
+        gitProvider: 'gitlab',
+        instanceUrl: 'https://gitlab.com',
+        projectId: 'testproject',
+        token: 'testtoken',
+      });
+
+      const expectedPath = 'todos/task.md';
+      mockGitlabService.moveTaskFromArchive.mockResolvedValueOnce(expectedPath);
+
+      const { moveTaskFromArchive } = await import('../gitService');
+
+      const result = await moveTaskFromArchive('archive/task.md', 'content', 'Unarchive task', 'todos');
+
+      expect(mockGitlabService.moveTaskFromArchive).toHaveBeenCalledWith(
+        {
+          instanceUrl: 'https://gitlab.com',
+          projectId: 'testproject',
+          token: 'testtoken',
+          branch: 'main'
+        },
+        'archive/task.md',
+        'content',
+        'Unarchive task',
+        'todos'
+      );
+      expect(result).toBe(expectedPath);
+    });
+
+    it('should throw error for unsupported Git provider in moveTaskFromArchive', async () => {
+      // Mock unsupported provider - covers lines 301-302
+      mockLoadSettings.mockReturnValue({
+        gitProvider: 'unsupported',
+        pat: 'testpat',
+        owner: 'testowner',
+        repo: 'testrepo',
+      });
+
+      const { moveTaskFromArchive } = await import('../gitService');
+
+      await expect(moveTaskFromArchive('archive/task.md', 'content', 'message', 'todos'))
+        .rejects.toThrow('Unsupported Git provider');
+    });
+  });
+
+  describe('deleteFile function - remaining error paths', () => {
+    it('should throw error for incomplete GitHub settings in deleteFile', async () => {
+      // Mock incomplete GitHub settings - covers lines 313-314
+      mockLoadSettings.mockReturnValue({
+        gitProvider: 'github',
+        owner: 'testowner',
+        repo: 'testrepo',
+        // pat: missing
+      });
+
+      const { deleteFile } = await import('../gitService');
+
+      await expect(deleteFile('test/file.md', 'Delete file'))
+        .rejects.toThrow('GitHub settings incomplete. Please configure PAT, owner, and repo.');
     });
   });
 });
