@@ -295,10 +295,49 @@ All core functionality is implemented and production-ready:
 ## Development Workflow
 
 ### Testing
+
+#### Local Development
 ```bash
-npm run test:basic     # Run feature validation tests
-npm test              # Interactive test runner
+npm test              # Interactive test runner (watch mode)
+npm run test:basic    # Run feature validation tests only
+npm run test:coverage # Full coverage report (same as CI)
 ```
+
+#### CI/CD Pipeline Testing
+The GitHub Actions CI pipeline (`.github/workflows/ci.yml`) runs tests differently than local development:
+
+**CI Configuration:**
+- **Environment**: Ubuntu latest with Node.js 20.x and 22.x matrix
+- **Command**: `npm run test:coverage` (equivalent to `vitest run --coverage`)
+- **Mode**: Non-interactive, single run with coverage reporting
+- **Coverage Output**: Generates `coverage/coverage-summary.json` for GitHub summary display
+- **Artifacts**: Uploads full coverage report with 30-day retention
+
+**Key Differences from Local Development:**
+| Aspect | Local Development | CI Pipeline |
+|--------|------------------|-------------|
+| **Test Mode** | Interactive watch mode | Single run mode |
+| **Coverage** | Optional via `npm run test:coverage` | Always generated |
+| **Environment** | Local system (varies) | Ubuntu latest (consistent) |
+| **Node Versions** | Single version | Matrix: Node 20.x & 22.x |
+| **Timezone** | Local timezone | UTC (affects date/time tests) |
+| **File System** | Native OS | Linux (affects path separators) |
+| **Performance** | Faster (local) | Slower (network, cold start) |
+
+**CI-Specific Considerations:**
+- **Timezone Issues**: Date formatting tests may behave differently in UTC
+- **File Paths**: Use forward slashes and avoid OS-specific assumptions  
+- **Environment Variables**: NODE_ENV=test in CI vs potential local variations
+- **Mock Timing**: Network and I/O operations may have different timing characteristics
+- **Coverage Precision**: CI reports exact percentages used for quality gates
+
+**Coverage Reporting:**
+CI generates multiple formats for different use cases:
+- **Text**: Console output during test run
+- **JSON**: Machine-readable summary for GitHub Actions
+- **HTML**: Full interactive report (uploaded as artifact)
+- **LCOV**: Integration with external coverage tools
+- **Cobertura**: XML format for some CI integrations
 
 ### Git Workflow
 - Use `main` branch for development
@@ -309,3 +348,52 @@ npm test              # Interactive test runner
 ```bash
 ./hack/restart-dev.sh  # Restart both servers (rarely needed due to hot reload)
 ```
+
+### Testing Troubleshooting
+
+#### Common CI vs Local Test Differences
+
+**1. Date/Time Test Failures**
+```typescript
+// ❌ Problematic: Exact date string matching
+expect(screen.getByText('202312251130')).toBeInTheDocument();
+
+// ✅ Better: Flexible regex for timezone differences  
+expect(screen.getByText(/^20231225\d{4}$/)).toBeInTheDocument();
+```
+
+**2. Multiple Element Selection Issues**
+```typescript
+// ❌ Problematic: Ambiguous text selection
+fireEvent.click(screen.getByText('Cancel'));
+
+// ✅ Better: Specific element targeting
+const cancelButtons = screen.getAllByText('Cancel');
+const specificButton = cancelButtons.find(btn => 
+  btn.className.includes('target-class'));
+fireEvent.click(specificButton!);
+```
+
+**3. Mock Hoisting Errors**
+```typescript
+// ❌ Problematic: External variable reference
+const mockLogger = { error: vi.fn() };
+vi.mock('../logger', () => ({ default: mockLogger }));
+
+// ✅ Better: Inline mock factory
+vi.mock('../logger', () => ({
+  default: { error: vi.fn(), log: vi.fn() }
+}));
+```
+
+**4. Environment Variable Differences**
+```typescript
+// ✅ Account for different NODE_ENV values
+const expectedEnv = process.env.NODE_ENV || 'development';
+expect(result.nodeEnv).toBe(expectedEnv);
+```
+
+**5. Coverage Calculation Differences**
+- **Local**: May include/exclude different files based on test discovery
+- **CI**: Consistent file inclusion based on vitest.config.mjs
+- **Solution**: Always use `npm run test:coverage` for accurate local coverage matching CI
