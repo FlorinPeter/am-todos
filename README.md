@@ -5,10 +5,10 @@
 [![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/FlorinPeter/am-todos/badges/coverage-badge.json)](https://github.com/FlorinPeter/am-todos/actions/workflows/ci.yml)
 [![Docker Build](https://github.com/FlorinPeter/am-todos/actions/workflows/docker-build.yml/badge.svg)](https://github.com/FlorinPeter/am-todos/actions/workflows/docker-build.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Version](https://img.shields.io/github/package-json/v/FlorinPeter/am-todos)](https://github.com/FlorinPeter/am-todos)
+[![Version](https://img.shields.io/github/v/release/FlorinPeter/am-todos)](https://github.com/FlorinPeter/am-todos/releases)
 [![React](https://img.shields.io/github/package-json/dependency-version/FlorinPeter/am-todos/react)](https://reactjs.org)
-[![TypeScript](https://img.shields.io/github/package-json/dependency-version/FlorinPeter/am-todos/typescript)](https://www.typescriptlang.org)
-[![Node](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/github/package-json/dependency-version/FlorinPeter/am-todos/dev/typescript)](https://www.typescriptlang.org)
+[![Node](https://img.shields.io/github/package-json/dependency-version/FlorinPeter/am-todos/dev/@types/node)](https://nodejs.org)
 
 > **Transform your GitHub repository into an intelligent task management system**
 
