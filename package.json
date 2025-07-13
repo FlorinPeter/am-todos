@@ -1,6 +1,6 @@
 {
   "name": "am-todos",
-  "version": "0.1.0",
+  "version": "1.5.5",
   "description": "AI-powered todo application that transforms GitHub repositories into intelligent task management systems",
   "license": "Apache-2.0",
   "author": "Agentic Markdown Todos Contributors",
@@ -18,6 +18,9 @@
     "typescript"
   ],
   "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.11",
     "@testing-library/dom": "^10.4.0",
