@@ -8,7 +8,7 @@
 [![Version](https://img.shields.io/github/v/release/FlorinPeter/am-todos)](https://github.com/FlorinPeter/am-todos/releases)
 [![React](https://img.shields.io/github/package-json/dependency-version/FlorinPeter/am-todos/react)](https://reactjs.org)
 [![TypeScript](https://img.shields.io/github/package-json/dependency-version/FlorinPeter/am-todos/typescript)](https://www.typescriptlang.org)
-[![Node](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen)](https://nodejs.org)
+[![Node](https://img.shields.io/github/package-json/dependency-version/FlorinPeter/am-todos/dev/@types/node)](https://nodejs.org)
 
 > **Transform your GitHub repository into an intelligent task management system**
 
