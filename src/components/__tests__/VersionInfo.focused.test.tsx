@@ -237,6 +237,42 @@ describe('VersionInfo - Focused Coverage', () => {
         expect(screen.getByText('NaNNaNNaNNaNNaN')).toBeInTheDocument();
       });
     });
+
+    it('should handle date parsing exception in catch block (lines 47-48)', async () => {
+      // Test the catch block by providing a date string that throws during parsing
+      const mockVersionInfo = {
+        version: '1.0.0',
+        gitSha: 'abcdef1234567890',
+        gitTag: null,
+        buildDate: 'throw-error-date', // This will trigger exception handling
+        nodeEnv: 'production'
+      };
+
+      // Mock Date constructor to throw an error
+      const originalDate = global.Date;
+      global.Date = class extends Date {
+        constructor(value?: any) {
+          if (value === 'throw-error-date') {
+            throw new Error('Date parsing error');
+          }
+          super(value);
+        }
+      } as any;
+
+      const { getVersionInfo } = await import('../../services/versionService');
+      vi.mocked(getVersionInfo).mockResolvedValueOnce(mockVersionInfo);
+
+      render(<VersionInfoComponent />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Built:')).toBeInTheDocument();
+        // Should return the original dateString when catch block is hit (line 47)
+        expect(screen.getByText('throw-error-date')).toBeInTheDocument();
+      });
+
+      // Restore original Date constructor
+      global.Date = originalDate;
+    });
   });
 
   describe('environment styling coverage', () => {
