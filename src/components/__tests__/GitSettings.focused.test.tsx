@@ -125,7 +125,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
       render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // GitHub should be selected by default
-      expect(screen.getByDisplayValue('github')).toBeInTheDocument();
+      expect(screen.getByLabelText('Choose Your Git Provider')).toHaveValue('github');
       
       // GitHub-specific fields should be visible
       expect(screen.getByLabelText('GitHub Personal Access Token (PAT)')).toBeInTheDocument();
@@ -384,8 +384,8 @@ describe('GitSettings - Focused Coverage Tests', () => {
       fireEvent.click(screen.getByText('+ New Project'));
       expect(screen.getByText('Create New Project Folder')).toBeInTheDocument();
 
-      // Click Cancel
-      fireEvent.click(screen.getByText('Cancel'));
+      // Click Cancel button in the create folder form
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
       // Form should be hidden
       expect(screen.queryByText('Create New Project Folder')).not.toBeInTheDocument();
@@ -399,8 +399,8 @@ describe('GitSettings - Focused Coverage Tests', () => {
       fireEvent.click(screen.getByText('+ New Project'));
       expect(screen.getByText('Create New Project Folder')).toBeInTheDocument();
 
-      // Click the button again (now shows "Cancel")
-      fireEvent.click(screen.getByText('Cancel'));
+      // Click the Cancel button to hide the form
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
       expect(screen.queryByText('Create New Project Folder')).not.toBeInTheDocument();
     });
 
