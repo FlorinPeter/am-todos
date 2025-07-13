@@ -384,8 +384,12 @@ describe('GitSettings - Focused Coverage Tests', () => {
       fireEvent.click(screen.getByText('+ New Project'));
       expect(screen.getByText('Create New Project Folder')).toBeInTheDocument();
 
-      // Click Cancel button in the create folder form
-      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      // Click Cancel button in the create folder form (the gray one, not the green one)
+      const cancelButtons = screen.getAllByText('Cancel');
+      const createFolderCancelButton = cancelButtons.find(button => 
+        button.className.includes('text-gray-400')
+      );
+      fireEvent.click(createFolderCancelButton!);
 
       // Form should be hidden
       expect(screen.queryByText('Create New Project Folder')).not.toBeInTheDocument();
@@ -399,8 +403,12 @@ describe('GitSettings - Focused Coverage Tests', () => {
       fireEvent.click(screen.getByText('+ New Project'));
       expect(screen.getByText('Create New Project Folder')).toBeInTheDocument();
 
-      // Click the Cancel button to hide the form
-      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      // Click the Cancel button to hide the form (the gray one, not the green one)
+      const cancelButtons = screen.getAllByText('Cancel');
+      const createFolderCancelButton = cancelButtons.find(button => 
+        button.className.includes('text-gray-400')
+      );
+      fireEvent.click(createFolderCancelButton!);
       expect(screen.queryByText('Create New Project Folder')).not.toBeInTheDocument();
     });
 
