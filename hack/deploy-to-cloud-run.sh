@@ -175,29 +175,34 @@ if [ -n "$GIT_TAG" ]; then
   ENV_VARS_ARRAY+=("GIT_TAG=$GIT_TAG")
 fi
 
-# Build gcloud command with properly quoted environment variables
-GCLOUD_DEPLOY_CMD=(
-  gcloud run deploy $SERVICE_NAME
-  --image $IMAGE
-  --platform managed
-  --region $REGION
-  --allow-unauthenticated
-  --memory $MEMORY
-  --cpu $CPU
-  --min-instances $MIN_INSTANCES
-  --max-instances $MAX_INSTANCES
-  --timeout 300
-  --execution-environment gen2
-  --quiet
-)
-
-# Add environment variables one by one to avoid comma parsing issues
+# Build environment variables string with proper escaping for gcloud
+# Use custom delimiter to handle commas in values
+ENV_VARS_ESCAPED=()
 for env_var in "${ENV_VARS_ARRAY[@]}"; do
-  GCLOUD_DEPLOY_CMD+=(--set-env-vars "$env_var")
+  ENV_VARS_ESCAPED+=("$env_var")
 done
 
-# Execute the deployment command
-"${GCLOUD_DEPLOY_CMD[@]}"
+# Convert array to custom delimiter-separated string for gcloud
+# Using ^|^ as delimiter since it's unlikely to appear in environment values
+ENV_VARS="^|^$(IFS='|'; echo "${ENV_VARS_ESCAPED[*]}")"
+
+echo "🔍 Environment variables being set:"
+printf "   %s\n" "${ENV_VARS_ESCAPED[@]}"
+echo "🔍 gcloud env-vars string: $ENV_VARS"
+
+gcloud run deploy $SERVICE_NAME \
+  --image $IMAGE \
+  --platform managed \
+  --region $REGION \
+  --allow-unauthenticated \
+  --memory $MEMORY \
+  --cpu $CPU \
+  --min-instances $MIN_INSTANCES \
+  --max-instances $MAX_INSTANCES \
+  --timeout 300 \
+  --set-env-vars "$ENV_VARS" \
+  --execution-environment gen2 \
+  --quiet
 
 # Get the service URL
 SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region=$REGION --format="value(status.url)")
