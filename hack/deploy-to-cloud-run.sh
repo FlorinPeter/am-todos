@@ -200,6 +200,7 @@ gcloud run deploy $SERVICE_NAME \
   --min-instances $MIN_INSTANCES \
   --max-instances $MAX_INSTANCES \
   --timeout 300 \
+  --port 8080 \
   --set-env-vars "$ENV_VARS" \
   --execution-environment gen2 \
   --quiet
