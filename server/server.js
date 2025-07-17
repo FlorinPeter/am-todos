@@ -367,8 +367,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Version info endpoint (protected)
-app.get('/api/version', adminAuth, (req, res) => {
+// Version info endpoint (public - used by settings page)
+app.get('/api/version', (req, res) => {
   res.status(200).json({
     version: process.env.VERSION || '0.1.0',
     gitSha: process.env.GIT_SHA || 'development',
