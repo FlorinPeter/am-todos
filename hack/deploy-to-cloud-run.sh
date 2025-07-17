@@ -139,58 +139,65 @@ if [ -n "$CUSTOM_DOMAIN" ] && [ -z "$FRONTEND_URL" ]; then
   echo -e "${GREEN}🔧 Auto-configuring frontend URL: $FRONTEND_URL${NC}"
 fi
 
-# Build environment variables string
+# Build environment variables array
 # Note: gcloud --set-env-vars uses commas as separators between variables.
-# Values that contain commas (like CORS_METHODS="GET,POST,PUT") must be escaped
-# to prevent gcloud from treating them as separate variables.
-ESCAPED_CORS_METHODS=$(echo "$CORS_METHODS" | sed 's/,/\\,/g')
-ESCAPED_CORS_ALLOWED_HEADERS=$(echo "$CORS_ALLOWED_HEADERS" | sed 's/,/\\,/g')
-
-ENV_VARS="NODE_ENV=production,FRONTEND_BUILD_PATH=/app/build"
-ENV_VARS="$ENV_VARS,CORS_CREDENTIALS=$CORS_CREDENTIALS"
-ENV_VARS="$ENV_VARS,CORS_METHODS=$ESCAPED_CORS_METHODS"
-ENV_VARS="$ENV_VARS,CORS_ALLOWED_HEADERS=$ESCAPED_CORS_ALLOWED_HEADERS"
-ENV_VARS="$ENV_VARS,CORS_MAX_AGE=$CORS_MAX_AGE"
-ENV_VARS="$ENV_VARS,RATE_LIMIT_WINDOW_MS=$RATE_LIMIT_WINDOW_MS"
-ENV_VARS="$ENV_VARS,RATE_LIMIT_MAX_REQUESTS=$RATE_LIMIT_MAX_REQUESTS"
-ENV_VARS="$ENV_VARS,AI_RATE_LIMIT_WINDOW_MS=$AI_RATE_LIMIT_WINDOW_MS"
-ENV_VARS="$ENV_VARS,AI_RATE_LIMIT_MAX_REQUESTS=$AI_RATE_LIMIT_MAX_REQUESTS"
-ENV_VARS="$ENV_VARS,DISABLE_RATE_LIMITING=$DISABLE_RATE_LIMITING"
-ENV_VARS="$ENV_VARS,ADMIN_TOKEN=$ADMIN_TOKEN"
-ENV_VARS="$ENV_VARS,DISABLE_SECURITY_HEADERS=$DISABLE_SECURITY_HEADERS"
-ENV_VARS="$ENV_VARS,DISABLE_SECURITY_LOGGING=$DISABLE_SECURITY_LOGGING"
-ENV_VARS="$ENV_VARS,LOG_ALL_REQUESTS=$LOG_ALL_REQUESTS"
-ENV_VARS="$ENV_VARS,DISABLE_METHOD_VALIDATION=$DISABLE_METHOD_VALIDATION"
-ENV_VARS="$ENV_VARS,VERSION=$VERSION"
-ENV_VARS="$ENV_VARS,GIT_SHA=$GIT_SHA"
-ENV_VARS="$ENV_VARS,BUILD_DATE=$BUILD_DATE"
+# We'll build individual key=value pairs and pass them separately to avoid comma issues.
+ENV_VARS_ARRAY=(
+  "NODE_ENV=production"
+  "FRONTEND_BUILD_PATH=/app/build"
+  "CORS_CREDENTIALS=$CORS_CREDENTIALS"
+  "CORS_METHODS=$CORS_METHODS"
+  "CORS_ALLOWED_HEADERS=$CORS_ALLOWED_HEADERS"
+  "CORS_MAX_AGE=$CORS_MAX_AGE"
+  "RATE_LIMIT_WINDOW_MS=$RATE_LIMIT_WINDOW_MS"
+  "RATE_LIMIT_MAX_REQUESTS=$RATE_LIMIT_MAX_REQUESTS"
+  "AI_RATE_LIMIT_WINDOW_MS=$AI_RATE_LIMIT_WINDOW_MS"
+  "AI_RATE_LIMIT_MAX_REQUESTS=$AI_RATE_LIMIT_MAX_REQUESTS"
+  "DISABLE_RATE_LIMITING=$DISABLE_RATE_LIMITING"
+  "ADMIN_TOKEN=$ADMIN_TOKEN"
+  "DISABLE_SECURITY_HEADERS=$DISABLE_SECURITY_HEADERS"
+  "DISABLE_SECURITY_LOGGING=$DISABLE_SECURITY_LOGGING"
+  "LOG_ALL_REQUESTS=$LOG_ALL_REQUESTS"
+  "DISABLE_METHOD_VALIDATION=$DISABLE_METHOD_VALIDATION"
+  "VERSION=$VERSION"
+  "GIT_SHA=$GIT_SHA"
+  "BUILD_DATE=$BUILD_DATE"
+)
 
 # Add optional environment variables if they are set
 if [ -n "$CORS_ORIGINS" ]; then
-  # Escape commas in CORS_ORIGINS if present
-  ESCAPED_CORS_ORIGINS=$(echo "$CORS_ORIGINS" | sed 's/,/\\,/g')
-  ENV_VARS="$ENV_VARS,CORS_ORIGINS=$ESCAPED_CORS_ORIGINS"
+  ENV_VARS_ARRAY+=("CORS_ORIGINS=$CORS_ORIGINS")
 fi
 if [ -n "$FRONTEND_URL" ]; then
-  ENV_VARS="$ENV_VARS,FRONTEND_URL=$FRONTEND_URL"
+  ENV_VARS_ARRAY+=("FRONTEND_URL=$FRONTEND_URL")
 fi
 if [ -n "$GIT_TAG" ]; then
-  ENV_VARS="$ENV_VARS,GIT_TAG=$GIT_TAG"
+  ENV_VARS_ARRAY+=("GIT_TAG=$GIT_TAG")
 fi
 
-gcloud run deploy $SERVICE_NAME \
-  --image $IMAGE \
-  --platform managed \
-  --region $REGION \
-  --allow-unauthenticated \
-  --memory $MEMORY \
-  --cpu $CPU \
-  --min-instances $MIN_INSTANCES \
-  --max-instances $MAX_INSTANCES \
-  --timeout 300 \
-  --set-env-vars "$ENV_VARS" \
-  --execution-environment gen2 \
+# Build gcloud command with properly quoted environment variables
+GCLOUD_DEPLOY_CMD=(
+  gcloud run deploy $SERVICE_NAME
+  --image $IMAGE
+  --platform managed
+  --region $REGION
+  --allow-unauthenticated
+  --memory $MEMORY
+  --cpu $CPU
+  --min-instances $MIN_INSTANCES
+  --max-instances $MAX_INSTANCES
+  --timeout 300
+  --execution-environment gen2
   --quiet
+)
+
+# Add environment variables one by one to avoid comma parsing issues
+for env_var in "${ENV_VARS_ARRAY[@]}"; do
+  GCLOUD_DEPLOY_CMD+=(--set-env-vars "$env_var")
+done
+
+# Execute the deployment command
+"${GCLOUD_DEPLOY_CMD[@]}"
 
 # Get the service URL
 SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region=$REGION --format="value(status.url)")
