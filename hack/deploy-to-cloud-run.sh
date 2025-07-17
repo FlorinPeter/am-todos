@@ -140,10 +140,16 @@ if [ -n "$CUSTOM_DOMAIN" ] && [ -z "$FRONTEND_URL" ]; then
 fi
 
 # Build environment variables string
+# Note: gcloud --set-env-vars uses commas as separators between variables.
+# Values that contain commas (like CORS_METHODS="GET,POST,PUT") must be escaped
+# to prevent gcloud from treating them as separate variables.
+ESCAPED_CORS_METHODS=$(echo "$CORS_METHODS" | sed 's/,/\\,/g')
+ESCAPED_CORS_ALLOWED_HEADERS=$(echo "$CORS_ALLOWED_HEADERS" | sed 's/,/\\,/g')
+
 ENV_VARS="NODE_ENV=production,FRONTEND_BUILD_PATH=/app/build"
 ENV_VARS="$ENV_VARS,CORS_CREDENTIALS=$CORS_CREDENTIALS"
-ENV_VARS="$ENV_VARS,CORS_METHODS=$CORS_METHODS"
-ENV_VARS="$ENV_VARS,CORS_ALLOWED_HEADERS=$CORS_ALLOWED_HEADERS"
+ENV_VARS="$ENV_VARS,CORS_METHODS=$ESCAPED_CORS_METHODS"
+ENV_VARS="$ENV_VARS,CORS_ALLOWED_HEADERS=$ESCAPED_CORS_ALLOWED_HEADERS"
 ENV_VARS="$ENV_VARS,CORS_MAX_AGE=$CORS_MAX_AGE"
 ENV_VARS="$ENV_VARS,RATE_LIMIT_WINDOW_MS=$RATE_LIMIT_WINDOW_MS"
 ENV_VARS="$ENV_VARS,RATE_LIMIT_MAX_REQUESTS=$RATE_LIMIT_MAX_REQUESTS"
@@ -161,7 +167,9 @@ ENV_VARS="$ENV_VARS,BUILD_DATE=$BUILD_DATE"
 
 # Add optional environment variables if they are set
 if [ -n "$CORS_ORIGINS" ]; then
-  ENV_VARS="$ENV_VARS,CORS_ORIGINS=$CORS_ORIGINS"
+  # Escape commas in CORS_ORIGINS if present
+  ESCAPED_CORS_ORIGINS=$(echo "$CORS_ORIGINS" | sed 's/,/\\,/g')
+  ENV_VARS="$ENV_VARS,CORS_ORIGINS=$ESCAPED_CORS_ORIGINS"
 fi
 if [ -n "$FRONTEND_URL" ]; then
   ENV_VARS="$ENV_VARS,FRONTEND_URL=$FRONTEND_URL"
