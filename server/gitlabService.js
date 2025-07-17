@@ -45,19 +45,99 @@ class GitLabService {
     
     if (!response.ok) {
       const errorText = await response.text();
-      logger.error('GitLab API error:', response.status, errorText);
-      throw new Error(`GitLab API error: ${response.status} ${response.statusText} - ${errorText}`);
+      // Sanitize error text to remove potential tokens before logging
+      const sanitizedError = errorText.replace(/token[=:]\s*[^\s&]+/gi, 'token=[REDACTED]')
+                                      .replace(/authorization[=:]\s*[^\s&]+/gi, 'authorization=[REDACTED]')
+                                      .replace(/glpat-[a-zA-Z0-9_-]{20,}/g, '[GITLAB_TOKEN_REDACTED]')
+                                      .replace(/private-token[=:]\s*[^\s&]+/gi, 'private-token=[REDACTED]');
+      logger.error('GitLab API error:', response.status, sanitizedError);
+      
+      // Return sanitized error to client as well
+      const clientError = `GitLab API error: ${response.status} ${response.statusText}`;
+      throw new Error(clientError);
     }
 
     return response;
   }
 
   /**
+   * Validate Git branch name to prevent command injection
+   */
+  validateBranchName(branch) {
+    if (!branch || typeof branch !== 'string') {
+      throw new Error('Invalid branch name: must be a non-empty string');
+    }
+    
+    // Git branch name validation rules
+    const validBranchPattern = /^[a-zA-Z0-9._/-]+$/;
+    if (!validBranchPattern.test(branch)) {
+      throw new Error('Invalid branch name: contains invalid characters');
+    }
+    
+    // Prevent command injection and path traversal
+    if (branch.includes('..') || branch.includes(';') || branch.includes('&') || 
+        branch.includes('|') || branch.includes('$') || branch.includes('`') ||
+        branch.includes('\\') || branch.includes('\n') || branch.includes('\r')) {
+      throw new Error('Invalid branch name: contains potentially dangerous characters');
+    }
+    
+    if (branch.length > 250) {
+      throw new Error('Invalid branch name: too long');
+    }
+    
+    return branch;
+  }
+
+  /**
+   * Validate file path to prevent directory traversal attacks
+   */
+  validateFilePath(filePath) {
+    if (!filePath || typeof filePath !== 'string') {
+      throw new Error('Invalid file path: must be a non-empty string');
+    }
+    
+    // Remove leading slashes and normalize path
+    const normalizedPath = filePath.replace(/^\/+/, '');
+    
+    // Check for directory traversal attempts
+    if (normalizedPath.includes('..') || normalizedPath.includes('\\') || 
+        normalizedPath.includes('%2e%2e') || normalizedPath.includes('%2E%2E') ||
+        normalizedPath.includes('%5c') || normalizedPath.includes('%5C') ||
+        normalizedPath.includes('\0') || normalizedPath.includes('%00')) {
+      throw new Error('Invalid file path: path traversal detected');
+    }
+    
+    // Validate path characters (allow alphanumeric, dots, hyphens, underscores, slashes, spaces, and safe special chars)
+    const validPathPattern = /^[a-zA-Z0-9._/ -]+$/;
+    if (!validPathPattern.test(normalizedPath)) {
+      throw new Error('Invalid file path: contains invalid characters');
+    }
+    
+    // Prevent excessively long paths
+    if (normalizedPath.length > 1000) {
+      throw new Error('Invalid file path: path too long');
+    }
+    
+    // Prevent files starting with dot (hidden files) except for specific cases
+    const pathSegments = normalizedPath.split('/');
+    for (const segment of pathSegments) {
+      if (segment.startsWith('.') && segment !== '.' && segment !== '..' && 
+          !segment.startsWith('.gitkeep') && !segment.startsWith('.md')) {
+        throw new Error('Invalid file path: hidden files not allowed');
+      }
+    }
+    
+    return normalizedPath;
+  }
+
+  /**
    * Get file content from GitLab repository
    */
   async getFile(filePath, branch = 'main') {
+    branch = this.validateBranchName(branch);
+    filePath = this.validateFilePath(filePath);
     const encodedPath = encodeURIComponent(filePath);
-    const endpoint = `/projects/${this.projectId}/repository/files/${encodedPath}?ref=${branch}`;
+    const endpoint = `/projects/${this.projectId}/repository/files/${encodedPath}?ref=${encodeURIComponent(branch)}`;
     
     logger.log(`GitLab getFile request: ${endpoint}`);
     
@@ -72,14 +152,25 @@ class GitLabService {
     logger.log(`GitLab getFile response status: ${response.status}`);
     
     const responseText = await response.text();
-    logger.log(`GitLab getFile response text (first 200 chars): ${responseText.substring(0, 200)}`);
+    // Only log response details in development mode, and sanitize sensitive data
+    if (process.env.NODE_ENV === 'development') {
+      const sanitizedResponse = responseText.substring(0, 200)
+        .replace(/glpat-[a-zA-Z0-9_-]{20,}/g, '[GITLAB_TOKEN_REDACTED]')
+        .replace(/private-token[=:]\s*[^\s&]+/gi, 'private-token=[REDACTED]');
+      logger.log(`GitLab getFile response text (first 200 chars): ${sanitizedResponse}`);
+    }
     
     let data;
     try {
       data = JSON.parse(responseText);
     } catch (parseError) {
       logger.error('GitLab getFile JSON parse error:', parseError.message);
-      logger.error('GitLab getFile full response text:', responseText);
+      // Only log full response in development and sanitize it
+      if (process.env.NODE_ENV === 'development') {
+        const sanitizedError = responseText.replace(/glpat-[a-zA-Z0-9_-]{20,}/g, '[GITLAB_TOKEN_REDACTED]')
+          .replace(/private-token[=:]\s*[^\s&]+/gi, 'private-token=[REDACTED]');
+        logger.error('GitLab getFile sanitized response text:', sanitizedError);
+      }
       throw new Error(`Failed to parse GitLab getFile response: ${parseError.message}`);
     }
     
@@ -98,23 +189,54 @@ class GitLabService {
    * Get raw file content from GitLab repository
    */
   async getRawFile(filePath, branch = 'main') {
+    branch = this.validateBranchName(branch);
+    filePath = this.validateFilePath(filePath);
     const encodedPath = encodeURIComponent(filePath);
-    const endpoint = `/projects/${this.projectId}/repository/files/${encodedPath}/raw?ref=${branch}`;
+    const endpoint = `/projects/${this.projectId}/repository/files/${encodedPath}/raw?ref=${encodeURIComponent(branch)}`;
     
     const response = await this.makeRequest(endpoint);
     return await response.text();
   }
 
   /**
+   * Validate URL search parameters to prevent injection
+   */
+  validateSearchParams(params) {
+    for (const [key, value] of params.entries()) {
+      if (typeof value !== 'string') {
+        throw new Error(`Invalid parameter type for ${key}: must be string`);
+      }
+      
+      // Check for potentially dangerous characters
+      if (value.includes('\n') || value.includes('\r') || value.includes('\0') ||
+          value.includes('&') || value.includes(';') || value.includes('|') ||
+          value.includes('`') || value.includes('$') || value.includes('<') ||
+          value.includes('>')) {
+        throw new Error(`Invalid parameter value for ${key}: contains dangerous characters`);
+      }
+      
+      // Limit parameter length
+      if (value.length > 1000) {
+        throw new Error(`Invalid parameter value for ${key}: too long`);
+      }
+    }
+    return params;
+  }
+
+  /**
    * List files in a directory
    */
   async listFiles(path = '', branch = 'main') {
+    branch = this.validateBranchName(branch);
     const endpoint = `/projects/${this.projectId}/repository/tree`;
     const params = new URLSearchParams({
       ref: branch,
       path: path,
       per_page: 100
     });
+    
+    // Validate URL parameters before making request
+    this.validateSearchParams(params);
     
     const response = await this.makeRequest(`${endpoint}?${params}`);
     const files = await response.json();
@@ -131,9 +253,51 @@ class GitLabService {
   }
 
   /**
+   * Validate JSON request body to prevent injection
+   */
+  validateJsonInput(obj) {
+    if (typeof obj !== 'object' || obj === null) {
+      throw new Error('Invalid input: must be a non-null object');
+    }
+    
+    for (const [key, value] of Object.entries(obj)) {
+      if (typeof value === 'string') {
+        // Check for potentially dangerous characters in string values
+        if (value.includes('\0') || value.includes('\x00')) {
+          throw new Error(`Invalid input: null bytes detected in ${key}`);
+        }
+        
+        // Limit string length to prevent DoS
+        if (value.length > 100000) { // 100KB limit for strings
+          throw new Error(`Invalid input: ${key} too long`);
+        }
+      }
+      
+      // Validate key names
+      if (typeof key !== 'string' || key.length > 100 || 
+          /[^\w_-]/.test(key)) {
+        throw new Error(`Invalid input: invalid key name ${key}`);
+      }
+    }
+    
+    return obj;
+  }
+
+  /**
    * Create or update a file in GitLab repository
    */
   async createOrUpdateFile(filePath, content, commitMessage, branch = 'main') {
+    branch = this.validateBranchName(branch);
+    filePath = this.validateFilePath(filePath);
+    
+    // Validate input strings
+    if (typeof content !== 'string') {
+      throw new Error('Invalid content: must be a string');
+    }
+    if (typeof commitMessage !== 'string' || commitMessage.length > 1000) {
+      throw new Error('Invalid commit message: must be a string under 1000 characters');
+    }
+    
     const encodedPath = encodeURIComponent(filePath);
     const endpoint = `/projects/${this.projectId}/repository/files/${encodedPath}`;
     
@@ -156,6 +320,9 @@ class GitLabService {
       commit_message: commitMessage,
       encoding: 'base64'
     };
+    
+    // Validate JSON request body
+    this.validateJsonInput(requestBody);
 
     const method = fileExists ? 'PUT' : 'POST';
     
@@ -171,6 +338,14 @@ class GitLabService {
    * Delete a file from GitLab repository
    */
   async deleteFile(filePath, commitMessage, branch = 'main') {
+    branch = this.validateBranchName(branch);
+    filePath = this.validateFilePath(filePath);
+    
+    // Validate commit message
+    if (typeof commitMessage !== 'string' || commitMessage.length > 1000) {
+      throw new Error('Invalid commit message: must be a string under 1000 characters');
+    }
+    
     const encodedPath = encodeURIComponent(filePath);
     const endpoint = `/projects/${this.projectId}/repository/files/${encodedPath}`;
     
@@ -178,6 +353,9 @@ class GitLabService {
       branch,
       commit_message: commitMessage
     };
+    
+    // Validate JSON request body
+    this.validateJsonInput(requestBody);
 
     const response = await this.makeRequest(endpoint, {
       method: 'DELETE',
@@ -186,7 +364,12 @@ class GitLabService {
 
     // GitLab DELETE operations may return empty response body
     const responseText = await response.text();
-    logger.log('GitLab deleteFile response text:', responseText);
+    // Only log in development mode and sanitize
+    if (process.env.NODE_ENV === 'development') {
+      const sanitizedResponse = responseText.replace(/glpat-[a-zA-Z0-9_-]{20,}/g, '[GITLAB_TOKEN_REDACTED]')
+        .replace(/private-token[=:]\s*[^\s&]+/gi, 'private-token=[REDACTED]');
+      logger.log('GitLab deleteFile response text:', sanitizedResponse);
+    }
     
     if (responseText.trim() === '') {
       logger.log('GitLab deleteFile: Empty response, file deleted successfully');
@@ -214,12 +397,17 @@ class GitLabService {
    * Get commit history for a file
    */
   async getFileHistory(filePath, branch = 'main') {
+    branch = this.validateBranchName(branch);
+    filePath = this.validateFilePath(filePath);
     const endpoint = `/projects/${this.projectId}/repository/commits`;
     const params = new URLSearchParams({
       ref_name: branch,
       path: filePath,
       per_page: 20
     });
+    
+    // Validate URL parameters before making request
+    this.validateSearchParams(params);
     
     const response = await this.makeRequest(`${endpoint}?${params}`);
     const commits = await response.json();
@@ -237,6 +425,7 @@ class GitLabService {
    * Get file content at specific commit
    */
   async getFileAtCommit(filePath, sha) {
+    filePath = this.validateFilePath(filePath);
     const encodedPath = encodeURIComponent(filePath);
     const endpoint = `/projects/${this.projectId}/repository/files/${encodedPath}`;
     const params = new URLSearchParams({
@@ -258,6 +447,7 @@ class GitLabService {
    * Get repository tree (directories and files) using GitLab repository tree API
    */
   async getRepositoryTree(path = '', recursive = false, branch = 'main') {
+    branch = this.validateBranchName(branch);
     const endpoint = `/projects/${this.projectId}/repository/tree`;
     const params = new URLSearchParams({
       ref: branch,
@@ -272,12 +462,20 @@ class GitLabService {
       params.append('recursive', 'true');
     }
     
-    logger.log(`GitLab getRepositoryTree request: ${endpoint}?${params}`);
+    // Validate URL parameters before making request
+    this.validateSearchParams(params);
+    
+    // Only log detailed info in development
+    if (process.env.NODE_ENV === 'development') {
+      logger.log(`GitLab getRepositoryTree request: ${endpoint}?${params}`);
+    }
     
     const response = await this.makeRequest(`${endpoint}?${params}`);
     const data = await response.json();
     
-    logger.log(`GitLab getRepositoryTree response: ${data.length} items`);
+    if (process.env.NODE_ENV === 'development') {
+      logger.log(`GitLab getRepositoryTree response: ${data.length} items`);
+    }
     
     return data;
   }
