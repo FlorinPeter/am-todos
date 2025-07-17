@@ -130,6 +130,11 @@ logger.startup('   Headers:', corsOptions.allowedHeaders.join(', '));
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' })); // Prevent DoS attacks via large payloads
 
+// Trust proxy for Cloud Run (required for rate limiting and IP detection)
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', true);
+}
+
 // Security: Rate limiting with Cloud Run environment variable configuration
 const getRateLimitConfig = () => {
   const config = {
