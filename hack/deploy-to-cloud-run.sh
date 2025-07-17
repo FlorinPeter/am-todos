@@ -35,6 +35,36 @@ MIN_INSTANCES="0"
 MAX_INSTANCES="10"
 CUSTOM_DOMAIN="${CUSTOM_DOMAIN:-}"
 
+# Security Configuration Environment Variables
+CORS_ORIGINS="${CORS_ORIGINS:-}"
+FRONTEND_URL="${FRONTEND_URL:-}"
+CORS_CREDENTIALS="${CORS_CREDENTIALS:-true}"
+CORS_METHODS="${CORS_METHODS:-GET,POST,PUT,DELETE,OPTIONS}"
+CORS_ALLOWED_HEADERS="${CORS_ALLOWED_HEADERS:-Content-Type,Authorization,Accept}"
+CORS_MAX_AGE="${CORS_MAX_AGE:-86400}"
+
+# Rate Limiting Configuration
+RATE_LIMIT_WINDOW_MS="${RATE_LIMIT_WINDOW_MS:-900000}"
+RATE_LIMIT_MAX_REQUESTS="${RATE_LIMIT_MAX_REQUESTS:-100}"
+AI_RATE_LIMIT_WINDOW_MS="${AI_RATE_LIMIT_WINDOW_MS:-300000}"
+AI_RATE_LIMIT_MAX_REQUESTS="${AI_RATE_LIMIT_MAX_REQUESTS:-20}"
+DISABLE_RATE_LIMITING="${DISABLE_RATE_LIMITING:-false}"
+
+# Admin Security
+ADMIN_TOKEN="${ADMIN_TOKEN:-$(openssl rand -base64 32)}"
+
+# Advanced Security Configuration
+DISABLE_SECURITY_HEADERS="${DISABLE_SECURITY_HEADERS:-false}"
+DISABLE_SECURITY_LOGGING="${DISABLE_SECURITY_LOGGING:-false}"
+LOG_ALL_REQUESTS="${LOG_ALL_REQUESTS:-false}"
+DISABLE_METHOD_VALIDATION="${DISABLE_METHOD_VALIDATION:-false}"
+
+# Build Information
+VERSION="${VERSION:-1.5.5}"
+GIT_SHA="${GIT_SHA:-$(git rev-parse HEAD 2>/dev/null || echo 'unknown')}"
+GIT_TAG="${GIT_TAG:-$(git describe --tags --exact-match 2>/dev/null || echo '')}"
+BUILD_DATE="${BUILD_DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+
 echo -e "${GREEN}📋 Deployment Configuration:${NC}"
 echo "  Project: $GOOGLE_CLOUD_PROJECT"
 echo "  Service: $SERVICE_NAME"
@@ -44,11 +74,27 @@ echo "  Memory: $MEMORY"
 echo "  CPU: $CPU"
 echo "  Port: Dynamic (set by Cloud Run)"
 echo "  Container Port: Auto-detected"
+echo ""
+echo -e "${GREEN}🔐 Security Configuration:${NC}"
+if [ -n "$CORS_ORIGINS" ]; then
+  echo "  CORS Origins: $CORS_ORIGINS"
+else
+  echo "  CORS Origins: Auto-configured for common platforms"
+fi
 if [ -n "$CUSTOM_DOMAIN" ]; then
   echo "  Custom Domain: $CUSTOM_DOMAIN"
+  if [ -z "$CORS_ORIGINS" ]; then
+    echo "  Auto CORS: https://$CUSTOM_DOMAIN"
+  fi
 else
   echo "  Custom Domain: Not configured"
 fi
+echo "  Rate Limiting: $RATE_LIMIT_MAX_REQUESTS req/$((RATE_LIMIT_WINDOW_MS/60000))min, AI: $AI_RATE_LIMIT_MAX_REQUESTS req/$((AI_RATE_LIMIT_WINDOW_MS/60000))min"
+echo "  Admin Protection: Enabled (token: ${ADMIN_TOKEN:0:8}...)"
+echo "  Security Headers: $([ "$DISABLE_SECURITY_HEADERS" = "true" ] && echo "Disabled" || echo "Enabled")"
+echo "  Security Logging: $([ "$DISABLE_SECURITY_LOGGING" = "true" ] && echo "Disabled" || echo "Enabled")"
+echo "  Method Validation: $([ "$DISABLE_METHOD_VALIDATION" = "true" ] && echo "Disabled" || echo "Enabled")"
+echo "  Build Version: $VERSION"
 echo ""
 
 # Check if user is authenticated
@@ -82,6 +128,48 @@ fi
 
 # Deploy to Cloud Run
 echo -e "${GREEN}🚀 Deploying to Cloud Run...${NC}"
+
+# Auto-configure CORS for custom domain if not explicitly set
+if [ -n "$CUSTOM_DOMAIN" ] && [ -z "$CORS_ORIGINS" ]; then
+  CORS_ORIGINS="https://$CUSTOM_DOMAIN"
+  echo -e "${GREEN}🔧 Auto-configuring CORS for custom domain: $CORS_ORIGINS${NC}"
+fi
+if [ -n "$CUSTOM_DOMAIN" ] && [ -z "$FRONTEND_URL" ]; then
+  FRONTEND_URL="https://$CUSTOM_DOMAIN"
+  echo -e "${GREEN}🔧 Auto-configuring frontend URL: $FRONTEND_URL${NC}"
+fi
+
+# Build environment variables string
+ENV_VARS="NODE_ENV=production,FRONTEND_BUILD_PATH=/app/build"
+ENV_VARS="$ENV_VARS,CORS_CREDENTIALS=$CORS_CREDENTIALS"
+ENV_VARS="$ENV_VARS,CORS_METHODS=$CORS_METHODS"
+ENV_VARS="$ENV_VARS,CORS_ALLOWED_HEADERS=$CORS_ALLOWED_HEADERS"
+ENV_VARS="$ENV_VARS,CORS_MAX_AGE=$CORS_MAX_AGE"
+ENV_VARS="$ENV_VARS,RATE_LIMIT_WINDOW_MS=$RATE_LIMIT_WINDOW_MS"
+ENV_VARS="$ENV_VARS,RATE_LIMIT_MAX_REQUESTS=$RATE_LIMIT_MAX_REQUESTS"
+ENV_VARS="$ENV_VARS,AI_RATE_LIMIT_WINDOW_MS=$AI_RATE_LIMIT_WINDOW_MS"
+ENV_VARS="$ENV_VARS,AI_RATE_LIMIT_MAX_REQUESTS=$AI_RATE_LIMIT_MAX_REQUESTS"
+ENV_VARS="$ENV_VARS,DISABLE_RATE_LIMITING=$DISABLE_RATE_LIMITING"
+ENV_VARS="$ENV_VARS,ADMIN_TOKEN=$ADMIN_TOKEN"
+ENV_VARS="$ENV_VARS,DISABLE_SECURITY_HEADERS=$DISABLE_SECURITY_HEADERS"
+ENV_VARS="$ENV_VARS,DISABLE_SECURITY_LOGGING=$DISABLE_SECURITY_LOGGING"
+ENV_VARS="$ENV_VARS,LOG_ALL_REQUESTS=$LOG_ALL_REQUESTS"
+ENV_VARS="$ENV_VARS,DISABLE_METHOD_VALIDATION=$DISABLE_METHOD_VALIDATION"
+ENV_VARS="$ENV_VARS,VERSION=$VERSION"
+ENV_VARS="$ENV_VARS,GIT_SHA=$GIT_SHA"
+ENV_VARS="$ENV_VARS,BUILD_DATE=$BUILD_DATE"
+
+# Add optional environment variables if they are set
+if [ -n "$CORS_ORIGINS" ]; then
+  ENV_VARS="$ENV_VARS,CORS_ORIGINS=$CORS_ORIGINS"
+fi
+if [ -n "$FRONTEND_URL" ]; then
+  ENV_VARS="$ENV_VARS,FRONTEND_URL=$FRONTEND_URL"
+fi
+if [ -n "$GIT_TAG" ]; then
+  ENV_VARS="$ENV_VARS,GIT_TAG=$GIT_TAG"
+fi
+
 gcloud run deploy $SERVICE_NAME \
   --image $IMAGE \
   --platform managed \
@@ -92,7 +180,7 @@ gcloud run deploy $SERVICE_NAME \
   --min-instances $MIN_INSTANCES \
   --max-instances $MAX_INSTANCES \
   --timeout 300 \
-  --set-env-vars "NODE_ENV=production,FRONTEND_BUILD_PATH=/app/build" \
+  --set-env-vars "$ENV_VARS" \
   --execution-environment gen2 \
   --quiet
 
@@ -101,6 +189,10 @@ SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region=$REGION --form
 
 echo -e "${GREEN}✅ Deployment completed successfully!${NC}"
 echo -e "${GREEN}🌐 Service URL: $SERVICE_URL${NC}"
+echo ""
+echo -e "${YELLOW}🔐 IMPORTANT - Save Your Admin Token:${NC}"
+echo -e "${GREEN}Admin Token: $ADMIN_TOKEN${NC}"
+echo -e "${YELLOW}This token is required for accessing /api/memory and /api/version endpoints${NC}"
 
 # Configure custom domain if specified
 if [ -n "$CUSTOM_DOMAIN" ]; then
@@ -201,6 +293,12 @@ fi
 echo "2. Set up your repository and folder preferences"
 echo "3. Start creating AI-powered todos!"
 echo ""
-echo -e "${GREEN}🔧 To deploy with a custom domain:${NC}"
-echo "export CUSTOM_DOMAIN=\"your-domain.com\""
-echo "./deploy-to-cloud-run.sh"
+echo -e "${GREEN}🛡️ Security Features Enabled:${NC}"
+echo "• CORS protection for your domain"
+echo "• Rate limiting (100 general, 20 AI requests)"
+echo "• Admin endpoint authentication"
+echo "• Input validation and sanitization"
+echo "• Comprehensive security logging"
+echo ""
+echo -e "${GREEN}📊 Monitor your deployment:${NC}"
+echo "gcloud run logs read $SERVICE_NAME --region=$REGION --follow"

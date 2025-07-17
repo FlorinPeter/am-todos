@@ -1,10 +1,12 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import helmet from 'helmet';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import GitLabService from './gitlabService.js';
 import { fileURLToPath } from 'url';
 import logger from './logger.js';
+import rateLimit from 'express-rate-limit';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,8 +22,340 @@ logger.startup('   PORT:', process.env.PORT);
 logger.startup('   FRONTEND_BUILD_PATH:', process.env.FRONTEND_BUILD_PATH);
 logger.startup('🔌 Server will listen on port:', port);
 
-app.use(cors());
-app.use(express.json());
+// Security: Helmet.js security headers configuration
+const helmetConfig = {
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: [
+        "'self'", 
+        "'unsafe-inline'", // Required for React and TailwindCSS
+        "https://fonts.googleapis.com"
+      ],
+      fontSrc: [
+        "'self'",
+        "https://fonts.gstatic.com"
+      ],
+      scriptSrc: [
+        "'self'",
+        process.env.NODE_ENV === 'development' ? "'unsafe-eval'" : null // Only in development for React
+      ].filter(Boolean),
+      imgSrc: [
+        "'self'", 
+        "data:", 
+        "blob:",
+        "https://*.githubusercontent.com", // GitHub avatars
+        "https://github.com" // GitHub content
+      ],
+      connectSrc: [
+        "'self'",
+        "https://api.github.com",
+        "https://generativelanguage.googleapis.com", // Google Gemini
+        "https://openrouter.ai" // OpenRouter
+      ],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null
+    }
+  },
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true
+  },
+  noSniff: true,
+  frameguard: { action: 'deny' },
+  xssFilter: true,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' }
+};
+
+// Apply security headers (configurable for Cloud Run)
+if (process.env.DISABLE_SECURITY_HEADERS !== 'true') {
+  app.use(helmet(helmetConfig));
+  logger.startup('🛡️ Security headers enabled (Helmet.js)');
+} else {
+  logger.startup('⚠️ Security headers disabled via DISABLE_SECURITY_HEADERS environment variable');
+}
+
+// Security: Configure CORS with environment variable driven origins for Cloud Run
+const getAllowedOrigins = () => {
+  if (process.env.NODE_ENV === 'production') {
+    // Production: Use environment variables for Cloud Run deployment
+    const corsOrigins = process.env.CORS_ORIGINS;
+    if (corsOrigins) {
+      // Parse comma-separated origins and regex patterns
+      return corsOrigins.split(',').map(origin => {
+        origin = origin.trim();
+        // Support regex patterns for subdomain matching
+        if (origin.startsWith('/') && origin.endsWith('/')) {
+          return new RegExp(origin.slice(1, -1));
+        }
+        return origin;
+      });
+    }
+    
+    // Fallback production origins if CORS_ORIGINS not set
+    return [
+      process.env.FRONTEND_URL || 'https://am-todos.web.app',
+      /^https:\/\/.*\.run\.app$/, // Cloud Run default domains
+      /^https:\/\/.*\.web\.app$/, // Firebase hosting
+      /^https:\/\/.*\.firebaseapp\.com$/, // Firebase hosting
+      /^https:\/\/.*\.vercel\.app$/, // Vercel deployments
+      /^https:\/\/.*\.netlify\.app$/ // Netlify deployments
+    ];
+  } else {
+    // Development: Use localhost origins
+    const devOrigins = process.env.DEV_CORS_ORIGINS;
+    return devOrigins 
+      ? devOrigins.split(',').map(o => o.trim())
+      : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  }
+};
+
+const corsOptions = {
+  origin: getAllowedOrigins(),
+  credentials: process.env.CORS_CREDENTIALS === 'true',
+  methods: (process.env.CORS_METHODS || 'GET,POST,PUT,DELETE,OPTIONS').split(','),
+  allowedHeaders: (process.env.CORS_ALLOWED_HEADERS || 'Content-Type,Authorization,Accept').split(','),
+  maxAge: parseInt(process.env.CORS_MAX_AGE || '86400', 10) // 24 hours default
+};
+
+// Log CORS configuration for Cloud Run debugging
+logger.startup('🌐 CORS Configuration:');
+logger.startup('   Origins:', JSON.stringify(corsOptions.origin));
+logger.startup('   Credentials:', corsOptions.credentials);
+logger.startup('   Methods:', corsOptions.methods.join(', '));
+logger.startup('   Headers:', corsOptions.allowedHeaders.join(', '));
+
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '10mb' })); // Prevent DoS attacks via large payloads
+
+// Security: Rate limiting with Cloud Run environment variable configuration
+const getRateLimitConfig = () => {
+  const config = {
+    // General rate limiting
+    general: {
+      windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutes default
+      max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
+      message: {
+        error: process.env.RATE_LIMIT_MESSAGE || 'Too many requests from this IP, please try again later.',
+        retryAfter: process.env.RATE_LIMIT_RETRY_AFTER || '15 minutes'
+      }
+    },
+    // AI-specific rate limiting
+    ai: {
+      windowMs: parseInt(process.env.AI_RATE_LIMIT_WINDOW_MS || '300000', 10), // 5 minutes default
+      max: parseInt(process.env.AI_RATE_LIMIT_MAX_REQUESTS || '20', 10),
+      message: {
+        error: process.env.AI_RATE_LIMIT_MESSAGE || 'Too many AI requests from this IP, please try again later.',
+        retryAfter: process.env.AI_RATE_LIMIT_RETRY_AFTER || '5 minutes'
+      }
+    }
+  };
+  
+  // Log rate limiting configuration for Cloud Run debugging
+  logger.startup('🛡️ Rate Limiting Configuration:');
+  logger.startup('   General: ', config.general.max, 'requests per', config.general.windowMs / 1000 / 60, 'minutes');
+  logger.startup('   AI: ', config.ai.max, 'requests per', config.ai.windowMs / 1000 / 60, 'minutes');
+  
+  return config;
+};
+
+const rateLimitConfig = getRateLimitConfig();
+
+const generalLimiter = rateLimit({
+  windowMs: rateLimitConfig.general.windowMs,
+  max: rateLimitConfig.general.max,
+  message: rateLimitConfig.general.message,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for health check and optionally other paths
+    const skipPaths = (process.env.RATE_LIMIT_SKIP_PATHS || '/health').split(',');
+    return skipPaths.some(path => req.path === path.trim());
+  }
+});
+
+const aiLimiter = rateLimit({
+  windowMs: rateLimitConfig.ai.windowMs,
+  max: rateLimitConfig.ai.max,
+  message: rateLimitConfig.ai.message,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Apply rate limiting (can be disabled in Cloud Run with DISABLE_RATE_LIMITING=true)
+if (process.env.DISABLE_RATE_LIMITING !== 'true') {
+  app.use(generalLimiter);
+  app.use('/api/ai', aiLimiter);
+  logger.startup('✅ Rate limiting enabled');
+} else {
+  logger.startup('⚠️ Rate limiting disabled via DISABLE_RATE_LIMITING environment variable');
+}
+
+// Security: Simple admin authentication middleware
+const adminAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  const adminToken = process.env.ADMIN_TOKEN;
+  
+  // If no admin token is set in environment, disable admin endpoints
+  if (!adminToken) {
+    return res.status(503).json({ error: 'Admin endpoints disabled. Set ADMIN_TOKEN environment variable to enable.' });
+  }
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing or invalid authorization header. Use Bearer token.' });
+  }
+  
+  const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+  
+  if (token !== adminToken) {
+    logger.warn('Unauthorized admin access attempt from IP:', req.ip);
+    return res.status(403).json({ error: 'Invalid admin token.' });
+  }
+  
+  next();
+};
+
+// Security: Header sanitization function to prevent HTTP header injection
+const sanitizeHeader = (value) => {
+  if (typeof value !== 'string') {
+    return String(value);
+  }
+  
+  // Remove CRLF characters that could be used for HTTP response splitting
+  return value.replace(/[\r\n\x00]/g, '').trim();
+};
+
+// Security: Request logging and monitoring middleware
+const securityLogger = (req, res, next) => {
+  const startTime = Date.now();
+  const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
+  const userAgent = req.get('User-Agent') || 'unknown';
+  const method = req.method;
+  const url = req.originalUrl || req.url;
+  const referer = req.get('Referer') || 'none';
+  
+  // Log security-relevant requests
+  const isSecurityRelevant = 
+    url.startsWith('/api/') || 
+    method !== 'GET' ||
+    url.includes('admin') ||
+    url.includes('..') ||
+    req.headers.authorization;
+  
+  if (isSecurityRelevant || process.env.LOG_ALL_REQUESTS === 'true') {
+    logger.log(`🔍 ${method} ${url} from ${clientIP} | UA: ${userAgent.substring(0, 100)} | Ref: ${referer}`);
+  }
+  
+  // Monitor for suspicious patterns
+  const suspiciousPatterns = [
+    /\.\./,                    // Path traversal
+    /<script/i,                // XSS attempts
+    /union\s+select/i,         // SQL injection
+    /javascript:/i,            // XSS
+    /data:text\/html/i,        // Data URI XSS
+    /eval\(/i,                 // Code injection
+    /base64/i,                 // Potential encoding attacks
+    /\${.*}/,                  // Template injection
+    /\[object\s+Object\]/i     // Object injection
+  ];
+  
+  const requestData = `${url} ${JSON.stringify(req.body || {})}`;
+  const foundSuspicious = suspiciousPatterns.some(pattern => pattern.test(requestData));
+  
+  if (foundSuspicious) {
+    logger.warn(`🚨 SUSPICIOUS REQUEST detected from ${clientIP}: ${method} ${url}`);
+    logger.warn(`🚨 Patterns found in: ${requestData.substring(0, 200)}`);
+  }
+  
+  // Track response details
+  const originalSend = res.send;
+  res.send = function(data) {
+    const duration = Date.now() - startTime;
+    const size = data ? data.length : 0;
+    
+    // Log slow requests (potential DoS)
+    if (duration > 5000) {
+      logger.warn(`⏱️ SLOW REQUEST: ${method} ${url} took ${duration}ms from ${clientIP}`);
+    }
+    
+    // Log failed authentication attempts
+    if (res.statusCode === 401 || res.statusCode === 403) {
+      logger.warn(`🔒 AUTH FAILURE: ${res.statusCode} for ${method} ${url} from ${clientIP}`);
+    }
+    
+    // Log rate limit hits
+    if (res.statusCode === 429) {
+      logger.warn(`🚫 RATE LIMIT: ${method} ${url} from ${clientIP}`);
+    }
+    
+    // Log errors for monitoring
+    if (res.statusCode >= 500) {
+      logger.error(`❌ SERVER ERROR: ${res.statusCode} for ${method} ${url} from ${clientIP} (${duration}ms)`);
+    }
+    
+    return originalSend.call(this, data);
+  };
+  
+  next();
+};
+
+// Apply security logging (configurable for Cloud Run)
+if (process.env.DISABLE_SECURITY_LOGGING !== 'true') {
+  app.use(securityLogger);
+  logger.startup('📊 Security request logging enabled');
+} else {
+  logger.startup('⚠️ Security logging disabled via DISABLE_SECURITY_LOGGING environment variable');
+}
+
+// Security: HTTP method validation middleware
+const methodValidator = (req, res, next) => {
+  const method = req.method;
+  const path = req.path;
+  
+  // Define allowed methods for different endpoint patterns
+  const methodRules = [
+    { pattern: /^\/health$/, methods: ['GET'] },
+    { pattern: /^\/api\/version$/, methods: ['GET'] },
+    { pattern: /^\/api\/memory$/, methods: ['GET'] },
+    { pattern: /^\/api\/github$/, methods: ['POST'] },
+    { pattern: /^\/api\/gitlab$/, methods: ['POST'] },
+    { pattern: /^\/api\/ai$/, methods: ['POST'] },
+    { pattern: /^\/api\/git-history$/, methods: ['POST'] },
+    { pattern: /^\/api\/file-at-commit$/, methods: ['POST'] },
+    { pattern: /^\/$/, methods: ['GET'] },
+    { pattern: /^\/static\//, methods: ['GET'] }, // Static files
+    { pattern: /\./, methods: ['GET'] } // Files with extensions (CSS, JS, etc.)
+  ];
+  
+  // Check if method is allowed for this path
+  const rule = methodRules.find(rule => rule.pattern.test(path));
+  if (rule && !rule.methods.includes(method)) {
+    logger.warn(`🚫 METHOD NOT ALLOWED: ${method} ${path} from ${req.ip}`);
+    return res.status(405).json({ 
+      error: 'Method Not Allowed',
+      allowed: rule.methods 
+    });
+  }
+  
+  // Block dangerous methods entirely
+  const dangerousMethods = ['TRACE', 'TRACK', 'DEBUG'];
+  if (dangerousMethods.includes(method)) {
+    logger.warn(`🚨 DANGEROUS METHOD BLOCKED: ${method} ${path} from ${req.ip}`);
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+  
+  next();
+};
+
+// Apply HTTP method validation (configurable for Cloud Run)
+if (process.env.DISABLE_METHOD_VALIDATION !== 'true') {
+  app.use(methodValidator);
+  logger.startup('🔒 HTTP method validation enabled');
+} else {
+  logger.startup('⚠️ HTTP method validation disabled via DISABLE_METHOD_VALIDATION environment variable');
+}
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -33,8 +367,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Version info endpoint
-app.get('/api/version', (req, res) => {
+// Version info endpoint (protected)
+app.get('/api/version', adminAuth, (req, res) => {
   res.status(200).json({
     version: process.env.VERSION || '0.1.0',
     gitSha: process.env.GIT_SHA || 'development',
@@ -44,8 +378,8 @@ app.get('/api/version', (req, res) => {
   });
 });
 
-// Memory usage endpoint
-app.get('/api/memory', (req, res) => {
+// Memory usage endpoint (protected)
+app.get('/api/memory', adminAuth, (req, res) => {
   const memUsage = process.memoryUsage();
   const formatBytes = (bytes) => {
     const mb = bytes / 1024 / 1024;
@@ -81,20 +415,31 @@ app.post('/api/github', async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields: path, owner, repo' });
   }
 
+  // Security: Validate owner and repo names (no path traversal characters)
+  const validNamePattern = /^[a-zA-Z0-9._-]+$/;
+  if (!validNamePattern.test(owner) || !validNamePattern.test(repo)) {
+    return res.status(403).json({ error: 'Invalid owner or repository name' });
+  }
+
   // Security: Validate that the request is for the expected repository pattern
   const expectedRepoPattern = new RegExp(`^/repos/${owner}/${repo}/`);
   if (!expectedRepoPattern.test(path)) {
     return res.status(403).json({ error: 'Invalid repository path' });
   }
 
+  // Security: Prevent path traversal attacks
+  if (path.includes('..') || path.includes('\\') || path.includes('%2e%2e')) {
+    return res.status(403).json({ error: 'Path traversal detected' });
+  }
+
   // Security: Only allow specific GitHub API endpoints for contents and commits
   const allowedPatterns = [
-    // Allow any contents endpoint (for dynamic folder support)
-    /^\/repos\/[^\/]+\/[^\/]+\/contents\/.*/,
-    // Allow commits endpoint
-    /^\/repos\/[^\/]+\/[^\/]+\/commits/,
-    // Allow root contents listing (for folder discovery)
-    /^\/repos\/[^\/]+\/[^\/]+\/contents\/?$/
+    // Allow any contents endpoint (for dynamic folder support) - more restrictive
+    new RegExp(`^/repos/${owner}/${repo}/contents/[a-zA-Z0-9._/-]*$`),
+    // Allow commits endpoint with specific repo
+    new RegExp(`^/repos/${owner}/${repo}/commits`),
+    // Allow root contents listing (for folder discovery) - specific repo only
+    new RegExp(`^/repos/${owner}/${repo}/contents/?$`)
   ];
   
   const isAllowedEndpoint = allowedPatterns.some(pattern => pattern.test(path));
@@ -112,10 +457,10 @@ app.post('/api/github', async (req, res) => {
       method,
       headers: {
         'User-Agent': 'Agentic-Markdown-Todos',
-        // Security: Only forward specific headers, not all
-        ...(headers.Authorization && { Authorization: headers.Authorization }),
-        ...(headers['Content-Type'] && { 'Content-Type': headers['Content-Type'] }),
-        ...(headers.Accept && { Accept: headers.Accept })
+        // Security: Only forward specific headers with sanitization
+        ...(headers.Authorization && { Authorization: sanitizeHeader(headers.Authorization) }),
+        ...(headers['Content-Type'] && { 'Content-Type': sanitizeHeader(headers['Content-Type']) }),
+        ...(headers.Accept && { Accept: sanitizeHeader(headers.Accept) })
       }
     };
 
@@ -236,6 +581,21 @@ app.post('/api/ai', async (req, res) => {
     return res.status(400).json({ error: 'Missing AI provider. Please select a provider in the application settings.' });
   }
 
+  // Validate API key format based on provider
+  if (provider === 'gemini') {
+    // Google Gemini API keys start with 'AIza' and are 39 characters long
+    if (!apiKey.startsWith('AIza') || apiKey.length !== 39 || !/^AIza[a-zA-Z0-9_-]{35}$/.test(apiKey)) {
+      return res.status(400).json({ error: 'Invalid Google Gemini API key format. Key should start with "AIza" and be 39 characters long.' });
+    }
+  } else if (provider === 'openrouter') {
+    // OpenRouter API keys start with 'sk-or-v1-' and are longer
+    if (!apiKey.startsWith('sk-or-v1-') || apiKey.length < 20 || !/^sk-or-v1-[a-zA-Z0-9_-]+$/.test(apiKey)) {
+      return res.status(400).json({ error: 'Invalid OpenRouter API key format. Key should start with "sk-or-v1-".' });
+    }
+  } else {
+    return res.status(400).json({ error: 'Unsupported AI provider. Supported providers: gemini, openrouter' });
+  }
+
   try {
     let prompt = '';
     let systemInstruction = '';
@@ -315,11 +675,21 @@ Please return the updated markdown content:`;
 
       if (!openRouterResponse.ok) {
         const errorText = await openRouterResponse.text();
-        logger.error('OpenRouter API error:', errorText);
+        // Log full error for debugging but sanitize before sending to client
+        logger.error('OpenRouter API error:', openRouterResponse.status, openRouterResponse.statusText);
+        
+        // Return sanitized error messages to client based on status code
         if (openRouterResponse.status === 401) {
           throw new Error('OpenRouter API key is invalid or not authorized. Please check your API key in settings.');
+        } else if (openRouterResponse.status === 429) {
+          throw new Error('OpenRouter API rate limit exceeded. Please try again later.');
+        } else if (openRouterResponse.status === 400) {
+          throw new Error('Invalid request to OpenRouter API. Please check your model selection and try again.');
+        } else if (openRouterResponse.status >= 500) {
+          throw new Error('OpenRouter API service temporarily unavailable. Please try again later.');
+        } else {
+          throw new Error(`OpenRouter API error: ${openRouterResponse.statusText}`);
         }
-        throw new Error(`OpenRouter API error: ${openRouterResponse.statusText} - ${errorText}`);
       }
 
       const openRouterData = await openRouterResponse.json();
