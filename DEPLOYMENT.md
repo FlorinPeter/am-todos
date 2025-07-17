@@ -327,10 +327,10 @@ railway up
 # Application health
 curl https://your-domain.com/health
 
-# Admin endpoints (requires Bearer token)
-curl -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
-     https://your-domain.com/api/version
+# Public endpoints
+curl https://your-domain.com/api/version
 
+# Admin endpoints (requires Bearer token)
 curl -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
      https://your-domain.com/api/memory
 ```
@@ -421,9 +421,12 @@ gcloud run services update am-todos \
    # Generate new admin token
    openssl rand -base64 32
    
+   # Test public version endpoint
+   curl https://your-domain.com/api/version
+   
    # Test admin endpoint
    curl -H "Authorization: Bearer YOUR_TOKEN" \
-        https://your-domain.com/api/version
+        https://your-domain.com/api/memory
    ```
 
 ### **Security Diagnostics**

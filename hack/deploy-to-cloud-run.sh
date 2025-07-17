@@ -192,7 +192,7 @@ echo -e "${GREEN}🌐 Service URL: $SERVICE_URL${NC}"
 echo ""
 echo -e "${YELLOW}🔐 IMPORTANT - Save Your Admin Token:${NC}"
 echo -e "${GREEN}Admin Token: $ADMIN_TOKEN${NC}"
-echo -e "${YELLOW}This token is required for accessing /api/memory and /api/version endpoints${NC}"
+echo -e "${YELLOW}This token is required for accessing /api/memory endpoint (admin functions)${NC}"
 
 # Configure custom domain if specified
 if [ -n "$CUSTOM_DOMAIN" ]; then
