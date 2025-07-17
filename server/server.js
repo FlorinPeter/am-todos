@@ -132,7 +132,8 @@ app.use(express.json({ limit: '10mb' })); // Prevent DoS attacks via large paylo
 
 // Trust proxy for Cloud Run (required for rate limiting and IP detection)
 if (process.env.NODE_ENV === 'production') {
-  app.set('trust proxy', true);
+  // Trust Cloud Run proxy specifically - more secure than 'true'
+  app.set('trust proxy', 1);
 }
 
 // Security: Rate limiting with Cloud Run environment variable configuration
