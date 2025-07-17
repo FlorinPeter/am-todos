@@ -1,6 +1,6 @@
 {
   "name": "am-todos",
-  "version": "1.5.5",
+  "version": "1.6.1",
   "description": "AI-powered todo application that transforms GitHub repositories into intelligent task management systems",
   "license": "Apache-2.0",
   "author": "Agentic Markdown Todos Contributors",

@@ -28,7 +28,7 @@ fi
 
 # Configuration
 REGION="europe-west4"  # Netherlands (supports custom domains)
-IMAGE="${IMAGE:-europe-west4-docker.pkg.dev/$GOOGLE_CLOUD_PROJECT/am-todos/app:v1.1.0}"
+IMAGE="${IMAGE:-europe-west4-docker.pkg.dev/$GOOGLE_CLOUD_PROJECT/am-todos/app:1.6.1}"
 MEMORY="512Mi"
 CPU="1000m"
 MIN_INSTANCES="0"
@@ -60,7 +60,7 @@ LOG_ALL_REQUESTS="${LOG_ALL_REQUESTS:-false}"
 DISABLE_METHOD_VALIDATION="${DISABLE_METHOD_VALIDATION:-false}"
 
 # Build Information
-VERSION="${VERSION:-1.5.5}"
+VERSION="${VERSION:-1.6.1}"
 GIT_SHA="${GIT_SHA:-$(git rev-parse HEAD 2>/dev/null || echo 'unknown')}"
 GIT_TAG="${GIT_TAG:-$(git describe --tags --exact-match 2>/dev/null || echo '')}"
 BUILD_DATE="${BUILD_DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
