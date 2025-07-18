@@ -181,8 +181,8 @@ const generalLimiter = rateLimit({
     const skipPaths = (process.env.RATE_LIMIT_SKIP_PATHS || '/health').split(',');
     return skipPaths.some(path => req.path === path.trim());
   },
-  // Add logging hook for debugging
-  onLimitReached: (req, res) => {
+  // Add logging hook for debugging (modern approach)
+  handler: (req, res, next, options) => {
     const clientIP = req.ip;
     const xForwardedFor = req.get('X-Forwarded-For');
     const xRealIP = req.get('X-Real-IP');
@@ -191,6 +191,9 @@ const generalLimiter = rateLimit({
     if (process.env.NODE_ENV === 'production') {
       logger.info(`Rate limit reached - IP: ${clientIP}, X-Forwarded-For: ${xForwardedFor}, X-Real-IP: ${xRealIP}`);
     }
+    
+    // Send the rate limit response
+    res.status(options.statusCode).json(options.message);
   }
 });
 
@@ -200,8 +203,8 @@ const aiLimiter = rateLimit({
   message: rateLimitConfig.ai.message,
   standardHeaders: true,
   legacyHeaders: false,
-  // Add logging hook for debugging
-  onLimitReached: (req, res) => {
+  // Add logging hook for debugging (modern approach)
+  handler: (req, res, next, options) => {
     const clientIP = req.ip;
     const xForwardedFor = req.get('X-Forwarded-For');
     const xRealIP = req.get('X-Real-IP');
@@ -210,6 +213,9 @@ const aiLimiter = rateLimit({
     if (process.env.NODE_ENV === 'production') {
       logger.info(`AI rate limit reached - IP: ${clientIP}, X-Forwarded-For: ${xForwardedFor}, X-Real-IP: ${xRealIP}`);
     }
+    
+    // Send the rate limit response
+    res.status(options.statusCode).json(options.message);
   }
 });
 
