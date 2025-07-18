@@ -140,19 +140,19 @@ if (process.env.NODE_ENV === 'production') {
 // Security: Rate limiting with Cloud Run environment variable configuration
 const getRateLimitConfig = () => {
   const config = {
-    // General rate limiting
+    // General rate limiting - more generous defaults for better UX
     general: {
       windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutes default
-      max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
+      max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '500', 10), // Increased from 100 to 500
       message: {
         error: process.env.RATE_LIMIT_MESSAGE || 'Too many requests from this IP, please try again later.',
         retryAfter: process.env.RATE_LIMIT_RETRY_AFTER || '15 minutes'
       }
     },
-    // AI-specific rate limiting
+    // AI-specific rate limiting - more generous for AI interactions
     ai: {
       windowMs: parseInt(process.env.AI_RATE_LIMIT_WINDOW_MS || '300000', 10), // 5 minutes default
-      max: parseInt(process.env.AI_RATE_LIMIT_MAX_REQUESTS || '20', 10),
+      max: parseInt(process.env.AI_RATE_LIMIT_MAX_REQUESTS || '50', 10), // Increased from 20 to 50
       message: {
         error: process.env.AI_RATE_LIMIT_MESSAGE || 'Too many AI requests from this IP, please try again later.',
         retryAfter: process.env.AI_RATE_LIMIT_RETRY_AFTER || '5 minutes'
