@@ -132,8 +132,9 @@ app.use(express.json({ limit: '10mb' })); // Prevent DoS attacks via large paylo
 
 // Trust proxy for Cloud Run (required for rate limiting and IP detection)
 if (process.env.NODE_ENV === 'production') {
-  // Trust Cloud Run proxy specifically - more secure than 'true'
-  app.set('trust proxy', 1);
+  // Trust all proxies for Cloud Run - Cloud Run can have multiple proxy layers
+  app.set('trust proxy', true);
+  logger.startup('✅ Trust proxy enabled for Cloud Run');
 }
 
 // Security: Rate limiting with Cloud Run environment variable configuration
@@ -179,6 +180,19 @@ const generalLimiter = rateLimit({
     // Skip rate limiting for health check and optionally other paths
     const skipPaths = (process.env.RATE_LIMIT_SKIP_PATHS || '/health').split(',');
     return skipPaths.some(path => req.path === path.trim());
+  },
+  // Add IP logging for debugging
+  keyGenerator: (req) => {
+    const clientIP = req.ip;
+    const xForwardedFor = req.get('X-Forwarded-For');
+    const xRealIP = req.get('X-Real-IP');
+    
+    // Log IP information for debugging rate limiting
+    if (process.env.NODE_ENV === 'production') {
+      logger.info(`Rate limit key - IP: ${clientIP}, X-Forwarded-For: ${xForwardedFor}, X-Real-IP: ${xRealIP}`);
+    }
+    
+    return clientIP;
   }
 });
 
@@ -187,7 +201,20 @@ const aiLimiter = rateLimit({
   max: rateLimitConfig.ai.max,
   message: rateLimitConfig.ai.message,
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  // Add IP logging for debugging
+  keyGenerator: (req) => {
+    const clientIP = req.ip;
+    const xForwardedFor = req.get('X-Forwarded-For');
+    const xRealIP = req.get('X-Real-IP');
+    
+    // Log IP information for debugging rate limiting
+    if (process.env.NODE_ENV === 'production') {
+      logger.info(`AI rate limit key - IP: ${clientIP}, X-Forwarded-For: ${xForwardedFor}, X-Real-IP: ${xRealIP}`);
+    }
+    
+    return clientIP;
+  }
 });
 
 // Apply rate limiting (can be disabled in Cloud Run with DISABLE_RATE_LIMITING=true)
