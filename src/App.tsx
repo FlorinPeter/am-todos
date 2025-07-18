@@ -73,9 +73,16 @@ function App() {
       logger.log('Current timestamp:', new Date().toISOString());
       
       // Fetch both active and archived todos
+      // Handle each request separately to prevent archive folder 404s from failing the entire operation
       const [activeFiles, archivedFiles] = await Promise.all([
-        getTodos(currentSettings.folder || 'todos', false),
-        getTodos(currentSettings.folder || 'todos', true)
+        getTodos(currentSettings.folder || 'todos', false).catch((error) => {
+          logger.error('Failed to fetch active todos:', error);
+          return [];
+        }),
+        getTodos(currentSettings.folder || 'todos', true).catch((error) => {
+          logger.error('Failed to fetch archived todos (archive folder may not exist):', error);
+          return [];
+        })
       ]);
       
       logger.log('Active files retrieved:', activeFiles.length, 'files');
@@ -907,7 +914,7 @@ function App() {
       </header>
 
       {/* Main Layout */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex">
         {/* Mobile Sidebar Backdrop */}
         {sidebarOpen && (
           <div 
@@ -919,7 +926,7 @@ function App() {
         {/* Sidebar */}
         <div className={`${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } md:translate-x-0 fixed md:relative z-30 md:z-auto transition-all duration-300 ease-in-out w-80 md:w-80 flex-shrink-0 h-full inset-y-0 md:inset-y-auto`}>
+        } md:translate-x-0 fixed md:relative z-30 md:z-auto transition-all duration-300 ease-in-out w-80 md:w-80 flex-shrink-0 h-full md:h-auto inset-y-0 md:inset-y-0`}>
           <TodoSidebar
             todos={todos}
             selectedTodoId={selectedTodoId}
@@ -932,7 +939,7 @@ function App() {
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 min-w-0 flex flex-col bg-gray-900">
+        <div className="flex-1 min-w-0 flex flex-col bg-gray-900 overflow-hidden">
           <TodoEditor
             selectedTodo={selectedTodo}
             onTodoUpdate={handleTodoUpdate}

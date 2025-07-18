@@ -111,8 +111,8 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
 
   const currentProject = settings?.folder || 'todos';
 
-  const hasGitHubSettings = settings?.pat && settings?.owner && settings?.repo;
-  const hasGitLabSettings = settings?.instanceUrl && settings?.projectId && settings?.token;
+  const hasGitHubSettings = !!(settings?.pat && settings?.owner && settings?.repo);
+  const hasGitLabSettings = !!(settings?.instanceUrl && settings?.projectId && settings?.token);
   
   logger.log('ProjectManager: Render check', { 
     hasGitHubSettings, 

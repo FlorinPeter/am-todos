@@ -132,26 +132,27 @@ app.use(express.json({ limit: '10mb' })); // Prevent DoS attacks via large paylo
 
 // Trust proxy for Cloud Run (required for rate limiting and IP detection)
 if (process.env.NODE_ENV === 'production') {
-  // Trust Cloud Run proxy specifically - more secure than 'true'
-  app.set('trust proxy', 1);
+  // Trust all proxies for Cloud Run - Cloud Run can have multiple proxy layers
+  app.set('trust proxy', true);
+  logger.startup('✅ Trust proxy enabled for Cloud Run');
 }
 
 // Security: Rate limiting with Cloud Run environment variable configuration
 const getRateLimitConfig = () => {
   const config = {
-    // General rate limiting
+    // General rate limiting - more generous defaults for better UX
     general: {
       windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10), // 15 minutes default
-      max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
+      max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '500', 10), // Increased from 100 to 500
       message: {
         error: process.env.RATE_LIMIT_MESSAGE || 'Too many requests from this IP, please try again later.',
         retryAfter: process.env.RATE_LIMIT_RETRY_AFTER || '15 minutes'
       }
     },
-    // AI-specific rate limiting
+    // AI-specific rate limiting - more generous for AI interactions
     ai: {
       windowMs: parseInt(process.env.AI_RATE_LIMIT_WINDOW_MS || '300000', 10), // 5 minutes default
-      max: parseInt(process.env.AI_RATE_LIMIT_MAX_REQUESTS || '20', 10),
+      max: parseInt(process.env.AI_RATE_LIMIT_MAX_REQUESTS || '50', 10), // Increased from 20 to 50
       message: {
         error: process.env.AI_RATE_LIMIT_MESSAGE || 'Too many AI requests from this IP, please try again later.',
         retryAfter: process.env.AI_RATE_LIMIT_RETRY_AFTER || '5 minutes'
@@ -179,6 +180,20 @@ const generalLimiter = rateLimit({
     // Skip rate limiting for health check and optionally other paths
     const skipPaths = (process.env.RATE_LIMIT_SKIP_PATHS || '/health').split(',');
     return skipPaths.some(path => req.path === path.trim());
+  },
+  // Add logging hook for debugging (modern approach)
+  handler: (req, res, next, options) => {
+    const clientIP = req.ip;
+    const xForwardedFor = req.get('X-Forwarded-For');
+    const xRealIP = req.get('X-Real-IP');
+    
+    // Log IP information when rate limit is hit
+    if (process.env.NODE_ENV === 'production') {
+      logger.info(`Rate limit reached - IP: ${clientIP}, X-Forwarded-For: ${xForwardedFor}, X-Real-IP: ${xRealIP}`);
+    }
+    
+    // Send the rate limit response
+    res.status(options.statusCode).json(options.message);
   }
 });
 
@@ -187,7 +202,21 @@ const aiLimiter = rateLimit({
   max: rateLimitConfig.ai.max,
   message: rateLimitConfig.ai.message,
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  // Add logging hook for debugging (modern approach)
+  handler: (req, res, next, options) => {
+    const clientIP = req.ip;
+    const xForwardedFor = req.get('X-Forwarded-For');
+    const xRealIP = req.get('X-Real-IP');
+    
+    // Log IP information when AI rate limit is hit
+    if (process.env.NODE_ENV === 'production') {
+      logger.info(`AI rate limit reached - IP: ${clientIP}, X-Forwarded-For: ${xForwardedFor}, X-Real-IP: ${xRealIP}`);
+    }
+    
+    // Send the rate limit response
+    res.status(options.statusCode).json(options.message);
+  }
 });
 
 // Apply rate limiting (can be disabled in Cloud Run with DISABLE_RATE_LIMITING=true)
@@ -589,9 +618,9 @@ app.post('/api/ai', async (req, res) => {
 
   // Validate API key format based on provider
   if (provider === 'gemini') {
-    // Google Gemini API keys start with 'AIza' and are 39 characters long
-    if (!apiKey.startsWith('AIza') || apiKey.length !== 39 || !/^AIza[a-zA-Z0-9_-]{35}$/.test(apiKey)) {
-      return res.status(400).json({ error: 'Invalid Google Gemini API key format. Key should start with "AIza" and be 39 characters long.' });
+    // Google Gemini API keys start with 'AIza' and contain only valid characters
+    if (!apiKey.startsWith('AIza') || !/^AIza[a-zA-Z0-9_-]+$/.test(apiKey)) {
+      return res.status(400).json({ error: 'Invalid Google Gemini API key format. Key should start with "AIza".' });
     }
   } else if (provider === 'openrouter') {
     // OpenRouter API keys start with 'sk-or-v1-' and are longer

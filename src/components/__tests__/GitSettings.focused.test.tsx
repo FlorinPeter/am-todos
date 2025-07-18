@@ -641,20 +641,75 @@ describe('GitSettings - Focused Coverage Tests', () => {
       const submitButton = screen.getByText('Save Settings');
       fireEvent.click(submitButton);
 
-      // Should save settings and call callback
+      // Should save settings with only provider-specific fields
       expect(mockSaveSettings).toHaveBeenCalledWith({
         gitProvider: 'github',
-        pat: 'test-token',
-        owner: 'testowner',
-        repo: 'testrepo',
-        instanceUrl: 'https://gitlab.com',
-        projectId: '',
-        token: '',
         folder: 'todos',
         geminiApiKey: 'test-gemini-key',
         aiProvider: 'gemini',
         openRouterApiKey: '',
-        aiModel: ''
+        aiModel: '',
+        // GitHub-specific fields
+        pat: 'test-token',
+        owner: 'testowner',
+        repo: 'testrepo',
+        // GitLab fields should be cleared for GitHub provider
+        instanceUrl: '',
+        projectId: '',
+        token: ''
+      });
+      expect(mockOnSettingsSaved).toHaveBeenCalled();
+    });
+
+    it('should save only GitLab fields when GitLab provider is selected', () => {
+      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+
+      // Switch to GitLab provider
+      fireEvent.change(screen.getByLabelText('Choose Your Git Provider'), {
+        target: { value: 'gitlab' }
+      });
+
+      // Fill in GitLab settings
+      fireEvent.change(screen.getByLabelText('GitLab Instance URL'), {
+        target: { value: 'https://gitlab.example.com' }
+      });
+      fireEvent.change(screen.getByLabelText('Project ID'), {
+        target: { value: '12345' }
+      });
+      fireEvent.change(screen.getByLabelText('GitLab Personal Access Token'), {
+        target: { value: 'gitlab-token' }
+      });
+      
+      // Also set a folder since it's required
+      fireEvent.change(screen.getByDisplayValue('todos'), {
+        target: { value: 'work-tasks' }
+      });
+      
+      // Set required AI key since Gemini is the default provider
+      fireEvent.change(screen.getByLabelText('Google Gemini API Key'), {
+        target: { value: 'test-gemini-key' }
+      });
+
+      // Submit form
+      const submitButton = screen.getByText('Save Settings');
+      fireEvent.click(submitButton);
+
+      // Should save settings with only GitLab-specific fields
+      expect(mockSaveSettings).toHaveBeenCalledWith({
+        gitProvider: 'gitlab',
+        folder: 'work-tasks',
+        geminiApiKey: 'test-gemini-key',
+        aiProvider: 'gemini',
+        openRouterApiKey: '',
+        aiModel: '',
+        // GitLab-specific fields
+        instanceUrl: 'https://gitlab.example.com',
+        projectId: '12345',
+        token: 'gitlab-token',
+        // GitHub fields should be cleared for GitLab provider
+        pat: '',
+        owner: '',
+        repo: ''
       });
       expect(mockOnSettingsSaved).toHaveBeenCalled();
     });
@@ -709,6 +764,125 @@ describe('GitSettings - Focused Coverage Tests', () => {
       render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       expect(screen.getByTestId('version-info')).toBeInTheDocument();
+    });
+  });
+
+  describe('Reset functionality', () => {
+    it('should render Reset All button', () => {
+      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+
+      const resetButton = screen.getByRole('button', { name: /reset all/i });
+      expect(resetButton).toBeInTheDocument();
+      expect(resetButton).toHaveClass('bg-red-600');
+    });
+
+    it('should clear localStorage and reset form fields when Reset All is clicked', () => {
+      // Set up initial settings with GitHub provider for easier testing
+      mockLoadSettings.mockReturnValue({
+        gitProvider: 'github',
+        pat: 'test-token',
+        owner: 'test-owner',
+        repo: 'test-repo',
+        instanceUrl: '',
+        projectId: '',
+        token: '',
+        folder: 'custom-folder',
+        geminiApiKey: 'test-gemini-key',
+        aiProvider: 'openrouter',
+        openRouterApiKey: 'test-openrouter-key',
+        aiModel: 'custom-model'
+      });
+
+      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+
+      // Verify initial state has loaded settings (GitHub fields should be visible)
+      expect(screen.getByDisplayValue('test-token')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('test-owner')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('custom-folder')).toBeInTheDocument();
+
+      // Click reset button
+      const resetButton = screen.getByRole('button', { name: /reset all/i });
+      fireEvent.click(resetButton);
+
+      // Verify localStorage.removeItem was called
+      expect(Object.prototype.hasOwnProperty.call(global.localStorage, 'removeItem')).toBe(true);
+
+      // Verify form fields are reset to defaults
+      expect(screen.getByDisplayValue('todos')).toBeInTheDocument(); // Default folder
+
+      // Verify provider is reset to GitHub (should remain GitHub)
+      const gitProviderSelect = screen.getByLabelText(/choose your git provider/i);
+      expect(gitProviderSelect).toHaveValue('github');
+
+      // Verify GitHub fields are cleared
+      const patField = screen.getByLabelText(/github personal access token/i);
+      const ownerField = screen.getByLabelText(/repository owner/i);
+      expect(patField).toHaveValue('');
+      expect(ownerField).toHaveValue('');
+    });
+  });
+
+  describe('Provider switching', () => {
+    it('should clear GitLab fields when switching from GitLab to GitHub', () => {
+      // Start with GitLab settings
+      mockLoadSettings.mockReturnValue({
+        gitProvider: 'gitlab',
+        instanceUrl: 'https://gitlab.example.com',
+        projectId: '123',
+        token: 'gitlab-token',
+        pat: '',
+        owner: '',
+        repo: ''
+      });
+
+      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+
+      // Verify GitLab fields are populated
+      expect(screen.getByDisplayValue('https://gitlab.example.com')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('123')).toBeInTheDocument();
+
+      // Switch to GitHub
+      const gitProviderSelect = screen.getByLabelText(/choose your git provider/i);
+      fireEvent.change(gitProviderSelect, { target: { value: 'github' } });
+
+      // GitLab fields should be cleared (not visible in GitHub mode)
+      expect(screen.queryByDisplayValue('https://gitlab.example.com')).not.toBeInTheDocument();
+      expect(screen.queryByDisplayValue('123')).not.toBeInTheDocument();
+
+      // GitHub fields should be visible and empty
+      expect(screen.getByLabelText(/github personal access token/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/repository owner/i)).toBeInTheDocument();
+    });
+
+    it('should clear GitHub fields when switching from GitHub to GitLab', () => {
+      // Start with GitHub settings
+      mockLoadSettings.mockReturnValue({
+        gitProvider: 'github',
+        pat: 'github-token',
+        owner: 'test-owner',
+        repo: 'test-repo',
+        instanceUrl: '',
+        projectId: '',
+        token: ''
+      });
+
+      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+
+      // Verify GitHub fields are populated
+      expect(screen.getByDisplayValue('github-token')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('test-owner')).toBeInTheDocument();
+
+      // Switch to GitLab
+      const gitProviderSelect = screen.getByLabelText(/choose your git provider/i);
+      fireEvent.change(gitProviderSelect, { target: { value: 'gitlab' } });
+
+      // GitHub fields should be cleared (not visible in GitLab mode)
+      expect(screen.queryByDisplayValue('github-token')).not.toBeInTheDocument();
+      expect(screen.queryByDisplayValue('test-owner')).not.toBeInTheDocument();
+
+      // GitLab fields should be visible and have defaults
+      expect(screen.getByDisplayValue('https://gitlab.com')).toBeInTheDocument();
+      expect(screen.getByLabelText(/project id/i)).toBeInTheDocument();
     });
   });
 });

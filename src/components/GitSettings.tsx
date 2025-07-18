@@ -70,12 +70,7 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
     setIsLoadingFolders(true);
     try {
       // Save current form state temporarily so gitService can read it
-      const currentSettings = {
-        gitProvider,
-        pat, owner, repo,
-        instanceUrl, projectId, token,
-        folder, geminiApiKey, aiProvider, openRouterApiKey, aiModel
-      };
+      const currentSettings = buildProviderSpecificSettings();
       saveSettings(currentSettings);
       
       const folders = await listProjectFolders();
@@ -86,7 +81,7 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
     } finally {
       setIsLoadingFolders(false);
     }
-  }, [gitProvider, pat, owner, repo, instanceUrl, projectId, token, folder, geminiApiKey, aiProvider, openRouterApiKey, aiModel]);
+  }, [gitProvider, pat, owner, repo, instanceUrl, projectId, token]);
 
   // Load folders when credentials are available
   useEffect(() => {
@@ -107,12 +102,7 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
     setIsCreatingFolder(true);
     try {
       // Save current form state temporarily so gitService can read it
-      const currentSettings = {
-        gitProvider,
-        pat, owner, repo,
-        instanceUrl, projectId, token,
-        folder, geminiApiKey, aiProvider, openRouterApiKey, aiModel
-      };
+      const currentSettings = buildProviderSpecificSettings();
       saveSettings(currentSettings);
       
       await createProjectFolder(newFolderName.trim());
@@ -128,26 +118,83 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    saveSettings({ 
+  // Helper function to build provider-specific settings
+  const buildProviderSpecificSettings = () => {
+    return {
       gitProvider,
-      // GitHub settings
-      pat, 
-      owner, 
-      repo,
-      // GitLab settings
-      instanceUrl,
-      projectId,
-      token,
-      // Common settings
       folder, 
       geminiApiKey, 
       aiProvider, 
       openRouterApiKey, 
-      aiModel 
-    });
+      aiModel,
+      // Only include provider-specific fields based on current provider
+      ...(gitProvider === 'github' ? {
+        pat, 
+        owner, 
+        repo,
+        // Clear GitLab fields
+        instanceUrl: '',
+        projectId: '',
+        token: ''
+      } : {
+        instanceUrl,
+        projectId,
+        token,
+        // Clear GitHub fields
+        pat: '',
+        owner: '',
+        repo: ''
+      })
+    };
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const settings = buildProviderSpecificSettings();
+    saveSettings(settings);
     onSettingsSaved();
+  };
+
+  const handleResetSettings = () => {
+    // Clear localStorage completely
+    localStorage.removeItem('githubSettings');
+    
+    // Reset all form fields to defaults
+    setGitProvider('github');
+    setPat('');
+    setOwner('');
+    setRepo('');
+    setInstanceUrl('https://gitlab.com');
+    setProjectId('');
+    setToken('');
+    setFolder('todos');
+    setGeminiApiKey('');
+    setOpenRouterApiKey('');
+    setAiProvider('gemini');
+    setAiModel('');
+    setAvailableFolders(['todos']);
+    
+    logger.log('Settings reset to defaults');
+  };
+
+  const handleProviderChange = (newProvider: 'github' | 'gitlab') => {
+    setGitProvider(newProvider);
+    
+    // Clear provider-specific fields when switching to avoid conflicts
+    if (newProvider === 'github') {
+      // Clear GitLab-specific fields
+      setInstanceUrl('https://gitlab.com');
+      setProjectId('');
+      setToken('');
+    } else {
+      // Clear GitHub-specific fields
+      setPat('');
+      setOwner('');
+      setRepo('');
+    }
+    
+    logger.log(`Switched to ${newProvider} provider and cleared conflicting fields`);
   };
 
   return (
@@ -164,7 +211,7 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
             <select
               id="gitProvider"
               value={gitProvider}
-              onChange={(e) => setGitProvider(e.target.value as 'github' | 'gitlab')}
+              onChange={(e) => handleProviderChange(e.target.value as 'github' | 'gitlab')}
               className="mt-1 block w-full p-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="github">GitHub</option>
@@ -479,6 +526,14 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
             className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-md"
           >
             Share Config
+          </button>
+          <button
+            type="button"
+            onClick={handleResetSettings}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-md"
+            title="Clear all settings and reset to defaults"
+          >
+            Reset All
           </button>
         </div>
       </form>

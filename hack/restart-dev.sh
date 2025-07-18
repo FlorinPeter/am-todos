@@ -36,7 +36,7 @@ pkill -9 -f "node server.js" 2>/dev/null || true
 
 echo -e "${GREEN}🚀 Starting backend server...${NC}"
 cd "$PROJECT_ROOT/server"
-nohup env NODE_ENV=development node server.js > server.log 2>&1 &
+nohup env NODE_ENV=development DEV_CORS_ORIGINS="http://localhost:3000,http://127.0.0.1:3000,http://159.65.120.9:3000" node server.js > server.log 2>&1 &
 BACKEND_PID=$!
 echo "Backend server PID: $BACKEND_PID"
 

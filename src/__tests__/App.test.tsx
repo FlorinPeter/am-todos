@@ -484,7 +484,9 @@ describe('App Component', () => {
       render(<App />);
       
       await waitFor(() => {
-        expect(loggerSpy).toHaveBeenCalledWith('Error fetching todos:', expect.any(Error));
+        // Should log errors for both active and archived todo fetching
+        expect(loggerSpy).toHaveBeenCalledWith('Failed to fetch active todos:', expect.any(Error));
+        expect(loggerSpy).toHaveBeenCalledWith('Failed to fetch archived todos (archive folder may not exist):', expect.any(Error));
       });
       
       loggerSpy.mockRestore();

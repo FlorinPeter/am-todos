@@ -36,23 +36,34 @@ export const loadSettings = (): GitHubSettings | null => {
     
     const settings = JSON.parse(settingsString);
     
-    // Ensure folder field exists, default to 'todos' for backward compatibility
-    if (!settings.folder) {
+    // Only add defaults for truly missing fields, not empty strings
+    if (settings.folder === undefined || settings.folder === null) {
       settings.folder = 'todos';
     }
-    // Ensure AI provider fields exist with defaults
     if (!settings.aiProvider) {
       settings.aiProvider = 'gemini';
     }
     if (!settings.aiModel) {
       settings.aiModel = settings.aiProvider === 'gemini' ? 'gemini-2.5-flash' : 'anthropic/claude-3.5-sonnet';
     }
-    // Ensure Git provider fields exist with defaults
     if (!settings.gitProvider) {
       settings.gitProvider = 'github';
     }
     if (!settings.branch) {
       settings.branch = 'main';
+    }
+    
+    // Clean up provider-specific fields based on current provider
+    if (settings.gitProvider === 'github') {
+      // Clear GitLab-specific fields when using GitHub
+      settings.instanceUrl = '';
+      settings.projectId = '';
+      settings.token = '';
+    } else if (settings.gitProvider === 'gitlab') {
+      // Clear GitHub-specific fields when using GitLab
+      settings.pat = '';
+      settings.owner = '';
+      settings.repo = '';
     }
     
     return settings;
@@ -155,7 +166,7 @@ export const decodeSettingsFromUrl = (configParam: string): GitHubSettings | nul
       settings.instanceUrl = compressed.u || '';
       settings.projectId = compressed.i || '';
       settings.token = compressed.t || '';
-      settings.folder = compressed.f || 'todos';
+      settings.folder = compressed.f !== undefined ? compressed.f : 'todos';
       settings.branch = compressed.b || 'main';
       settings.aiProvider = compressed.a === 1 ? 'openrouter' : (compressed.a || 'gemini');
       settings.geminiApiKey = compressed.gk || '';
