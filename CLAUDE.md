@@ -331,6 +331,12 @@ npm run test:basic    # Run feature validation tests only
 npm run test:coverage # Full coverage report (same as CI)
 ```
 
+#### Server Tests (Backend API)
+```bash
+# Server tests (excluded from main suite)
+npx vitest run --run server/__tests__/server.test.js --config /dev/null
+```
+
 #### CI/CD Pipeline Testing
 The GitHub Actions CI pipeline runs `npm run test:coverage` in Ubuntu with Node.js 20.x and 22.x matrix testing.
 

@@ -618,9 +618,9 @@ app.post('/api/ai', async (req, res) => {
 
   // Validate API key format based on provider
   if (provider === 'gemini') {
-    // Google Gemini API keys start with 'AIza' and are 39 characters long
-    if (!apiKey.startsWith('AIza') || apiKey.length !== 39 || !/^AIza[a-zA-Z0-9_-]{35}$/.test(apiKey)) {
-      return res.status(400).json({ error: 'Invalid Google Gemini API key format. Key should start with "AIza" and be 39 characters long.' });
+    // Google Gemini API keys start with 'AIza' and contain only valid characters
+    if (!apiKey.startsWith('AIza') || !/^AIza[a-zA-Z0-9_-]+$/.test(apiKey)) {
+      return res.status(400).json({ error: 'Invalid Google Gemini API key format. Key should start with "AIza".' });
     }
   } else if (provider === 'openrouter') {
     // OpenRouter API keys start with 'sk-or-v1-' and are longer

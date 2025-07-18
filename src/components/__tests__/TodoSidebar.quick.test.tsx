@@ -72,14 +72,14 @@ describe('TodoSidebar - Quick Coverage Boost', () => {
     // Test the fallback text for missing created date
     render(<TodoSidebar {...defaultProps} selectedTodoId="2" />);
 
-    expect(screen.getByText('Created: No date')).toBeInTheDocument();
+    expect(screen.getByText('Created No date')).toBeInTheDocument();
   });
 
   it('should show formatted date when createdAt exists', () => {
     // Test the normal path for created date
     render(<TodoSidebar {...defaultProps} />);
 
-    expect(screen.getByText('Created: formatted-2023-01-01')).toBeInTheDocument();
+    expect(screen.getByText('Created formatted-2023-01-01')).toBeInTheDocument();
   });
 
   it('should not show progress bar when completion is 0', () => {

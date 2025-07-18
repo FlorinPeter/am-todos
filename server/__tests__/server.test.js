@@ -75,9 +75,12 @@ describe('Server API Tests', () => {
       });
     });
 
-    it('should return memory usage', async () => {
+    it('should return memory usage with admin auth', async () => {
+      process.env.ADMIN_TOKEN = 'test-admin-token';
+      
       const response = await request(app)
         .get('/api/memory')
+        .set('Authorization', 'Bearer test-admin-token')
         .expect(200);
 
       expect(response.body).toMatchObject({
@@ -92,6 +95,8 @@ describe('Server API Tests', () => {
         raw: expect.any(Object),
         uptime: expect.stringMatching(/\d+(\.\d+)? seconds/)
       });
+      
+      delete process.env.ADMIN_TOKEN;
     });
   });
 
@@ -438,7 +443,7 @@ describe('Server API Tests', () => {
         .send({
           action: 'generateInitialPlan',
           provider: 'gemini',
-          apiKey: 'test-key',
+          apiKey: 'AIzaTestKey123456789012345678901234',
           payload: { goal: 'Test goal' }
         })
         .expect(200)
@@ -472,7 +477,7 @@ describe('Server API Tests', () => {
         .send({
           action: 'generateInitialPlan',
           provider: 'openrouter',
-          apiKey: 'test-key',
+          apiKey: 'sk-or-v1-test-key-123456789012345',
           model: 'anthropic/claude-3.5-sonnet',
           payload: { goal: 'Test goal' }
         })
@@ -486,7 +491,7 @@ describe('Server API Tests', () => {
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
-            'Authorization': 'Bearer test-key',
+            'Authorization': 'Bearer sk-or-v1-test-key-123456789012345',
             'Content-Type': 'application/json'
           }),
           body: expect.stringContaining('anthropic/claude-3.5-sonnet')
@@ -512,7 +517,7 @@ describe('Server API Tests', () => {
         .send({
           action: 'generateCommitMessage',
           provider: 'gemini',
-          apiKey: 'test-key',
+          apiKey: 'AIzaTestKey123456789012345678901234',
           payload: { changeDescription: 'Added new feature' }
         })
         .expect(200);
@@ -546,7 +551,7 @@ describe('Server API Tests', () => {
         .send({
           action: 'processChatMessage',
           provider: 'gemini',
-          apiKey: 'test-key',
+          apiKey: 'AIzaTestKey123456789012345678901234',
           payload: {
             currentContent: '# Test Todo',
             chatHistory: [{ role: 'user', content: 'Hello' }],
@@ -572,7 +577,7 @@ describe('Server API Tests', () => {
         .send({
           action: 'unknownAction',
           provider: 'gemini',
-          apiKey: 'test-key'
+          apiKey: 'AIzaTestKey123456789012345678901234'
         })
         .expect(400)
         .expect((res) => {
@@ -592,7 +597,7 @@ describe('Server API Tests', () => {
       // The server should return 400 for unsupported provider
       expect([400, 500]).toContain(response.status);
       if (response.status === 400) {
-        expect(response.body.error).toBe('Unsupported AI provider');
+        expect(response.body.error).toBe('Unsupported AI provider. Supported providers: gemini, openrouter');
       } else {
         expect(response.body.error).toContain('Failed to get response from');
       }
@@ -613,7 +618,7 @@ describe('Server API Tests', () => {
         .send({
           action: 'generateInitialPlan',
           provider: 'openrouter',
-          apiKey: 'invalid-key',
+          apiKey: 'sk-or-v1-valid-format-but-invalid-key',
           payload: { goal: 'Test goal' }
         })
         .expect(500);
@@ -631,7 +636,7 @@ describe('Server API Tests', () => {
         .send({
           action: 'generateInitialPlan',
           provider: 'gemini',
-          apiKey: 'test-key',
+          apiKey: 'AIzaTestKey123456789012345678901234',
           payload: { goal: 'Test goal' }
         })
         .expect(500)

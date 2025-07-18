@@ -408,7 +408,11 @@ describe('localStorage functions', () => {
           aiProvider: 'gemini',
           aiModel: 'gemini-2.5-flash',
           gitProvider: 'github',
-          branch: 'main'
+          branch: 'main',
+          // Provider-specific cleanup: GitLab fields cleared for GitHub
+          instanceUrl: '',
+          projectId: '',
+          token: ''
         });
       });
 
@@ -454,6 +458,64 @@ describe('localStorage functions', () => {
         );
 
         loggerSpy.mockRestore();
+      });
+
+      it('clears GitLab fields when git provider is GitHub', () => {
+        const mixedSettings = {
+          pat: 'github-token',
+          owner: 'user',
+          repo: 'repo',
+          gitProvider: 'github',
+          instanceUrl: 'https://gitlab.com',
+          projectId: '123',
+          token: 'gitlab-token'
+        };
+        
+        store['githubSettings'] = JSON.stringify(mixedSettings);
+        
+        const settings = loadSettings();
+        expect(settings?.gitProvider).toBe('github');
+        expect(settings?.pat).toBe('github-token');
+        expect(settings?.instanceUrl).toBe('');
+        expect(settings?.projectId).toBe('');
+        expect(settings?.token).toBe('');
+      });
+
+      it('clears GitHub fields when git provider is GitLab', () => {
+        const mixedSettings = {
+          pat: 'github-token',
+          owner: 'user',
+          repo: 'repo',
+          gitProvider: 'gitlab',
+          instanceUrl: 'https://gitlab.com',
+          projectId: '123',
+          token: 'gitlab-token'
+        };
+        
+        store['githubSettings'] = JSON.stringify(mixedSettings);
+        
+        const settings = loadSettings();
+        expect(settings?.gitProvider).toBe('gitlab');
+        expect(settings?.instanceUrl).toBe('https://gitlab.com');
+        expect(settings?.token).toBe('gitlab-token');
+        expect(settings?.pat).toBe('');
+        expect(settings?.owner).toBe('');
+        expect(settings?.repo).toBe('');
+      });
+
+      it('preserves folder field from URL config without defaulting', () => {
+        const urlSettings = {
+          pat: 'token',
+          owner: 'user',
+          repo: 'repo',
+          folder: 'tests', // Should be preserved, not defaulted to 'todos'
+          gitProvider: 'github'
+        };
+        
+        store['githubSettings'] = JSON.stringify(urlSettings);
+        
+        const settings = loadSettings();
+        expect(settings?.folder).toBe('tests');
       });
     });
   });
