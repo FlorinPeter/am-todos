@@ -223,82 +223,117 @@ if [ -n "$CUSTOM_DOMAIN" ]; then
   # Extract the root domain from the custom domain
   ROOT_DOMAIN=$(echo "$CUSTOM_DOMAIN" | sed 's/^[^.]*\.//')
   
-  # Check if domain is verified
-  echo -e "${YELLOW}🔍 Checking domain verification...${NC}"
-  VERIFIED_DOMAINS=$(gcloud domains list-user-verified --format="value(name)" 2>/dev/null || true)
+  # Step 1: Check if domain mapping already exists
+  echo -e "${YELLOW}🔍 Checking current domain status...${NC}"
+  MAPPING_EXISTS=false
+  MAPPING_WORKING=false
   
-  DOMAIN_VERIFIED=false
-  if echo "$VERIFIED_DOMAINS" | grep -q "^$ROOT_DOMAIN$\|^$CUSTOM_DOMAIN$"; then
-    DOMAIN_VERIFIED=true
-    echo -e "${GREEN}✅ Domain is verified${NC}"
+  if gcloud beta run domain-mappings describe --domain=$CUSTOM_DOMAIN --region=$REGION >/dev/null 2>&1; then
+    MAPPING_EXISTS=true
+    echo -e "${GREEN}✅ Domain mapping exists${NC}"
+    
+    # Step 2: Test if domain is functionally working
+    echo -e "${YELLOW}🧪 Testing domain functionality...${NC}"
+    if curl -s --max-time 10 "https://$CUSTOM_DOMAIN/health" | grep -q '"status":"healthy"'; then
+      MAPPING_WORKING=true
+      echo -e "${GREEN}✅ Domain is working correctly!${NC}"
+      echo -e "${GREEN}🌐 Custom Domain URL: https://$CUSTOM_DOMAIN${NC}"
+    else
+      echo -e "${YELLOW}⚠️  Domain mapping exists but not yet accessible (DNS propagation in progress)${NC}"
+    fi
   else
-    echo -e "${RED}❌ Domain '$ROOT_DOMAIN' is not verified${NC}"
-    echo ""
-    echo -e "${YELLOW}📝 Domain verification required:${NC}"
-    echo "Choose one of these methods:"
-    echo ""
-    echo -e "${GREEN}Method 1: Google Cloud Console${NC}"
-    echo "1. Visit: https://console.cloud.google.com/run/domains?project=$GOOGLE_CLOUD_PROJECT"
-    echo "2. Click 'Add mapping' and enter: $CUSTOM_DOMAIN"
-    echo "3. Follow the domain verification steps"
-    echo ""
-    echo -e "${GREEN}Method 2: Google Search Console (Easier)${NC}"
-    echo "1. Visit: https://search.google.com/search-console"
-    echo "2. Add property for: $ROOT_DOMAIN"
-    echo "3. Verify using DNS TXT record or HTML file"
-    echo "4. Once verified in Search Console, the domain is automatically available in Cloud Run"
-    echo ""
-    echo -e "${YELLOW}After verification, run the deployment again${NC}"
-    echo ""
-    DOMAIN_VERIFIED=false
+    echo -e "${YELLOW}ℹ️  Domain mapping does not exist yet${NC}"
   fi
   
-  if [ "$DOMAIN_VERIFIED" = true ]; then
-    # Check if domain mapping already exists
-    if gcloud beta run domain-mappings describe $CUSTOM_DOMAIN --region=$REGION >/dev/null 2>&1; then
-      echo -e "${YELLOW}⚠️  Domain mapping already exists, updating...${NC}"
-      # For updates, we need to delete and recreate
-      gcloud beta run domain-mappings delete $CUSTOM_DOMAIN --region=$REGION --quiet
-      sleep 5
-    fi
+  # Step 3: Create mapping if it doesn't exist or isn't working
+  if [ "$MAPPING_EXISTS" = false ] || [ "$MAPPING_WORKING" = false ]; then
+    # Check domain verification only if we need to create/update mapping
+    echo -e "${YELLOW}🔍 Checking domain verification for mapping creation...${NC}"
+    VERIFIED_DOMAINS=$(gcloud domains list-user-verified --format="value(name)" 2>/dev/null || true)
     
-    echo -e "${GREEN}📝 Creating new domain mapping...${NC}"
-    gcloud beta run domain-mappings create \
-      --service $SERVICE_NAME \
-      --domain $CUSTOM_DOMAIN \
-      --region $REGION \
-      --quiet
-  
-    # Wait a moment for the mapping to be created
-    sleep 10
-    
-    # Get DNS records for verification
-    echo ""
-    echo -e "${YELLOW}📋 DNS Configuration Required:${NC}"
-    echo "Add the following DNS records to your domain registrar:"
-    echo ""
-    
-    # Get the domain mapping details
-    MAPPING_INFO=$(gcloud beta run domain-mappings describe $CUSTOM_DOMAIN --region=$REGION --format="value(status.resourceRecords[].name,status.resourceRecords[].rrdata)" 2>/dev/null)
-    
-    if [ -n "$MAPPING_INFO" ]; then
-      echo "$MAPPING_INFO" | while IFS=$'\t' read -r name rrdata; do
-        if [ -n "$name" ] && [ -n "$rrdata" ]; then
-          echo "  Type: CNAME"
-          echo "  Name: $name"
-          echo "  Value: $rrdata"
-          echo ""
-        fi
-      done
+    DOMAIN_VERIFIED=false
+    # Try multiple verification checks
+    if echo "$VERIFIED_DOMAINS" | grep -q "^$ROOT_DOMAIN$\|^$CUSTOM_DOMAIN$"; then
+      DOMAIN_VERIFIED=true
+      echo -e "${GREEN}✅ Domain is verified in Search Console${NC}"
     else
-      echo "  Could not retrieve DNS records automatically."
-      echo "  Please check the Google Cloud Console for DNS configuration details:"
-      echo "  https://console.cloud.google.com/run/domains?project=$GOOGLE_CLOUD_PROJECT"
-      echo ""
+      # Fallback: Check if we can create mapping anyway (sometimes verification check is stale)
+      echo -e "${YELLOW}⚠️  Domain verification check inconclusive, attempting mapping creation...${NC}"
+      DOMAIN_VERIFIED=true  # Try anyway - mapping creation will fail if actually not verified
     fi
     
-    echo -e "${GREEN}🌐 Custom Domain URL: https://$CUSTOM_DOMAIN${NC}"
-    echo -e "${YELLOW}⚠️  Note: Domain will be accessible after DNS propagation (may take up to 24 hours)${NC}"
+    if [ "$DOMAIN_VERIFIED" = true ]; then
+      if [ "$MAPPING_EXISTS" = true ]; then
+        echo -e "${YELLOW}🔄 Updating existing domain mapping...${NC}"
+        # Delete and recreate for updates
+        gcloud beta run domain-mappings delete $CUSTOM_DOMAIN --region=$REGION --quiet
+        sleep 5
+      fi
+      
+      echo -e "${GREEN}📝 Creating domain mapping...${NC}"
+      if gcloud beta run domain-mappings create \
+        --service $SERVICE_NAME \
+        --domain $CUSTOM_DOMAIN \
+        --region $REGION \
+        --quiet; then
+        
+        echo -e "${GREEN}✅ Domain mapping created successfully${NC}"
+        
+        # Wait and test again
+        sleep 10
+        echo -e "${YELLOW}🧪 Testing new domain mapping...${NC}"
+        if curl -s --max-time 10 "https://$CUSTOM_DOMAIN/health" | grep -q '"status":"healthy"'; then
+          echo -e "${GREEN}✅ Domain is now working correctly!${NC}"
+          echo -e "${GREEN}🌐 Custom Domain URL: https://$CUSTOM_DOMAIN${NC}"
+        else
+          echo -e "${YELLOW}⚠️  Domain mapping created, waiting for DNS propagation...${NC}"
+          
+          # Get DNS records for configuration
+          echo ""
+          echo -e "${YELLOW}📋 DNS Configuration Required:${NC}"
+          echo "Add the following DNS records to your domain registrar:"
+          echo ""
+          
+          # Get the domain mapping details
+          MAPPING_INFO=$(gcloud beta run domain-mappings describe --domain=$CUSTOM_DOMAIN --region=$REGION --format="value(status.resourceRecords[].name,status.resourceRecords[].rrdata)" 2>/dev/null)
+          
+          if [ -n "$MAPPING_INFO" ]; then
+            echo "$MAPPING_INFO" | while IFS=$'\t' read -r name rrdata; do
+              if [ -n "$name" ] && [ -n "$rrdata" ]; then
+                echo "  Type: CNAME"
+                echo "  Name: $name"
+                echo "  Value: $rrdata"
+                echo ""
+              fi
+            done
+          else
+            echo "  Could not retrieve DNS records automatically."
+            echo "  Please check the Google Cloud Console for DNS configuration details:"
+            echo "  https://console.cloud.google.com/run/domains?project=$GOOGLE_CLOUD_PROJECT"
+          fi
+          
+          echo -e "${YELLOW}⚠️  Note: Domain will be accessible after DNS propagation (may take up to 24 hours)${NC}"
+        fi
+      else
+        echo -e "${RED}❌ Failed to create domain mapping${NC}"
+        echo ""
+        echo -e "${YELLOW}📝 Domain verification may be required:${NC}"
+        echo "Choose one of these methods:"
+        echo ""
+        echo -e "${GREEN}Method 1: Google Cloud Console${NC}"
+        echo "1. Visit: https://console.cloud.google.com/run/domains?project=$GOOGLE_CLOUD_PROJECT"
+        echo "2. Click 'Add mapping' and enter: $CUSTOM_DOMAIN"
+        echo "3. Follow the domain verification steps"
+        echo ""
+        echo -e "${GREEN}Method 2: Google Search Console (Easier)${NC}"
+        echo "1. Visit: https://search.google.com/search-console"
+        echo "2. Add property for: $ROOT_DOMAIN"
+        echo "3. Verify using DNS TXT record or HTML file"
+        echo "4. Once verified in Search Console, the domain is automatically available in Cloud Run"
+        echo ""
+        echo -e "${YELLOW}After verification, run the deployment again${NC}"
+      fi
+    fi
   fi
 fi
 
