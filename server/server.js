@@ -809,10 +809,11 @@ app.post('/api/search', async (req, res) => {
 
       const searchResults = await response.json();
       
+      // Normalize GitHub results to consistent format
       results = searchResults.items.map(item => ({
         path: item.path,
-        name: item.name,
-        sha: item.sha,
+        name: item.name,           // GitHub uses 'name'
+        sha: item.sha,             // GitHub uses 'sha'
         url: item.html_url,
         repository: item.repository.full_name,
         text_matches: item.text_matches || []
@@ -855,13 +856,14 @@ app.post('/api/search', async (req, res) => {
 
       const searchResults = await response.json();
       
+      // Normalize GitLab results to match GitHub format for consistency
       results = searchResults.map(item => ({
         path: item.path,
-        name: item.filename,
-        sha: item.ref,
+        name: item.filename,       // GitLab uses 'filename' -> normalize to 'name'
+        sha: item.ref,             // GitLab uses 'ref' -> normalize to 'sha'
         url: `${instanceUrl}/${projectId}/-/blob/main/${item.path}`,
         repository: `project-${projectId}`,
-        text_matches: [] // GitLab doesn't provide text matches in the same format
+        text_matches: []           // GitLab doesn't provide text matches in the same format
       }));
 
     } else {

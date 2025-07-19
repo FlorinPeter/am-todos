@@ -14,14 +14,15 @@ const getApiUrl = () => {
 };
 
 // Search result interface
+// NOTE: Backend normalizes GitHub and GitLab responses to consistent format
 export interface SearchResult {
   path: string;
-  name: string;
-  sha: string;
+  name: string;         // Normalized: GitHub 'name' / GitLab 'filename' -> 'name'
+  sha: string;          // Normalized: GitHub 'sha' / GitLab 'ref' -> 'sha'
   url: string;
   repository: string;
   text_matches: any[];
-  priority?: number; // Enhanced search results now include priority from frontmatter
+  priority?: number;    // Enhanced search results now include priority from frontmatter
 }
 
 export interface SearchResponse {

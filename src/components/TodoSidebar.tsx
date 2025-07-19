@@ -124,32 +124,45 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
     if (searchResults.length > 0) {
       // Use search results from API - this handles BOTH "This Folder" and "Entire Repo"
       displayTodos = searchResults.map((result, index) => {
+        // Backend now normalizes GitHub/GitLab responses to consistent format
+        // Both providers now return: { path, name, sha, url, repository, text_matches, priority }
+        const normalizedResult = {
+          path: result.path || '',
+          name: result.name || 'unknown.md',
+          sha: result.sha || 'unknown',
+          priority: result.priority || 3
+        };
+        
         // Extract folder path (everything except filename) for project name display
-        const pathParts = result.path ? result.path.split('/') : [];
+        // This logic works identically for both GitHub and GitLab since both use same path format
+        const pathParts = normalizedResult.path ? normalizedResult.path.split('/') : [];
         const projectName = pathParts.length > 1 ? pathParts.slice(0, -1).join('/') : 'root';
         
-        // Create unique ID from path since sha is always "main" for search results
-        // Use SHA if available and unique, otherwise fall back to timestamp-based ID
+        // Create unique ID from path since sha/ref might vary between providers
+        // Use SHA/ref if available and unique, otherwise fall back to timestamp-based ID
         const isTestEnv = process.env.NODE_ENV === 'test' || typeof window === 'undefined';
-        const uniqueId = isTestEnv && result.sha !== 'main' 
-          ? result.sha 
-          : `search-${result.path.replace(/[\/\s]/g, '-')}-${Date.now()}-${index}`;
+        const uniqueId = isTestEnv && normalizedResult.sha !== 'main' && normalizedResult.sha !== 'unknown'
+          ? normalizedResult.sha 
+          : `search-${normalizedResult.path.replace(/[\/\s]/g, '-')}-${Date.now()}-${index}`;
+        
+        // Clean filename for display (remove .md extension)
+        const cleanTitle = normalizedResult.name.replace(/\.md$/, '');
         
         return {
           id: uniqueId,
-          title: result.name.replace('.md', ''),
+          title: cleanTitle,
           content: '', // We don't have content in search results
           frontmatter: {
-            title: result.name.replace('.md', ''),
-            createdAt: new Date().toISOString(), // Placeholder
-            priority: result.priority || 3,
+            title: cleanTitle,
+            createdAt: new Date().toISOString(), // Placeholder - consistent for both providers
+            priority: normalizedResult.priority,
             isArchived: false,
             chatHistory: []
           },
-          path: result.path,
-          sha: result.sha,
+          path: normalizedResult.path,
+          sha: normalizedResult.sha,
           isSearchResult: true,
-          projectName: projectName
+          projectName: projectName // Always shows folder path consistently for both providers
         };
       });
     } else if (isSearching) {
