@@ -849,9 +849,15 @@ app.post('/api/search', async (req, res) => {
         if (response.status === 403) {
           return res.status(403).json({ error: 'GitLab access denied. Please check your permissions.' });
         }
+        if (response.status === 429) {
+          return res.status(429).json({ error: 'GitLab search API rate limit exceeded. Please try again in a few minutes.' });
+        }
+        if (response.status === 422) {
+          return res.status(400).json({ error: 'Invalid GitLab search query. Please check your search terms.' });
+        }
         const errorText = await response.text();
         logger.error('GitLab search API error:', response.status, errorText);
-        throw new Error(`GitLab search API error: ${response.statusText}`);
+        return res.status(500).json({ error: `GitLab search API error: ${response.statusText}` });
       }
 
       const searchResults = await response.json();

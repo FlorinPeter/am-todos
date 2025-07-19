@@ -916,7 +916,7 @@ describe('Server API Tests', () => {
         });
     });
 
-    it('should handle GitLab search errors', async () => {
+    it('should handle GitLab search rate limit errors', async () => {
       const mockResponse = {
         ok: false,
         status: 429,
@@ -937,9 +937,96 @@ describe('Server API Tests', () => {
           projectId: '12345',
           token: 'glpat-test-token'
         })
-        .expect(500)
+        .expect(429)
         .expect((res) => {
-          expect(res.body.error).toContain('GitLab search API error');
+          expect(res.body.error).toBe('GitLab search API rate limit exceeded. Please try again in a few minutes.');
+        });
+    });
+
+    it('should handle GitLab authentication errors', async () => {
+      const mockResponse = {
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        text: async () => 'Invalid token'
+      };
+
+      global.fetch.mockResolvedValueOnce(mockResponse);
+
+      await request(app)
+        .post('/api/search')
+        .send({
+          query: 'test',
+          scope: 'folder',
+          folder: 'todos',
+          provider: 'gitlab',
+          instanceUrl: 'https://gitlab.com',
+          projectId: '12345',
+          token: 'glpat-test-token'
+        })
+        .expect(401)
+        .expect((res) => {
+          expect(res.body.error).toBe('GitLab authentication failed. Please check your access token.');
+        });
+    });
+
+    it('should handle GitLab permission errors', async () => {
+      const mockResponse = {
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        text: async () => 'Access denied'
+      };
+
+      global.fetch.mockResolvedValueOnce(mockResponse);
+
+      await request(app)
+        .post('/api/search')
+        .send({
+          query: 'test',
+          scope: 'folder',
+          folder: 'todos',
+          provider: 'gitlab',
+          instanceUrl: 'https://gitlab.com',
+          projectId: '12345',
+          token: 'glpat-test-token'
+        })
+        .expect(403)
+        .expect((res) => {
+          expect(res.body.error).toBe('GitLab access denied. Please check your permissions.');
+        });
+    });
+
+    it('should handle successful GitLab search', async () => {
+      const mockResponse = {
+        ok: true,
+        json: async () => ([{
+          path: 'todos/test.md',
+          filename: 'test.md', // GitLab uses 'filename'
+          ref: 'def456',        // GitLab uses 'ref'
+        }])
+      };
+
+      global.fetch.mockResolvedValueOnce(mockResponse);
+
+      await request(app)
+        .post('/api/search')
+        .send({
+          query: 'test',
+          scope: 'folder',
+          folder: 'todos',
+          provider: 'gitlab',
+          instanceUrl: 'https://gitlab.com',
+          projectId: '12345',
+          token: 'glpat-test-token'
+        })
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.query).toBe('test');
+          expect(res.body.scope).toBe('folder');
+          expect(res.body.items).toHaveLength(1);
+          expect(res.body.items[0].name).toBe('test.md');  // Normalized from 'filename'
+          expect(res.body.items[0].sha).toBe('def456');    // Normalized from 'ref'
         });
     });
 
