@@ -51,12 +51,12 @@ const getGitSettings = () => {
   const provider = settings.gitProvider || 'github';
   
   if (provider === 'github') {
-    if (!settings.token || !settings.owner || !settings.repo) {
+    if (!settings.pat || !settings.owner || !settings.repo) {
       throw new Error('GitHub settings incomplete. Please configure your Personal Access Token, owner, and repository.');
     }
     return {
       provider: 'github',
-      token: settings.token,
+      token: settings.pat, // GitHub uses 'pat' field but we call it 'token' in the API
       owner: settings.owner,
       repo: settings.repo,
       folder: settings.folder || 'todos'

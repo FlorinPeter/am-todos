@@ -52,7 +52,7 @@ describe('Search Service', () => {
     it('should make GitHub search request with correct parameters', async () => {
       const mockSettings = {
         gitProvider: 'github',
-        token: 'test-token',
+        pat: 'test-token', // GitHub uses 'pat' field
         owner: 'test-owner',
         repo: 'test-repo',
         folder: 'todos'
@@ -104,7 +104,7 @@ describe('Search Service', () => {
     it('should handle GitLab settings correctly', async () => {
       const mockSettings = {
         gitProvider: 'gitlab',
-        token: 'test-token',
+        token: 'test-token', // GitLab uses 'token' field
         instanceUrl: 'https://gitlab.example.com',
         projectId: '123',
         folder: 'tasks'
@@ -146,7 +146,7 @@ describe('Search Service', () => {
     it('should handle API errors gracefully', async () => {
       const mockSettings = {
         gitProvider: 'github',
-        token: 'test-token',
+        pat: 'test-token', // GitHub uses 'pat' field
         owner: 'test-owner',
         repo: 'test-repo',
         folder: 'todos'
@@ -171,7 +171,7 @@ describe('Search Service', () => {
     it('should handle network errors', async () => {
       const mockSettings = {
         gitProvider: 'github',
-        token: 'test-token',
+        pat: 'test-token', // GitHub uses 'pat' field
         owner: 'test-owner',
         repo: 'test-repo',
         folder: 'todos'
@@ -206,7 +206,7 @@ describe('Search Service', () => {
     it('should debounce multiple rapid calls', async () => {
       const mockSettings = {
         gitProvider: 'github',
-        token: 'test-token',
+        pat: 'test-token', // GitHub uses 'pat' field
         owner: 'test-owner',
         repo: 'test-repo',
         folder: 'todos'
@@ -250,7 +250,7 @@ describe('Search Service', () => {
     it('should cache search results', async () => {
       const mockSettings = {
         gitProvider: 'github',
-        token: 'test-token',
+        pat: 'test-token', // GitHub uses 'pat' field
         owner: 'test-owner',
         repo: 'test-repo',
         folder: 'todos'
