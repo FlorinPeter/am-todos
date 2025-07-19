@@ -7,6 +7,7 @@ import ProjectManager from './components/ProjectManager';
 import { loadSettings, getUrlConfig, saveSettings, saveSelectedTodoId, loadSelectedTodoId, clearSelectedTodoId } from './utils/localStorage';
 import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDirectory, moveTaskToArchive, moveTaskFromArchive, deleteFile } from './services/gitService';
 import { generateInitialPlan, generateCommitMessage } from './services/aiService';
+import { searchTodosDebounced, SearchResult } from './services/searchService';
 import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, TodoFrontmatter } from './utils/markdown';
 import logger from './utils/logger';
 
@@ -45,6 +46,13 @@ function App() {
   const [allTodos, setAllTodos] = useState<any[]>([]);
   const [showSettings, setShowSettings] = useState(false);
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchScope, setSearchScope] = useState<'folder' | 'repo'>('folder');
+
   const getProviderName = () => {
     const provider = settings?.gitProvider || 'github';
     return provider === 'github' ? 'GitHub' : 'GitLab';
@@ -56,6 +64,55 @@ function App() {
     setShowSettings(false); // Close the settings modal
     fetchTodos(); // Fetch todos after settings are saved
   };
+
+  // Search handlers
+  const handleSearchQueryChange = useCallback((query: string) => {
+    setSearchQuery(query);
+    setSearchError(null);
+
+    if (!query.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    // Clear previous results immediately for better UX
+    setIsSearching(true);
+
+    // Use debounced search
+    searchTodosDebounced(query, searchScope, (results, error) => {
+      setIsSearching(false);
+      if (error) {
+        setSearchError(error);
+        setSearchResults([]);
+      } else if (results) {
+        setSearchError(null);
+        setSearchResults(results.items);
+        logger.log('Search completed:', results.total_count, 'results');
+      }
+    });
+  }, [searchScope]);
+
+  const handleSearchScopeChange = useCallback((scope: 'folder' | 'repo') => {
+    setSearchScope(scope);
+    
+    // Re-run search with new scope if there's an active query
+    if (searchQuery.trim()) {
+      setIsSearching(true);
+      setSearchError(null);
+      
+      searchTodosDebounced(searchQuery, scope, (results, error) => {
+        setIsSearching(false);
+        if (error) {
+          setSearchError(error);
+          setSearchResults([]);
+        } else if (results) {
+          setSearchError(null);
+          setSearchResults(results.items);
+        }
+      }, 100); // Shorter delay for scope change
+    }
+  }, [searchQuery]);
 
   const fetchTodosWithSettings = useCallback(async (useSettings?: any, useViewMode?: 'active' | 'archived', preserveTodoPath?: string) => {
     const currentSettings = useSettings || settings;
@@ -935,6 +992,13 @@ function App() {
               setSidebarOpen(false); // Close sidebar on mobile after selection
             }}
             onNewTodo={() => setShowNewTodoInput(true)}
+            searchQuery={searchQuery}
+            onSearchQueryChange={handleSearchQueryChange}
+            searchResults={searchResults}
+            isSearching={isSearching}
+            searchError={searchError}
+            searchScope={searchScope}
+            onSearchScopeChange={handleSearchScopeChange}
           />
         </div>
 
