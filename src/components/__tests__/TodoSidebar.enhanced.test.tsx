@@ -419,7 +419,8 @@ describe('TodoSidebar - Enhanced Coverage Tests', () => {
       expect(screen.getByText('No results found')).toBeInTheDocument();
     });
 
-    it('shows search error message', () => {
+    it('shows search error message with retry functionality', () => {
+      const onSearchQueryChange = vi.fn();
       render(
         <TodoSidebar
           todos={mockTodos}
@@ -428,11 +429,57 @@ describe('TodoSidebar - Enhanced Coverage Tests', () => {
           onNewTodo={vi.fn()}
           searchQuery="test search"
           searchError="Network error occurred"
+          onSearchQueryChange={onSearchQueryChange}
         />
       );
 
-      // Search error messages were removed from UI - test now checks for empty state
-      expect(screen.getByText('No results found')).toBeInTheDocument();
+      // Should show error state instead of empty state
+      expect(screen.getByText('Search Error')).toBeInTheDocument();
+      expect(screen.getByText('Network error occurred')).toBeInTheDocument();
+      expect(screen.getByText('Clear Search')).toBeInTheDocument();
+      expect(screen.getByText('Try Again')).toBeInTheDocument();
+    });
+
+    it('shows rate limit specific guidance for rate limit errors', () => {
+      render(
+        <TodoSidebar
+          todos={mockTodos}
+          selectedTodoId={null}
+          onTodoSelect={vi.fn()}
+          onNewTodo={vi.fn()}
+          searchQuery="test search"
+          searchError="GitHub search API rate limit exceeded. Please try again in a few minutes."
+          onSearchQueryChange={vi.fn()}
+        />
+      );
+
+      // Should show error state with rate limit tip
+      expect(screen.getByText('Search Error')).toBeInTheDocument();
+      expect(screen.getByText(/rate limit exceeded/)).toBeInTheDocument();
+      expect(screen.getByText(/💡 Tip.*rate limits/)).toBeInTheDocument();
+    });
+
+    it('can retry search after error', async () => {
+      const onSearchQueryChange = vi.fn();
+      render(
+        <TodoSidebar
+          todos={mockTodos}
+          selectedTodoId={null}
+          onTodoSelect={vi.fn()}
+          onNewTodo={vi.fn()}
+          searchQuery="test search"
+          searchError="Network error occurred"
+          onSearchQueryChange={onSearchQueryChange}
+        />
+      );
+
+      const tryAgainButton = screen.getByText('Try Again');
+      await userEvent.click(tryAgainButton);
+
+      // Should clear search first, then retry with same query
+      expect(onSearchQueryChange).toHaveBeenCalledWith('');
+      // Note: The retry call happens after setTimeout, so we can't easily test it here
+      // but the clear functionality should work
     });
 
     it('shows no results message when search returns empty', () => {
