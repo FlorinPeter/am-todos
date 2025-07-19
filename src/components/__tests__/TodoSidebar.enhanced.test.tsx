@@ -293,7 +293,8 @@ describe('TodoSidebar - Enhanced Coverage Tests', () => {
       expect(screen.getByText('No results found')).toBeInTheDocument();
       expect(screen.getAllByText(/No tasks found for "nonexistent query"/).length).toBeGreaterThan(0);
       expect(screen.getByText('Clear Search')).toBeInTheDocument();
-      expect(screen.getByText('Create Task')).toBeInTheDocument();
+      // "New Task" button is already visible at the top - no duplicate needed
+      expect(screen.getByText('New Task')).toBeInTheDocument();
     });
 
     it('calls clear search from empty state clear button', async () => {
@@ -318,7 +319,7 @@ describe('TodoSidebar - Enhanced Coverage Tests', () => {
       expect(onSearchQueryChange).toHaveBeenCalledWith('');
     });
 
-    it('calls onNewTodo from empty state create task button', async () => {
+    it('can create new task from the main New Task button even in search empty state', async () => {
       mockFilterTodosLocally.mockReturnValue([]);
       
       const onNewTodo = vi.fn();
@@ -334,8 +335,9 @@ describe('TodoSidebar - Enhanced Coverage Tests', () => {
         />
       );
 
-      const createButton = screen.getByText('Create Task');
-      await userEvent.click(createButton);
+      // The main "New Task" button should still work even when showing search empty state
+      const newTaskButton = screen.getByText('New Task');
+      await userEvent.click(newTaskButton);
       
       expect(onNewTodo).toHaveBeenCalled();
     });

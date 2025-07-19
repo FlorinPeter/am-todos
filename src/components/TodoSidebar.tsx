@@ -283,18 +283,11 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
                 <p className="text-sm text-gray-400 mb-4 max-w-xs">
                   No tasks found for "{localSearchQuery}"{searchScope === 'repo' ? ' in entire repository' : ' in this folder'}. Try a different search term.
                 </p>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={handleSearchClear}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors text-sm font-medium">
-                    Clear Search
-                  </button>
-                  <button
-                    onClick={onNewTodo}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors text-sm font-medium">
-                    Create Task
-                  </button>
-                </div>
+                <button
+                  onClick={handleSearchClear}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors text-sm font-medium">
+                  Clear Search
+                </button>
               </>
             ) : (
               // Regular empty state
