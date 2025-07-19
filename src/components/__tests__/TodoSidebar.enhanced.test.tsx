@@ -382,7 +382,7 @@ describe('TodoSidebar - Enhanced Coverage Tests', () => {
       expect(screen.getByText('root')).toBeInTheDocument();
     });
 
-    it('highlights path badge when search result is selected', () => {
+    it('shows project path as clean text when search result is selected', () => {
       render(
         <TodoSidebar
           todos={mockTodos}
@@ -395,8 +395,10 @@ describe('TodoSidebar - Enhanced Coverage Tests', () => {
         />
       );
 
-      const pathBadge = screen.getByText('work/tasks');
-      expect(pathBadge).toHaveClass('bg-blue-500');
+      // Project path should be displayed as clean text, not as a styled badge
+      const pathText = screen.getByText('work/tasks');
+      expect(pathText).toBeInTheDocument();
+      expect(pathText).toHaveClass('truncate', 'max-w-24');
     });
   });
 
