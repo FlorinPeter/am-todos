@@ -328,59 +328,21 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
         {sortedTodos.length === 0 ? (
           <div className="p-6 text-center flex-1 flex flex-col items-center justify-center">
             {localSearchQuery.trim() ? (
-              // Search empty state - check for errors first
-              searchError ? (
-                // Search error state
-                <>
-                  <svg className="w-16 h-16 text-red-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <h3 className="text-lg font-semibold text-red-400 mb-2">Search Error</h3>
-                  <p className="text-sm text-gray-300 mb-4 max-w-sm text-center">
-                    {searchError}
-                  </p>
-                  {searchError.includes('rate limit') && (
-                    <p className="text-xs text-yellow-400 mb-4 max-w-sm text-center">
-                      💡 Tip: Try searching less frequently or use more specific terms to avoid rate limits.
-                    </p>
-                  )}
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={handleSearchClear}
-                      className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors text-sm font-medium">
-                      Clear Search
-                    </button>
-                    <button
-                      onClick={() => {
-                        // Retry the same search
-                        if (onSearchQueryChange) {
-                          const currentQuery = localSearchQuery;
-                          handleSearchClear();
-                          setTimeout(() => onSearchQueryChange(currentQuery), 100);
-                        }
-                      }}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors text-sm font-medium">
-                      Try Again
-                    </button>
-                  </div>
-                </>
-              ) : (
-                // No results state (no error)
-                <>
-                  <svg className="w-16 h-16 text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  <h3 className="text-lg font-semibold text-gray-300 mb-2">No results found</h3>
-                  <p className="text-sm text-gray-400 mb-4 max-w-xs">
-                    No tasks found for "{localSearchQuery}"{searchScope === 'repo' ? ' in entire repository' : ' in this folder'}. Try a different search term.
-                  </p>
-                  <button
-                    onClick={handleSearchClear}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors text-sm font-medium">
-                    Clear Search
-                  </button>
-                </>
-              )
+              // Search empty state - simplified since error banner handles errors
+              <>
+                <svg className="w-16 h-16 text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <h3 className="text-lg font-semibold text-gray-300 mb-2">No results found</h3>
+                <p className="text-sm text-gray-400 mb-4 max-w-xs">
+                  No tasks found for "{localSearchQuery}"{searchScope === 'repo' ? ' in entire repository' : ' in this folder'}. Try a different search term.
+                </p>
+                <button
+                  onClick={handleSearchClear}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors text-sm font-medium">
+                  Clear Search
+                </button>
+              </>
             ) : (
               // Regular empty state
               <>

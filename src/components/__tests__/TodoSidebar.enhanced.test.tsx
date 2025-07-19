@@ -433,11 +433,11 @@ describe('TodoSidebar - Enhanced Coverage Tests', () => {
         />
       );
 
-      // Should show error state instead of empty state
-      expect(screen.getByText('Search Error')).toBeInTheDocument();
+      // Should show error banner (not empty state error anymore)
+      expect(screen.getByRole('heading', { level: 4, name: 'Search Error' })).toBeInTheDocument();
       expect(screen.getByText('Network error occurred')).toBeInTheDocument();
-      expect(screen.getByText('Clear Search')).toBeInTheDocument();
-      expect(screen.getByText('Try Again')).toBeInTheDocument();
+      expect(screen.getAllByText('Clear Search')).toHaveLength(2); // One in banner, one in empty state
+      expect(screen.getByRole('button', { name: 'Try Again' })).toBeInTheDocument();
     });
 
     it('shows rate limit specific guidance for rate limit errors', () => {
@@ -453,8 +453,8 @@ describe('TodoSidebar - Enhanced Coverage Tests', () => {
         />
       );
 
-      // Should show error state with rate limit tip
-      expect(screen.getByText('Search Error')).toBeInTheDocument();
+      // Should show error banner with rate limit tip
+      expect(screen.getByRole('heading', { level: 4, name: 'Search Error' })).toBeInTheDocument();
       expect(screen.getByText(/rate limit exceeded/)).toBeInTheDocument();
       expect(screen.getByText(/💡 Tip.*rate limits/)).toBeInTheDocument();
     });
@@ -473,7 +473,7 @@ describe('TodoSidebar - Enhanced Coverage Tests', () => {
         />
       );
 
-      const tryAgainButton = screen.getByText('Try Again');
+      const tryAgainButton = screen.getByRole('button', { name: 'Try Again' });
       await userEvent.click(tryAgainButton);
 
       // Should clear search first, then retry with same query
