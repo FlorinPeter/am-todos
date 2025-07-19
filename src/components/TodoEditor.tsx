@@ -69,7 +69,6 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
         clearOtherChatSessions(selectedTodo.id);
       } catch (error) {
         // Silently handle localStorage errors - cleanup is not critical
-        console.warn('Failed to clear other drafts/chat sessions:', error);
       }
     }
   }, [selectedTodo?.id]);

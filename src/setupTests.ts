@@ -14,9 +14,6 @@ global.console = {
   log: console.log, // Keep logs for debugging
 };
 
-// Mock environment variables for tests
-process.env.REACT_APP_TEST_MODE = 'true';
-
 // Mock fetch for all tests to avoid real API calls
 global.fetch = vi.fn();
 

@@ -11,7 +11,7 @@ export interface VersionInfo {
 // Get backend URL based on environment
 const getBackendUrl = () => {
   // In development, the proxy handles /api routes
-  return process.env.NODE_ENV === 'production' ? '' : '';
+  return '';
 };
 
 export const getVersionInfo = async (): Promise<VersionInfo> => {

@@ -167,4 +167,49 @@ describe('versionService - Targeted Coverage (lines 21-23)', () => {
     // Restore environment
     process.env = originalEnv;
   });
+
+  it('should fetch version info successfully in production environment', async () => {
+    // Test that version service works in production environment
+    const originalEnv = process.env;
+    process.env = {
+      ...originalEnv,
+      NODE_ENV: 'production'
+    };
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: vi.fn().mockResolvedValue({
+        version: '1.0.0',
+        gitSha: 'prod-sha',
+        gitTag: 'v1.0.0',
+        buildDate: '2023-12-25T00:00:00Z',
+        nodeEnv: 'production'
+      })
+    });
+
+    const result = await getVersionInfo();
+
+    expect(result.nodeEnv).toBe('production');
+    expect(mockFetch).toHaveBeenCalledWith('/api/version');
+
+    // Restore environment
+    process.env = originalEnv;
+  });
+
+  it('should handle missing NODE_ENV in fallback (line 32)', async () => {
+    // Test NODE_ENV fallback when it's undefined
+    const originalEnv = process.env;
+    const { NODE_ENV, ...envWithoutNodeEnv } = originalEnv;
+    process.env = envWithoutNodeEnv;
+
+    mockFetch.mockRejectedValue(new Error('Fetch failed'));
+
+    const result = await getVersionInfo();
+
+    expect(result.nodeEnv).toBe('development'); // Should use fallback
+
+    // Restore environment
+    process.env = originalEnv;
+  });
 });
