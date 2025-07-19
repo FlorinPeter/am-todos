@@ -28,7 +28,20 @@ fi
 
 # Configuration
 REGION="europe-west4"  # Netherlands (supports custom domains)
-IMAGE="${IMAGE:-europe-west4-docker.pkg.dev/$GOOGLE_CLOUD_PROJECT/am-todos/app:v1.7.0}"
+
+# Dynamic IMAGE detection from SOURCE_IMAGE if not explicitly set
+if [ -z "$IMAGE" ] && [ -n "$SOURCE_IMAGE" ]; then
+    # Extract tag from SOURCE_IMAGE
+    SOURCE_TAG=$(echo "$SOURCE_IMAGE" | cut -d':' -f2)
+    if [ "$SOURCE_TAG" != "$SOURCE_IMAGE" ]; then
+        IMAGE="europe-west4-docker.pkg.dev/$GOOGLE_CLOUD_PROJECT/am-todos/app:$SOURCE_TAG"
+    else
+        IMAGE="europe-west4-docker.pkg.dev/$GOOGLE_CLOUD_PROJECT/am-todos/app:latest"
+    fi
+else
+    # Fallback to latest if no SOURCE_IMAGE
+    IMAGE="${IMAGE:-europe-west4-docker.pkg.dev/$GOOGLE_CLOUD_PROJECT/am-todos/app:latest}"
+fi
 MEMORY="512Mi"
 CPU="1000m"
 MIN_INSTANCES="0"
@@ -59,11 +72,49 @@ DISABLE_SECURITY_LOGGING="${DISABLE_SECURITY_LOGGING:-false}"
 LOG_ALL_REQUESTS="${LOG_ALL_REQUESTS:-false}"
 DISABLE_METHOD_VALIDATION="${DISABLE_METHOD_VALIDATION:-false}"
 
-# Build Information
-VERSION="${VERSION:-1.7.0}"
+# Build Information - Dynamic Version Detection
+# Priority: 1) SOURCE_IMAGE tag, 2) Git tag, 3) package.json, 4) IMAGE tag, 5) fallback
+DETECTED_VERSION=""
+
+# Try to extract version from SOURCE_IMAGE (highest priority)
+if [ -n "$SOURCE_IMAGE" ]; then
+    DETECTED_VERSION=$(echo "$SOURCE_IMAGE" | sed -n 's/.*:\(v\?[0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p' | sed 's/^v//')
+fi
+
+# Fallback to Git tag if SOURCE_IMAGE doesn't have version
+if [ -z "$DETECTED_VERSION" ]; then
+    GIT_TAG_RAW="$(git describe --tags --exact-match 2>/dev/null || echo '')"
+    if [ -n "$GIT_TAG_RAW" ]; then
+        DETECTED_VERSION=$(echo "$GIT_TAG_RAW" | sed -n 's/^v\?\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p')
+    fi
+fi
+
+# Fallback to package.json if available
+if [ -z "$DETECTED_VERSION" ] && [ -f "package.json" ]; then
+    DETECTED_VERSION=$(grep '"version"' package.json | sed -n 's/.*"version": *"\([^"]*\)".*/\1/p')
+fi
+
+# Fallback to IMAGE tag if provided
+if [ -z "$DETECTED_VERSION" ] && [ -n "$IMAGE" ]; then
+    DETECTED_VERSION=$(echo "$IMAGE" | sed -n 's/.*:\(v\?[0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/p' | sed 's/^v//')
+fi
+
+# Final fallback
+if [ -z "$DETECTED_VERSION" ]; then
+    DETECTED_VERSION="unknown"
+fi
+
+VERSION="${VERSION:-$DETECTED_VERSION}"
 GIT_SHA="${GIT_SHA:-$(git rev-parse HEAD 2>/dev/null || echo 'unknown')}"
 GIT_TAG="${GIT_TAG:-$(git describe --tags --exact-match 2>/dev/null || echo '')}"
 BUILD_DATE="${BUILD_DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+
+# Debug output for version detection
+echo -e "${GREEN}🔍 Version Detection Results:${NC}"
+echo "  SOURCE_IMAGE: ${SOURCE_IMAGE:-'not set'}"
+echo "  Detected Version: $DETECTED_VERSION"
+echo "  Final VERSION: $VERSION"
+echo ""
 
 echo -e "${GREEN}📋 Deployment Configuration:${NC}"
 echo "  Project: $GOOGLE_CLOUD_PROJECT"
