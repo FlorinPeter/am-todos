@@ -21,6 +21,7 @@ export interface SearchResult {
   url: string;
   repository: string;
   text_matches: any[];
+  priority?: number; // Enhanced search results now include priority from frontmatter
 }
 
 export interface SearchResponse {

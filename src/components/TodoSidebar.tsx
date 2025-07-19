@@ -130,7 +130,7 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
         frontmatter: {
           title: result.name.replace('.md', ''),
           createdAt: new Date().toISOString(), // Placeholder
-          priority: 3,
+          priority: result.priority || 3, // Use actual priority from enhanced search results
           isArchived: false,
           chatHistory: []
         },

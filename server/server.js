@@ -826,10 +826,9 @@ app.post('/api/search', async (req, res) => {
       }
 
       // Build GitLab search query
+      // Note: GitLab doesn't support GitHub-style path: syntax
+      // We'll filter by folder on the backend after getting results
       let searchQuery = query;
-      if (scope === 'folder') {
-        searchQuery += ` path:${folder}/*`;
-      }
 
       const gitlabUrl = `${instanceUrl}/api/v4/projects/${projectId}/search?scope=blobs&search=${encodeURIComponent(searchQuery)}`;
       logger.log('GitLab search URL:', gitlabUrl);
@@ -869,16 +868,96 @@ app.post('/api/search', async (req, res) => {
       return res.status(400).json({ error: 'Unsupported provider. Use "github" or "gitlab".' });
     }
 
-    // Filter results to only include markdown files if in folder scope
+    // Filter results to only include markdown files and apply folder filtering
     if (scope === 'folder') {
+      results = results.filter(item => {
+        const isMarkdown = item.name.endsWith('.md') && item.name !== '.gitkeep';
+        
+        // For GitLab, filter by folder path since we couldn't do it in the query
+        if (provider === 'gitlab') {
+          const isInFolder = item.path.startsWith(`${folder}/`);
+          return isMarkdown && isInFolder;
+        }
+        
+        // For GitHub, filtering was already done in the query
+        return isMarkdown;
+      });
+    } else {
+      // For repo-wide search, still filter to markdown files
       results = results.filter(item => item.name.endsWith('.md') && item.name !== '.gitkeep');
+    }
+
+    // Enhance search results with frontmatter data (priority, etc.)
+    // This fixes the issue where search results always show P3 priority
+    const enhancedResults = [];
+    
+    for (const result of results) {
+      try {
+        let fileContent = null;
+        let priority = 3; // default fallback
+        
+        if (provider === 'github') {
+          // Fetch file content from GitHub
+          const contentUrl = `https://api.github.com/repos/${credentials.owner}/${credentials.repo}/contents/${result.path}`;
+          const contentResponse = await fetch(contentUrl, {
+            headers: {
+              'User-Agent': 'Agentic-Markdown-Todos',
+              'Authorization': `Bearer ${sanitizeHeader(credentials.token)}`,
+              'Accept': 'application/vnd.github.v3+json'
+            }
+          });
+          
+          if (contentResponse.ok) {
+            const contentData = await contentResponse.json();
+            fileContent = Buffer.from(contentData.content, 'base64').toString('utf-8');
+          }
+        } else if (provider === 'gitlab') {
+          // Fetch file content from GitLab
+          const encodedPath = encodeURIComponent(result.path);
+          const contentUrl = `${credentials.instanceUrl}/api/v4/projects/${credentials.projectId}/repository/files/${encodedPath}/raw?ref=main`;
+          const contentResponse = await fetch(contentUrl, {
+            headers: {
+              'Authorization': `Bearer ${sanitizeHeader(credentials.token)}`
+            }
+          });
+          
+          if (contentResponse.ok) {
+            fileContent = await contentResponse.text();
+          }
+        }
+        
+        // Parse frontmatter to extract priority
+        if (fileContent) {
+          const frontmatterMatch = fileContent.match(/^---\n([\s\S]*?)\n---/);
+          if (frontmatterMatch) {
+            const frontmatterText = frontmatterMatch[1];
+            const priorityMatch = frontmatterText.match(/^priority:\s*(\d+)$/m);
+            if (priorityMatch) {
+              priority = parseInt(priorityMatch[1], 10);
+            }
+          }
+        }
+        
+        // Add priority to result
+        enhancedResults.push({
+          ...result,
+          priority
+        });
+      } catch (error) {
+        logger.error('Error fetching content for search result:', result.path, error.message);
+        // Add result with default priority if content fetch fails
+        enhancedResults.push({
+          ...result,
+          priority: 3
+        });
+      }
     }
 
     res.json({
       query,
       scope,
-      total_count: results.length,
-      items: results
+      total_count: enhancedResults.length,
+      items: enhancedResults
     });
 
   } catch (error) {
