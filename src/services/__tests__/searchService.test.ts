@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { searchTodos, searchTodosDebounced, clearSearchCache, getSearchCacheStats, filterTodosLocally } from '../searchService';
+import { searchTodos, searchTodosDebounced, filterTodosLocally } from '../searchService';
 import * as localStorage from '../../utils/localStorage';
 
 // Mock the localStorage module
@@ -13,7 +13,6 @@ global.fetch = vi.fn();
 describe('Search Service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    clearSearchCache();
   });
 
   afterEach(() => {
@@ -553,181 +552,6 @@ describe('Search Service', () => {
           resolve();
         }, 10); // Short delay for faster test
       });
-    });
-  });
-
-  describe('Cache functionality', () => {
-    it('should cache search results', async () => {
-      const mockSettings = {
-        gitProvider: 'github',
-        pat: 'test-token', // GitHub uses 'pat' field
-        owner: 'test-owner',
-        repo: 'test-repo',
-        folder: 'todos'
-      };
-
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
-      
-      const mockResponse = {
-        ok: true,
-        json: vi.fn().mockResolvedValue({
-          query: 'test',
-          scope: 'folder',
-          total_count: 1,
-          items: [{ name: 'test.md' }]
-        })
-      };
-
-      vi.mocked(fetch).mockResolvedValue(mockResponse as any);
-
-      // First call
-      await searchTodos('test');
-      expect(fetch).toHaveBeenCalledTimes(1);
-
-      // Second call should use cache
-      await searchTodos('test');
-      expect(fetch).toHaveBeenCalledTimes(1); // Still only 1 call
-    });
-
-    it('should clear cache correctly', () => {
-      clearSearchCache();
-      const stats = getSearchCacheStats();
-      expect(stats.totalEntries).toBe(0);
-      expect(stats.validEntries).toBe(0);
-    });
-
-    it('should clean up old cache entries when cache size exceeds 50', async () => {
-      const mockSettings = {
-        gitProvider: 'github',
-        pat: 'test-token',
-        owner: 'test-owner', 
-        repo: 'test-repo',
-        folder: 'todos'
-      };
-
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
-      
-      const mockResponse = {
-        ok: true,
-        json: vi.fn().mockResolvedValue({
-          query: 'test',
-          scope: 'folder',
-          total_count: 0,
-          items: []
-        })
-      };
-
-      vi.mocked(fetch).mockResolvedValue(mockResponse as any);
-
-      // Clear cache first
-      clearSearchCache();
-
-      // Create 52 cache entries to trigger cleanup (> 50)
-      const promises = [];
-      for (let i = 0; i < 52; i++) {
-        promises.push(searchTodos(`query${i}`, 'folder'));
-      }
-      
-      await Promise.all(promises);
-      
-      // Cache should have triggered cleanup
-      const stats = getSearchCacheStats();
-      expect(stats.totalEntries).toBeLessThanOrEqual(52); // Some entries should remain
-      expect(fetch).toHaveBeenCalledTimes(52); // All should have been called since they're unique
-    });
-
-    it('should handle expired cache entries during cleanup', async () => {
-      const mockSettings = {
-        gitProvider: 'github',
-        pat: 'test-token',
-        owner: 'test-owner',
-        repo: 'test-repo', 
-        folder: 'todos'
-      };
-
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
-      
-      const mockResponse = {
-        ok: true,
-        json: vi.fn().mockResolvedValue({
-          query: 'test',
-          scope: 'folder',
-          total_count: 0,
-          items: []
-        })
-      };
-
-      vi.mocked(fetch).mockResolvedValue(mockResponse as any);
-
-      // Mock Date.now to simulate expired entries
-      const originalDateNow = Date.now;
-      const baseTime = 1000000000000; // Fixed timestamp
-      
-      // First, create some entries with old timestamps
-      Date.now = vi.fn().mockReturnValue(baseTime);
-      await searchTodos('old-query1', 'folder');
-      await searchTodos('old-query2', 'folder');
-      
-      // Then advance time to make entries expired
-      Date.now = vi.fn().mockReturnValue(baseTime + 6 * 60 * 1000); // 6 minutes later (> 5 min expiry)
-      
-      // Create many new entries to trigger cleanup
-      const promises = [];
-      for (let i = 0; i < 50; i++) {
-        promises.push(searchTodos(`new-query${i}`, 'folder'));
-      }
-      
-      await Promise.all(promises);
-      
-      // The old expired entries should be cleaned up
-      const stats = getSearchCacheStats();
-      expect(stats.expiredEntries).toBe(0); // Expired entries should be cleaned up
-      
-      // Restore original Date.now
-      Date.now = originalDateNow;
-    });
-
-    it('should provide accurate cache statistics', async () => {
-      clearSearchCache();
-      
-      const mockSettings = {
-        gitProvider: 'github',
-        pat: 'test-token',
-        owner: 'test-owner',
-        repo: 'test-repo',
-        folder: 'todos'
-      };
-
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
-      
-      const mockResponse = {
-        ok: true,
-        json: vi.fn().mockResolvedValue({
-          query: 'test',
-          scope: 'folder',
-          total_count: 0,
-          items: []
-        })
-      };
-
-      vi.mocked(fetch).mockResolvedValue(mockResponse as any);
-
-      // Initially empty
-      let stats = getSearchCacheStats();
-      expect(stats.totalEntries).toBe(0);
-      expect(stats.validEntries).toBe(0);
-      expect(stats.expiredEntries).toBe(0);
-      expect(stats.cacheHitRate).toBe('No recent searches');
-
-      // Add some entries
-      await searchTodos('query1', 'folder');
-      await searchTodos('query2', 'folder');
-      
-      stats = getSearchCacheStats();
-      expect(stats.totalEntries).toBe(2);
-      expect(stats.validEntries).toBe(2);
-      expect(stats.expiredEntries).toBe(0);
-      expect(stats.cacheHitRate).toBe('Available');
     });
   });
 

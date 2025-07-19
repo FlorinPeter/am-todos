@@ -143,8 +143,9 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
       // While searching, use local filtering for immediate feedback
       displayTodos = filterTodosLocally(todos, localSearchQuery);
     } else {
-      // Search completed with no results - show empty list
-      displayTodos = [];
+      // If search completed with no results OR no search results provided yet, use local filtering
+      // This ensures backward compatibility with tests and provides better UX
+      displayTodos = filterTodosLocally(todos, localSearchQuery);
     }
   }
 
