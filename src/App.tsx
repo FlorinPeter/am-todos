@@ -1050,6 +1050,41 @@ function App() {
                 try {
                   logger.log('Loading search result todo:', searchResult.path);
                   
+                  // Check if this todo is from a different project and offer to switch context
+                  const todoPath = searchResult.path;
+                  const pathParts = todoPath.split('/');
+                  const todoFolder = pathParts.length > 1 ? pathParts[0] : (settings?.folder || 'todos');
+                  const currentFolder = settings?.folder || 'todos';
+                  
+                  if (todoFolder !== currentFolder && pathParts.length > 1) {
+                    const switchProject = window.confirm(
+                      `This todo is from '${todoFolder}' project.\n\n` +
+                      `Switch to '${todoFolder}' project to see related todos?\n\n` +
+                      `Current: ${currentFolder} → Switch to: ${todoFolder}`
+                    );
+                    
+                    if (switchProject) {
+                      logger.log('Switching project context:', { from: currentFolder, to: todoFolder });
+                      
+                      // Update settings to new project
+                      const newSettings = { ...settings, folder: todoFolder };
+                      saveSettings(newSettings);
+                      setSettings(newSettings);
+                      
+                      // Reload todos from new project context (will update sidebar)
+                      await fetchTodos();
+                      
+                      // Clear search results since we're in new project context
+                      setSearchResults([]);
+                      setSearchQuery('');
+                      setIsSearching(false);
+                      setSearchError(null);
+                      
+                      // After project switch, check if the original todo is now in the loaded todos
+                      // If not, we'll still need to load it manually below
+                    }
+                  }
+                  
                   // Check if this todo is already in our todos array
                   const existingTodo = todos.find(todo => todo.path === searchResult.path);
                   if (existingTodo) {
