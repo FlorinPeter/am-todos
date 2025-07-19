@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import NewTodoInput from './components/NewTodoInput';
 import TodoSidebar from './components/TodoSidebar';
 import TodoEditor from './components/TodoEditor';
@@ -7,6 +7,7 @@ import ProjectManager from './components/ProjectManager';
 import { loadSettings, getUrlConfig, saveSettings, saveSelectedTodoId, loadSelectedTodoId, clearSelectedTodoId } from './utils/localStorage';
 import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDirectory, moveTaskToArchive, moveTaskFromArchive, deleteFile } from './services/gitService';
 import { generateInitialPlan, generateCommitMessage } from './services/aiService';
+import { searchTodosDebounced, SearchResult } from './services/searchService';
 import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, TodoFrontmatter } from './utils/markdown';
 import logger from './utils/logger';
 
@@ -45,6 +46,14 @@ function App() {
   const [allTodos, setAllTodos] = useState<any[]>([]);
   const [showSettings, setShowSettings] = useState(false);
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchScope, setSearchScope] = useState<'folder' | 'repo'>('folder');
+  const currentSearchIdRef = useRef<string>('');
+
   const getProviderName = () => {
     const provider = settings?.gitProvider || 'github';
     return provider === 'github' ? 'GitHub' : 'GitLab';
@@ -56,6 +65,78 @@ function App() {
     setShowSettings(false); // Close the settings modal
     fetchTodos(); // Fetch todos after settings are saved
   };
+
+  // Search handlers
+  const handleSearchQueryChange = useCallback((query: string) => {
+    setSearchQuery(query);
+    setSearchError(null);
+
+    if (!query.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+      currentSearchIdRef.current = '';
+      return;
+    }
+
+    // Generate unique search ID to prevent race conditions
+    const searchId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    currentSearchIdRef.current = searchId;
+    
+    // Clear previous results immediately for better UX
+    setSearchResults([]);
+    setIsSearching(true);
+
+    // Use debounced search
+    searchTodosDebounced(query, searchScope, (results, error) => {
+      // Only process results if this search is still current
+      if (searchId === currentSearchIdRef.current) {
+        setIsSearching(false);
+        if (error) {
+          setSearchError(error);
+          setSearchResults([]);
+        } else if (results) {
+          setSearchError(null);
+          setSearchResults(results.items);
+          logger.log('Search completed:', results.total_count, 'results');
+        }
+      } else {
+        logger.log('Ignoring outdated search results for:', query);
+      }
+    });
+  }, [searchScope]);
+
+  const handleSearchScopeChange = useCallback((scope: 'folder' | 'repo') => {
+    setSearchScope(scope);
+    
+    // Re-run search with new scope if there's an active query
+    if (searchQuery.trim()) {
+      // Generate unique search ID to prevent race conditions
+      const searchId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      currentSearchIdRef.current = searchId;
+      
+      // CRITICAL: Immediately clear previous search results to prevent scope bleeding
+      setSearchResults([]);
+      setIsSearching(true);
+      setSearchError(null);
+      
+      searchTodosDebounced(searchQuery, scope, (results, error) => {
+        // Only process results if this search is still current
+        if (searchId === currentSearchIdRef.current) {
+          setIsSearching(false);
+          if (error) {
+            setSearchError(error);
+            setSearchResults([]);
+          } else if (results) {
+            setSearchError(null);
+            setSearchResults(results.items);
+            logger.log('Scope change search completed:', results.total_count, 'results');
+          }
+        } else {
+          logger.log('Ignoring outdated scope change results for scope:', scope);
+        }
+      }, 100); // Shorter delay for scope change
+    }
+  }, [searchQuery]);
 
   const fetchTodosWithSettings = useCallback(async (useSettings?: any, useViewMode?: 'active' | 'archived', preserveTodoPath?: string) => {
     const currentSettings = useSettings || settings;
@@ -799,8 +880,47 @@ function App() {
 
   if (!settings) {
     return (
-      <div className="bg-gray-900 min-h-screen text-white p-4 flex items-center justify-center">
-        <GitSettings onSettingsSaved={handleSettingsSaved} />
+      <div className="bg-gray-900 min-h-screen text-white flex items-center justify-center p-4">
+        <div className="w-full max-w-2xl mx-auto">
+          {/* Welcome Header */}
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center mb-4">
+              <svg className="w-12 h-12 text-blue-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+              <h1 className="text-3xl font-bold text-white">Agentic Markdown Todos</h1>
+            </div>
+            <p className="text-lg text-gray-300 mb-2">Welcome to your AI-powered task management system</p>
+            <p className="text-sm text-gray-400 max-w-lg mx-auto">
+              Set up your Git repository and AI assistant to get started with intelligent task management. 
+              Your tasks will be stored as markdown files in your own GitHub or GitLab repository.
+            </p>
+          </div>
+
+          {/* Setup Form Container */}
+          <div className="bg-gray-800 rounded-xl shadow-2xl border border-gray-700 overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+              <h2 className="text-xl font-semibold text-white flex items-center">
+                <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+                </svg>
+                Application Setup
+              </h2>
+              <p className="text-blue-100 text-sm mt-1">Configure your repository and AI assistant</p>
+            </div>
+            
+            <div className="p-6">
+              <GitSettings onSettingsSaved={handleSettingsSaved} />
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="text-center mt-8">
+            <p className="text-xs text-gray-500">
+              Your data stays in your Git repository. We never store or access your personal information.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -840,15 +960,6 @@ function App() {
             <div className="flex items-center space-x-2">
               {/* Project Manager */}
               <ProjectManager onProjectChanged={handleProjectChanged} />
-              
-              {/* Primary Action Button */}
-              <button
-                onClick={() => setShowNewTodoInput(true)}
-                className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors text-sm min-h-[32px] flex items-center justify-center"
-              >
-                <span className="hidden sm:inline">+ New Task</span>
-                <span className="sm:hidden">+</span>
-              </button>
               
               {/* Mobile Settings Button */}
               <button
@@ -930,11 +1041,59 @@ function App() {
           <TodoSidebar
             todos={todos}
             selectedTodoId={selectedTodoId}
-            onTodoSelect={(id) => {
-              setSelectedTodoId(id);
+            onTodoSelect={async (id) => {
+              // Check if this is a search result by looking for it in search results
+              const searchResult = searchResults.find(result => result.sha === id);
+              
+              if (searchResult) {
+                // This is a search result - need to fetch the full todo content
+                try {
+                  logger.log('Loading search result todo:', searchResult.path);
+                  
+                  // Check if this todo is already in our todos array
+                  const existingTodo = todos.find(todo => todo.path === searchResult.path);
+                  if (existingTodo) {
+                    // Todo already exists, just select it
+                    setSelectedTodoId(existingTodo.id);
+                  } else {
+                    // Need to fetch the full todo content
+                    const metadata = await getFileMetadata(searchResult.path);
+                    const content = await getFileContent(searchResult.path);
+                    const frontmatter = parseMarkdownWithFrontmatter(content);
+                    
+                    // Create a full todo object
+                    const fullTodo = {
+                      id: metadata.sha,
+                      title: frontmatter.title || searchResult.name.replace('.md', ''),
+                      content: frontmatter.content,
+                      frontmatter: frontmatter.frontmatter,
+                      path: searchResult.path,
+                      sha: metadata.sha
+                    };
+                    
+                    // Add to todos array and select it
+                    setTodos(prev => [...prev, fullTodo]);
+                    setSelectedTodoId(fullTodo.id);
+                  }
+                } catch (error) {
+                  logger.error('Error loading search result todo:', error);
+                  alert('Failed to load selected todo: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                }
+              } else {
+                // Regular todo selection
+                setSelectedTodoId(id);
+              }
+              
               setSidebarOpen(false); // Close sidebar on mobile after selection
             }}
             onNewTodo={() => setShowNewTodoInput(true)}
+            searchQuery={searchQuery}
+            onSearchQueryChange={handleSearchQueryChange}
+            searchResults={searchResults}
+            isSearching={isSearching}
+            searchError={searchError}
+            searchScope={searchScope}
+            onSearchScopeChange={handleSearchScopeChange}
           />
         </div>
 

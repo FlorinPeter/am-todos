@@ -45,7 +45,7 @@ describe('ProjectManager', () => {
 
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
 
-    expect(screen.getByText('Project:')).toBeInTheDocument();
+    // Check for project name display (no longer shows "Project:" label)
     expect(screen.getAllByText('todos')[0]).toBeInTheDocument();
     expect(screen.getByText('New Project')).toBeInTheDocument();
   });
@@ -61,7 +61,7 @@ describe('ProjectManager', () => {
 
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
 
-    expect(screen.getByText('Project:')).toBeInTheDocument();
+    // Check for project name display (no longer shows "Project:" label)
     expect(screen.getAllByText('work-tasks')[0]).toBeInTheDocument();
   });
 
@@ -95,8 +95,21 @@ describe('ProjectManager', () => {
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
 
     await waitFor(() => {
-      const select = screen.getByDisplayValue('todos');
-      expect(select).toBeInTheDocument();
+      // Should have both mobile and desktop select elements
+      const selects = screen.getAllByDisplayValue('todos');
+      expect(selects).toHaveLength(2); // mobile + desktop
+      
+      // Verify mobile select has the correct title
+      const mobileSelect = selects.find(select => 
+        select.getAttribute('title') === 'Switch Project'
+      );
+      expect(mobileSelect).toBeInTheDocument();
+      
+      // Verify desktop select exists
+      const desktopSelect = selects.find(select => 
+        !select.getAttribute('title') || select.getAttribute('title') !== 'Switch Project'
+      );
+      expect(desktopSelect).toBeInTheDocument();
     });
   });
 
@@ -114,8 +127,12 @@ describe('ProjectManager', () => {
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
 
     await waitFor(() => {
-      const select = screen.getByDisplayValue('todos');
-      fireEvent.change(select, { target: { value: 'work-tasks' } });
+      // Get the first select element (mobile or desktop, both should work)
+      const selects = screen.getAllByDisplayValue('todos');
+      expect(selects.length).toBeGreaterThan(0);
+      
+      // Use the first select to test the switching functionality
+      fireEvent.change(selects[0], { target: { value: 'work-tasks' } });
     });
 
     expect(mockSaveSettings).toHaveBeenCalledWith({
@@ -274,9 +291,17 @@ describe('ProjectManager', () => {
 
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
 
-    // Mobile button should exist (though hidden by CSS)
-    const mobileButton = screen.getByTitle('Current: todos');
-    expect(mobileButton).toBeInTheDocument();
+    // Check for mobile-specific elements - mobile container should exist
+    const mobileContainer = document.querySelector('.md\\:hidden');
+    expect(mobileContainer).toBeInTheDocument();
+    
+    // Check for desktop-specific elements - desktop container should exist
+    const desktopContainer = document.querySelector('.hidden.md\\:flex');
+    expect(desktopContainer).toBeInTheDocument();
+    
+    // Both containers should have "Create New Project" buttons
+    const createButtons = screen.getAllByTitle('Create New Project');
+    expect(createButtons).toHaveLength(2); // mobile + desktop
   });
 
   it('handles GitLab force loading', () => {

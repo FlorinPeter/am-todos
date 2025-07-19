@@ -302,19 +302,24 @@ describe('localStorage functions', () => {
 
   describe('Settings Management', () => {
     const mockGitHubSettings = {
-      pat: 'github-token',
-      owner: 'testuser',
-      repo: 'test-repo',
+      gitProvider: 'github' as const,
       folder: 'todos',
-      geminiApiKey: 'gemini-key',
       aiProvider: 'gemini' as const,
+      geminiApiKey: 'gemini-key',
       openRouterApiKey: '',
       aiModel: 'gemini-2.5-flash',
-      gitProvider: 'github' as const,
-      instanceUrl: '',
-      projectId: '',
-      token: '',
-      branch: 'main'
+      github: {
+        pat: 'github-token',
+        owner: 'testuser',
+        repo: 'test-repo',
+        branch: 'main'
+      },
+      gitlab: {
+        instanceUrl: 'https://gitlab.com',
+        projectId: '',
+        token: '',
+        branch: 'main'
+      }
     };
     
     beforeEach(() => {
@@ -329,19 +334,24 @@ describe('localStorage functions', () => {
     });
 
     const mockGitLabSettings = {
-      pat: '',
-      owner: '',
-      repo: '',
+      gitProvider: 'gitlab' as const,
       folder: 'work-tasks',
-      geminiApiKey: '',
       aiProvider: 'openrouter' as const,
+      geminiApiKey: '',
       openRouterApiKey: 'openrouter-key',
       aiModel: 'anthropic/claude-3.5-sonnet',
-      gitProvider: 'gitlab' as const,
-      instanceUrl: 'https://gitlab.example.com',
-      projectId: '12345',
-      token: 'gitlab-token',
-      branch: 'main'
+      github: {
+        pat: '',
+        owner: '',
+        repo: '',
+        branch: 'main'
+      },
+      gitlab: {
+        instanceUrl: 'https://gitlab.example.com',
+        projectId: '12345',
+        token: 'gitlab-token',
+        branch: 'main'
+      }
     };
 
     describe('saveSettings', () => {
@@ -392,7 +402,7 @@ describe('localStorage functions', () => {
         expect(settings).toEqual(mockGitHubSettings);
       });
 
-      it('adds default values for missing fields', () => {
+      it('adds default values for missing fields and migrates legacy format', () => {
         const incompleteSettings = {
           pat: 'token',
           owner: 'user',
@@ -403,16 +413,18 @@ describe('localStorage functions', () => {
         
         const settings = loadSettings();
         expect(settings).toEqual({
-          ...incompleteSettings,
+          gitProvider: 'github',
           folder: 'todos',
           aiProvider: 'gemini',
-          aiModel: 'gemini-2.5-flash',
-          gitProvider: 'github',
-          branch: 'main',
-          // Provider-specific cleanup: GitLab fields cleared for GitHub
-          instanceUrl: '',
-          projectId: '',
-          token: ''
+          geminiApiKey: '',
+          openRouterApiKey: '',
+          aiModel: 'anthropic/claude-3.5-sonnet',
+          github: {
+            pat: 'token',
+            owner: 'user',
+            repo: 'repo',
+            branch: 'main'
+          }
         });
       });
 
@@ -428,6 +440,9 @@ describe('localStorage functions', () => {
         
         const settings = loadSettings();
         expect(settings?.aiModel).toBe('anthropic/claude-3.5-sonnet');
+        expect(settings?.github?.pat).toBe('token');
+        expect(settings?.github?.owner).toBe('user');
+        expect(settings?.github?.repo).toBe('repo');
       });
 
       it('handles localStorage errors gracefully', () => {
@@ -460,7 +475,7 @@ describe('localStorage functions', () => {
         loggerSpy.mockRestore();
       });
 
-      it('clears GitLab fields when git provider is GitHub', () => {
+      it('migrates legacy format with mixed fields correctly', () => {
         const mixedSettings = {
           pat: 'github-token',
           owner: 'user',
@@ -475,13 +490,15 @@ describe('localStorage functions', () => {
         
         const settings = loadSettings();
         expect(settings?.gitProvider).toBe('github');
-        expect(settings?.pat).toBe('github-token');
-        expect(settings?.instanceUrl).toBe('');
-        expect(settings?.projectId).toBe('');
-        expect(settings?.token).toBe('');
+        expect(settings?.github?.pat).toBe('github-token');
+        expect(settings?.github?.owner).toBe('user');
+        expect(settings?.github?.repo).toBe('repo');
+        expect(settings?.gitlab?.instanceUrl).toBe('https://gitlab.com');
+        expect(settings?.gitlab?.projectId).toBe('123');
+        expect(settings?.gitlab?.token).toBe('gitlab-token');
       });
 
-      it('clears GitHub fields when git provider is GitLab', () => {
+      it('migrates legacy GitLab settings to dual-config format', () => {
         const mixedSettings = {
           pat: 'github-token',
           owner: 'user',
@@ -496,11 +513,12 @@ describe('localStorage functions', () => {
         
         const settings = loadSettings();
         expect(settings?.gitProvider).toBe('gitlab');
-        expect(settings?.instanceUrl).toBe('https://gitlab.com');
-        expect(settings?.token).toBe('gitlab-token');
-        expect(settings?.pat).toBe('');
-        expect(settings?.owner).toBe('');
-        expect(settings?.repo).toBe('');
+        expect(settings?.gitlab?.instanceUrl).toBe('https://gitlab.com');
+        expect(settings?.gitlab?.projectId).toBe('123');
+        expect(settings?.gitlab?.token).toBe('gitlab-token');
+        expect(settings?.github?.pat).toBe('github-token');
+        expect(settings?.github?.owner).toBe('user');
+        expect(settings?.github?.repo).toBe('repo');
       });
 
       it('preserves folder field from URL config without defaulting', () => {
@@ -516,6 +534,9 @@ describe('localStorage functions', () => {
         
         const settings = loadSettings();
         expect(settings?.folder).toBe('tests');
+        expect(settings?.github?.pat).toBe('token');
+        expect(settings?.github?.owner).toBe('user');
+        expect(settings?.github?.repo).toBe('repo');
       });
     });
   });
@@ -536,19 +557,24 @@ describe('localStorage functions', () => {
     describe('encodeSettingsToUrl', () => {
       it('encodes GitHub settings to URL', () => {
         const settings = {
-          pat: 'github-token',
-          owner: 'testuser',
-          repo: 'test-repo',
+          gitProvider: 'github' as const,
           folder: 'todos',
-          geminiApiKey: 'gemini-key',
           aiProvider: 'gemini' as const,
+          geminiApiKey: 'gemini-key',
           openRouterApiKey: '',
           aiModel: 'gemini-2.5-flash',
-          gitProvider: 'github' as const,
-          instanceUrl: '',
-          projectId: '',
-          token: '',
-          branch: 'main'
+          github: {
+            pat: 'github-token',
+            owner: 'testuser',
+            repo: 'test-repo',
+            branch: 'main'
+          },
+          gitlab: {
+            instanceUrl: 'https://gitlab.com',
+            projectId: '',
+            token: '',
+            branch: 'main'
+          }
         };
 
         const url = encodeSettingsToUrl(settings);
@@ -558,19 +584,24 @@ describe('localStorage functions', () => {
 
       it('encodes GitLab settings to URL', () => {
         const settings = {
-          pat: '',
-          owner: '',
-          repo: '',
+          gitProvider: 'gitlab' as const,
           folder: 'work-tasks',
-          geminiApiKey: '',
           aiProvider: 'openrouter' as const,
+          geminiApiKey: '',
           openRouterApiKey: 'openrouter-key',
           aiModel: 'anthropic/claude-3.5-sonnet',
-          gitProvider: 'gitlab' as const,
-          instanceUrl: 'https://gitlab.example.com',
-          projectId: '12345',
-          token: 'gitlab-token',
-          branch: 'main'
+          github: {
+            pat: '',
+            owner: '',
+            repo: '',
+            branch: 'main'
+          },
+          gitlab: {
+            instanceUrl: 'https://gitlab.example.com',
+            projectId: '12345',
+            token: 'gitlab-token',
+            branch: 'main'
+          }
         };
 
         const url = encodeSettingsToUrl(settings);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface NewTodoInputProps {
   onGoalSubmit: (goal: string) => void;
@@ -7,6 +7,19 @@ interface NewTodoInputProps {
 
 const NewTodoInput: React.FC<NewTodoInputProps> = ({ onGoalSubmit, onCancel }) => {
   const [goal, setGoal] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Robust focus management for modal timing issues
+  useEffect(() => {
+    // Use a small delay to ensure modal is fully rendered and any click events have finished processing
+    const focusTimer = setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+    }, 100); // 100ms delay to handle modal overlay and event timing
+
+    return () => clearTimeout(focusTimer);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,13 +38,13 @@ const NewTodoInput: React.FC<NewTodoInputProps> = ({ onGoalSubmit, onCancel }) =
   return (
     <form onSubmit={handleSubmit}>
       <input
+        ref={inputRef}
         type="text"
         value={goal}
         onChange={(e) => setGoal(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Enter a new high-level goal..."
         className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
-        autoFocus
       />
       <div className="flex space-x-3 mt-4">
         <button 

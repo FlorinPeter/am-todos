@@ -20,10 +20,19 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
     logger.log('ProjectManager: Settings loaded:', loadedSettings);
     setSettings(loadedSettings);
     
-    // Force load folders if we have settings
+    // Force load folders if we have valid settings for any provider (check new dual-config format)
     let timeoutId: NodeJS.Timeout | null = null;
-    if (loadedSettings?.gitProvider === 'gitlab' && loadedSettings?.instanceUrl && loadedSettings?.projectId && loadedSettings?.token) {
-      logger.log('ProjectManager: Force loading GitLab folders');
+    const hasGitHubConfig = (
+      (loadedSettings?.github?.pat && loadedSettings?.github?.owner && loadedSettings?.github?.repo) ||
+      (loadedSettings?.pat && loadedSettings?.owner && loadedSettings?.repo) // fallback to legacy
+    );
+    const hasGitLabConfig = loadedSettings?.gitProvider === 'gitlab' && (
+      (loadedSettings?.gitlab?.instanceUrl && loadedSettings?.gitlab?.projectId && loadedSettings?.gitlab?.token) ||
+      (loadedSettings?.instanceUrl && loadedSettings?.projectId && loadedSettings?.token) // fallback to legacy
+    );
+    
+    if (hasGitHubConfig || hasGitLabConfig) {
+      logger.log('ProjectManager: Force loading folders for', loadedSettings?.gitProvider || 'github');
       timeoutId = setTimeout(() => loadFolders(), 100);
     }
     
@@ -36,9 +45,15 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
   }, []);
 
   const loadFolders = async () => {
-    // Check if we have the required settings for any provider
-    const hasGitHubSettings = !!(settings?.pat && settings?.owner && settings?.repo);
-    const hasGitLabSettings = !!(settings?.instanceUrl && settings?.projectId && settings?.token);
+    // Check if we have the required settings for any provider (new dual-config format)
+    const hasGitHubSettings = !!(
+      (settings?.github?.pat && settings?.github?.owner && settings?.github?.repo) ||
+      (settings?.pat && settings?.owner && settings?.repo) // fallback to legacy format
+    );
+    const hasGitLabSettings = !!(
+      (settings?.gitlab?.instanceUrl && settings?.gitlab?.projectId && settings?.gitlab?.token) ||
+      (settings?.instanceUrl && settings?.projectId && settings?.token) // fallback to legacy format
+    );
     
     logger.log('ProjectManager: loadFolders called', { hasGitHubSettings, hasGitLabSettings });
     
@@ -111,8 +126,14 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
 
   const currentProject = settings?.folder || 'todos';
 
-  const hasGitHubSettings = !!(settings?.pat && settings?.owner && settings?.repo);
-  const hasGitLabSettings = !!(settings?.instanceUrl && settings?.projectId && settings?.token);
+  const hasGitHubSettings = !!(
+    (settings?.github?.pat && settings?.github?.owner && settings?.github?.repo) ||
+    (settings?.pat && settings?.owner && settings?.repo) // fallback to legacy format
+  );
+  const hasGitLabSettings = !!(
+    (settings?.gitlab?.instanceUrl && settings?.gitlab?.projectId && settings?.gitlab?.token) ||
+    (settings?.instanceUrl && settings?.projectId && settings?.token) // fallback to legacy format
+  );
   
   logger.log('ProjectManager: Render check', { 
     hasGitHubSettings, 
@@ -121,7 +142,20 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
     availableFoldersLength: availableFolders.length,
     availableFoldersContent: [...availableFolders],
     currentProject,
-    showDropdown: availableFolders.length > 1
+    showDropdown: availableFolders.length > 1,
+    settingsSnapshot: {
+      gitProvider: settings?.gitProvider,
+      github: settings?.github ? 'configured' : 'missing',
+      gitlab: settings?.gitlab ? 'configured' : 'missing',
+      legacyFields: {
+        pat: !!settings?.pat,
+        owner: !!settings?.owner,
+        repo: !!settings?.repo,
+        instanceUrl: !!settings?.instanceUrl,
+        projectId: !!settings?.projectId,
+        token: !!settings?.token
+      }
+    }
   });
   
   if (!hasGitHubSettings && !hasGitLabSettings) {
@@ -131,37 +165,19 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
 
   return (
     <>
-      {/* Mobile: Compact Project Indicator */}
-      <div className="md:hidden flex items-center">
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center space-x-1 bg-gray-700 hover:bg-gray-600 text-white px-2 py-1.5 rounded-md text-sm min-h-[32px]"
-          title={`Current: ${currentProject}`}
-        >
-          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-          <span className="truncate max-w-20">{currentProject}</span>
-          <span>+</span>
-        </button>
-      </div>
-
-      {/* Desktop: Full Project Management */}
-      <div className="hidden md:flex items-center space-x-3">
-        {/* Current Project Display */}
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-400">Project:</span>
-          <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-            <span className="text-sm font-medium text-white">{currentProject}</span>
-          </div>
-        </div>
-
-        {/* Project Switcher */}
-        {availableFolders.length > 1 && (
+      {/* Mobile: Compact Project Management */}
+      <div className="md:hidden flex items-center space-x-2">
+        {/* Visual indicator */}
+        <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+        
+        {/* Project Switcher for mobile */}
+        {availableFolders.length > 1 ? (
           <select
             value={currentProject}
             onChange={(e) => handleProjectSwitch(e.target.value)}
-            className="text-sm bg-gray-700 border border-gray-600 rounded-md px-2 py-1 text-white focus:ring-blue-500 focus:border-blue-500"
+            className="text-xs bg-gray-700 border border-gray-600 rounded-md px-2 py-1.5 text-white focus:ring-blue-500 focus:border-blue-500 max-w-24"
             disabled={isLoading}
+            title="Switch Project"
           >
             {availableFolders.map((folder) => (
               <option key={folder} value={folder}>
@@ -169,7 +185,44 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
               </option>
             ))}
           </select>
+        ) : (
+          <span className="text-xs font-medium text-white truncate max-w-20" title={currentProject}>
+            {currentProject}
+          </span>
         )}
+        
+        {/* Create button for mobile */}
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center justify-center bg-green-600 hover:bg-green-700 text-white px-2 py-1.5 rounded-md text-sm min-h-[32px] w-8 flex-shrink-0"
+          title="Create New Project"
+        >
+          <span>+</span>
+        </button>
+      </div>
+
+      {/* Desktop: Streamlined Project Management */}
+      <div className="hidden md:flex items-center space-x-3">
+        {/* Project Switcher with Visual Indicator */}
+        <div className="flex items-center space-x-2">
+          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+          {availableFolders.length > 1 ? (
+            <select
+              value={currentProject}
+              onChange={(e) => handleProjectSwitch(e.target.value)}
+              className="text-sm bg-gray-700 border border-gray-600 rounded-md px-2 py-1 text-white focus:ring-blue-500 focus:border-blue-500"
+              disabled={isLoading}
+            >
+              {availableFolders.map((folder) => (
+                <option key={folder} value={folder}>
+                  {folder}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="text-sm font-medium text-white">{currentProject}</span>
+          )}
+        </div>
 
         {/* Create New Project Button */}
         <button

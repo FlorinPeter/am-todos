@@ -357,6 +357,7 @@ const methodValidator = (req, res, next) => {
     { pattern: /^\/api\/github$/, methods: ['POST'] },
     { pattern: /^\/api\/gitlab$/, methods: ['POST'] },
     { pattern: /^\/api\/ai$/, methods: ['POST'] },
+    { pattern: /^\/api\/search$/, methods: ['POST'] },
     { pattern: /^\/api\/git-history$/, methods: ['POST'] },
     { pattern: /^\/api\/file-at-commit$/, methods: ['POST'] },
     { pattern: /^\/$/, methods: ['GET'] },
@@ -735,7 +736,250 @@ Please return the updated markdown content:`;
     }
   } catch (error) {
     logger.error(`Error calling ${provider} API:`, error);
-    res.status(500).json({ error: `Failed to get response from ${provider} API` });
+    
+    // Provide more specific error messages
+    if (provider === 'gemini' && error.message?.includes('API key not valid')) {
+      res.status(400).json({ error: 'Invalid Gemini API key. Please check your API key in settings and ensure it has the necessary permissions.' });
+    } else if (provider === 'gemini' && error.message?.includes('model not found')) {
+      res.status(400).json({ error: 'Gemini model not available. Try using a different model like "gemini-2.5-flash" or "gemini-1.5-pro".' });
+    } else {
+      res.status(500).json({ error: `Failed to get response from ${provider} API` });
+    }
+  }
+});
+
+// Search endpoint for both GitHub and GitLab
+app.post('/api/search', async (req, res) => {
+  const { query, scope = 'folder', folder = 'todos', provider, ...credentials } = req.body;
+
+  if (!query || query.trim().length === 0) {
+    return res.status(400).json({ error: 'Missing or empty search query' });
+  }
+
+  if (!provider) {
+    return res.status(400).json({ error: 'Missing provider (github or gitlab)' });
+  }
+
+  try {
+    let results = [];
+
+    if (provider === 'github') {
+      const { owner, repo, token } = credentials;
+      
+      if (!owner || !repo || !token) {
+        return res.status(400).json({ error: 'Missing GitHub credentials: owner, repo, token' });
+      }
+
+      // Security: Validate owner and repo names
+      const validNamePattern = /^[a-zA-Z0-9._-]+$/;
+      if (!validNamePattern.test(owner) || !validNamePattern.test(repo)) {
+        return res.status(403).json({ error: 'Invalid owner or repository name' });
+      }
+
+      // Build GitHub search query
+      let searchQuery = `${query} in:file repo:${owner}/${repo}`;
+      
+      if (scope === 'folder') {
+        searchQuery += ` path:${folder}`;
+      }
+
+      const githubUrl = `https://api.github.com/search/code?q=${encodeURIComponent(searchQuery)}&per_page=50`;
+      logger.log('GitHub search URL:', githubUrl);
+
+      const response = await fetch(githubUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Agentic-Markdown-Todos',
+          'Authorization': `token ${sanitizeHeader(token)}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 422) {
+          return res.status(400).json({ error: 'Invalid search query. Search requires at least one search term.' });
+        }
+        if (response.status === 403) {
+          return res.status(429).json({ error: 'GitHub search API rate limit exceeded. Please try again in a few minutes.' });
+        }
+        const errorText = await response.text();
+        logger.error('GitHub search API error:', response.status, errorText);
+        throw new Error(`GitHub search API error: ${response.statusText}`);
+      }
+
+      const searchResults = await response.json();
+      
+      results = searchResults.items.map(item => ({
+        path: item.path,
+        name: item.name,
+        sha: item.sha,
+        url: item.html_url,
+        repository: item.repository.full_name,
+        text_matches: item.text_matches || []
+      }));
+
+    } else if (provider === 'gitlab') {
+      const { instanceUrl, projectId, token } = credentials;
+      
+      if (!instanceUrl || !projectId || !token) {
+        return res.status(400).json({ error: 'Missing GitLab credentials: instanceUrl, projectId, token' });
+      }
+
+      // Build GitLab search query
+      // Note: GitLab doesn't support GitHub-style path: syntax
+      // We'll filter by folder on the backend after getting results
+      let searchQuery = query;
+
+      const gitlabUrl = `${instanceUrl}/api/v4/projects/${projectId}/search?scope=blobs&search=${encodeURIComponent(searchQuery)}`;
+      logger.log('GitLab search URL:', gitlabUrl);
+
+      const response = await fetch(gitlabUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${sanitizeHeader(token)}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          return res.status(401).json({ error: 'GitLab authentication failed. Please check your access token.' });
+        }
+        if (response.status === 403) {
+          return res.status(403).json({ error: 'GitLab access denied. Please check your permissions.' });
+        }
+        const errorText = await response.text();
+        logger.error('GitLab search API error:', response.status, errorText);
+        throw new Error(`GitLab search API error: ${response.statusText}`);
+      }
+
+      const searchResults = await response.json();
+      
+      results = searchResults.map(item => ({
+        path: item.path,
+        name: item.filename,
+        sha: item.ref,
+        url: `${instanceUrl}/${projectId}/-/blob/main/${item.path}`,
+        repository: `project-${projectId}`,
+        text_matches: [] // GitLab doesn't provide text matches in the same format
+      }));
+
+    } else {
+      return res.status(400).json({ error: 'Unsupported provider. Use "github" or "gitlab".' });
+    }
+
+    // Filter results to only include markdown files and apply folder filtering
+    if (scope === 'folder') {
+      results = results.filter(item => {
+        const isMarkdown = item.name.endsWith('.md') && item.name !== '.gitkeep';
+        
+        // For GitLab, filter by folder path since we couldn't do it in the query
+        if (provider === 'gitlab') {
+          const isInFolder = item.path.startsWith(`${folder}/`);
+          return isMarkdown && isInFolder;
+        }
+        
+        // For GitHub, filtering was already done in the query
+        return isMarkdown;
+      });
+    } else {
+      // For repo-wide search, still filter to markdown files
+      results = results.filter(item => item.name.endsWith('.md') && item.name !== '.gitkeep');
+    }
+
+    // CRITICAL: Deduplicate results by file path to prevent multiple copies of same file
+    // GitHub search API can return same file multiple times if query matches title AND content
+    const uniqueResults = [];
+    const seenPaths = new Set();
+    
+    for (const item of results) {
+      if (!seenPaths.has(item.path)) {
+        seenPaths.add(item.path);
+        uniqueResults.push(item);
+      } else {
+        logger.log('Deduplicating duplicate search result:', item.path);
+      }
+    }
+    
+    results = uniqueResults;
+    logger.log(`Search results: ${results.length} unique files after deduplication`);
+
+    // Enhance search results with frontmatter data (priority, etc.)
+    // This fixes the issue where search results always show P3 priority
+    const enhancedResults = [];
+    
+    for (const result of results) {
+      try {
+        let fileContent = null;
+        let priority = 3; // default fallback
+        
+        if (provider === 'github') {
+          // Fetch file content from GitHub
+          const contentUrl = `https://api.github.com/repos/${credentials.owner}/${credentials.repo}/contents/${result.path}`;
+          const contentResponse = await fetch(contentUrl, {
+            headers: {
+              'User-Agent': 'Agentic-Markdown-Todos',
+              'Authorization': `Bearer ${sanitizeHeader(credentials.token)}`,
+              'Accept': 'application/vnd.github.v3+json'
+            }
+          });
+          
+          if (contentResponse.ok) {
+            const contentData = await contentResponse.json();
+            fileContent = Buffer.from(contentData.content, 'base64').toString('utf-8');
+          }
+        } else if (provider === 'gitlab') {
+          // Fetch file content from GitLab
+          const encodedPath = encodeURIComponent(result.path);
+          const contentUrl = `${credentials.instanceUrl}/api/v4/projects/${credentials.projectId}/repository/files/${encodedPath}/raw?ref=main`;
+          const contentResponse = await fetch(contentUrl, {
+            headers: {
+              'Authorization': `Bearer ${sanitizeHeader(credentials.token)}`
+            }
+          });
+          
+          if (contentResponse.ok) {
+            fileContent = await contentResponse.text();
+          }
+        }
+        
+        // Parse frontmatter to extract priority
+        if (fileContent) {
+          const frontmatterMatch = fileContent.match(/^---\n([\s\S]*?)\n---/);
+          if (frontmatterMatch) {
+            const frontmatterText = frontmatterMatch[1];
+            const priorityMatch = frontmatterText.match(/^priority:\s*(\d+)$/m);
+            if (priorityMatch) {
+              priority = parseInt(priorityMatch[1], 10);
+            }
+          }
+        }
+        
+        // Add priority to result
+        enhancedResults.push({
+          ...result,
+          priority
+        });
+      } catch (error) {
+        logger.error('Error fetching content for search result:', result.path, error.message);
+        // Add result with default priority if content fetch fails
+        enhancedResults.push({
+          ...result,
+          priority: 3
+        });
+      }
+    }
+
+    res.json({
+      query,
+      scope,
+      total_count: enhancedResults.length,
+      items: enhancedResults
+    });
+
+  } catch (error) {
+    logger.error('Search endpoint error:', error);
+    res.status(500).json({ error: 'Failed to perform search: ' + error.message });
   }
 });
 

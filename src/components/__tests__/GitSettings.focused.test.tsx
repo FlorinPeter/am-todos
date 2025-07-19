@@ -76,17 +76,23 @@ describe('GitSettings - Focused Coverage Tests', () => {
       // Test the useEffect that loads saved settings (lines 41-63)
       const savedSettings = {
         gitProvider: 'gitlab',
-        pat: 'github-token',
-        owner: 'testowner',
-        repo: 'testrepo',
-        instanceUrl: 'https://custom.gitlab.com',
-        projectId: '12345',
-        token: 'gitlab-token',
         folder: 'custom-folder',
-        geminiApiKey: 'gemini-key',
         aiProvider: 'openrouter',
+        geminiApiKey: 'gemini-key',
         openRouterApiKey: 'openrouter-key',
-        aiModel: 'custom-model'
+        aiModel: 'custom-model',
+        github: {
+          pat: 'github-token',
+          owner: 'testowner',
+          repo: 'testrepo',
+          branch: 'main'
+        },
+        gitlab: {
+          instanceUrl: 'https://custom.gitlab.com',
+          projectId: '12345',
+          token: 'gitlab-token',
+          branch: 'main'
+        }
       };
       
       mockLoadSettings.mockReturnValue(savedSettings);
@@ -641,7 +647,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
       const submitButton = screen.getByText('Save Settings');
       fireEvent.click(submitButton);
 
-      // Should save settings with only provider-specific fields
+      // Should save settings in dual-config format
       expect(mockSaveSettings).toHaveBeenCalledWith({
         gitProvider: 'github',
         folder: 'todos',
@@ -649,14 +655,18 @@ describe('GitSettings - Focused Coverage Tests', () => {
         aiProvider: 'gemini',
         openRouterApiKey: '',
         aiModel: '',
-        // GitHub-specific fields
-        pat: 'test-token',
-        owner: 'testowner',
-        repo: 'testrepo',
-        // GitLab fields should be cleared for GitHub provider
-        instanceUrl: '',
-        projectId: '',
-        token: ''
+        github: {
+          pat: 'test-token',
+          owner: 'testowner',
+          repo: 'testrepo',
+          branch: 'main'
+        },
+        gitlab: {
+          instanceUrl: 'https://gitlab.com',
+          projectId: '',
+          token: '',
+          branch: 'main'
+        }
       });
       expect(mockOnSettingsSaved).toHaveBeenCalled();
     });
@@ -694,7 +704,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
       const submitButton = screen.getByText('Save Settings');
       fireEvent.click(submitButton);
 
-      // Should save settings with only GitLab-specific fields
+      // Should save settings in dual-config format
       expect(mockSaveSettings).toHaveBeenCalledWith({
         gitProvider: 'gitlab',
         folder: 'work-tasks',
@@ -702,14 +712,18 @@ describe('GitSettings - Focused Coverage Tests', () => {
         aiProvider: 'gemini',
         openRouterApiKey: '',
         aiModel: '',
-        // GitLab-specific fields
-        instanceUrl: 'https://gitlab.example.com',
-        projectId: '12345',
-        token: 'gitlab-token',
-        // GitHub fields should be cleared for GitLab provider
-        pat: '',
-        owner: '',
-        repo: ''
+        github: {
+          pat: '',
+          owner: '',
+          repo: '',
+          branch: 'main'
+        },
+        gitlab: {
+          instanceUrl: 'https://gitlab.example.com',
+          projectId: '12345',
+          token: 'gitlab-token',
+          branch: 'main'
+        }
       });
       expect(mockOnSettingsSaved).toHaveBeenCalled();
     });
@@ -780,17 +794,23 @@ describe('GitSettings - Focused Coverage Tests', () => {
       // Set up initial settings with GitHub provider for easier testing
       mockLoadSettings.mockReturnValue({
         gitProvider: 'github',
-        pat: 'test-token',
-        owner: 'test-owner',
-        repo: 'test-repo',
-        instanceUrl: '',
-        projectId: '',
-        token: '',
         folder: 'custom-folder',
-        geminiApiKey: 'test-gemini-key',
         aiProvider: 'openrouter',
+        geminiApiKey: 'test-gemini-key',
         openRouterApiKey: 'test-openrouter-key',
-        aiModel: 'custom-model'
+        aiModel: 'custom-model',
+        github: {
+          pat: 'test-token',
+          owner: 'test-owner',
+          repo: 'test-repo',
+          branch: 'main'
+        },
+        gitlab: {
+          instanceUrl: 'https://gitlab.com',
+          projectId: '',
+          token: '',
+          branch: 'main'
+        }
       });
 
       render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
@@ -799,6 +819,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
       expect(screen.getByDisplayValue('test-token')).toBeInTheDocument();
       expect(screen.getByDisplayValue('test-owner')).toBeInTheDocument();
       expect(screen.getByDisplayValue('custom-folder')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('test-repo')).toBeInTheDocument();
 
       // Click reset button
       const resetButton = screen.getByRole('button', { name: /reset all/i });
@@ -827,12 +848,23 @@ describe('GitSettings - Focused Coverage Tests', () => {
       // Start with GitLab settings
       mockLoadSettings.mockReturnValue({
         gitProvider: 'gitlab',
-        instanceUrl: 'https://gitlab.example.com',
-        projectId: '123',
-        token: 'gitlab-token',
-        pat: '',
-        owner: '',
-        repo: ''
+        folder: 'todos',
+        aiProvider: 'gemini',
+        geminiApiKey: '',
+        openRouterApiKey: '',
+        aiModel: '',
+        github: {
+          pat: '',
+          owner: '',
+          repo: '',
+          branch: 'main'
+        },
+        gitlab: {
+          instanceUrl: 'https://gitlab.example.com',
+          projectId: '123',
+          token: 'gitlab-token',
+          branch: 'main'
+        }
       });
 
       render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
@@ -858,12 +890,23 @@ describe('GitSettings - Focused Coverage Tests', () => {
       // Start with GitHub settings
       mockLoadSettings.mockReturnValue({
         gitProvider: 'github',
-        pat: 'github-token',
-        owner: 'test-owner',
-        repo: 'test-repo',
-        instanceUrl: '',
-        projectId: '',
-        token: ''
+        folder: 'todos',
+        aiProvider: 'gemini',
+        geminiApiKey: '',
+        openRouterApiKey: '',
+        aiModel: '',
+        github: {
+          pat: 'github-token',
+          owner: 'test-owner',
+          repo: 'test-repo',
+          branch: 'main'
+        },
+        gitlab: {
+          instanceUrl: 'https://gitlab.com',
+          projectId: '',
+          token: '',
+          branch: 'main'
+        }
       });
 
       render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
