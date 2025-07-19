@@ -1,4 +1,5 @@
 import logger from './logger';
+import { ChatMessage } from '../types';
 
 // Individual provider configurations
 interface GitHubConfig {
@@ -470,12 +471,6 @@ export const clearOtherDrafts = (currentTodoId: string): void => {
 };
 
 // AI Chat Persistence
-export interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: string;
-  checkpointId?: string;
-}
 
 export interface AIChatSession {
   todoId: string;

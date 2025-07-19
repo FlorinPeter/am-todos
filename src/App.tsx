@@ -8,7 +8,8 @@ import { loadSettings, getUrlConfig, saveSettings, saveSelectedTodoId, loadSelec
 import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDirectory, moveTaskToArchive, moveTaskFromArchive, deleteFile } from './services/gitService';
 import { generateInitialPlan, generateCommitMessage } from './services/aiService';
 import { searchTodosDebounced, SearchResult } from './services/searchService';
-import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, TodoFrontmatter } from './utils/markdown';
+import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter } from './utils/markdown';
+import { TodoFrontmatter, Todo, ChatMessage } from './types';
 import logger from './utils/logger';
 
 function App() {

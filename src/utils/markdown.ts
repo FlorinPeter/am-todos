@@ -1,13 +1,6 @@
 import yaml from 'js-yaml';
 import logger from './logger';
-
-export interface TodoFrontmatter {
-  title: string;
-  createdAt: string;
-  priority: number;
-  isArchived: boolean;
-  chatHistory: Array<{ role: string; content: string }>;
-}
+import { TodoFrontmatter } from '../types';
 
 export const parseMarkdownWithFrontmatter = (content: string) => {
   const frontmatterRegex = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;

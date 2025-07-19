@@ -1,13 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { saveCheckpoint, getCheckpoints, clearCheckpoints, generateCheckpointId, Checkpoint, saveChatSession, getChatSession, clearChatSession, AIChatSession, ChatMessage as StoredChatMessage } from '../utils/localStorage';
+import { saveCheckpoint, getCheckpoints, clearCheckpoints, generateCheckpointId, Checkpoint, saveChatSession, getChatSession, clearChatSession, AIChatSession } from '../utils/localStorage';
+import { ChatMessage } from '../types';
 import logger from '../utils/logger';
-
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: string;
-  checkpointId?: string; // Link to checkpoint for AI responses
-}
 
 interface AIChatProps {
   currentContent: string;

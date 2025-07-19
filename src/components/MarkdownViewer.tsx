@@ -6,13 +6,8 @@ import GitHistory from './GitHistory';
 import { processChatMessage } from '../services/aiService';
 import { parseMarkdownWithFrontmatter } from '../utils/markdown';
 import { saveDraft, getDraft, clearDraft, TodoDraft } from '../utils/localStorage';
+import { ChatMessage } from '../types';
 import logger from '../utils/logger';
-
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: string;
-}
 
 interface MarkdownViewerProps {
   content: string;

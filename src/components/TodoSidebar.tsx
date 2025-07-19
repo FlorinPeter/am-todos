@@ -1,27 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { formatDate } from '../utils/dateFormat';
 import { filterTodosLocally, SearchResult } from '../services/searchService';
-
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: string;
-}
-
-interface Todo {
-  id: string;
-  title: string;
-  content: string;
-  frontmatter: {
-    title: string;
-    createdAt: string;
-    priority: number;
-    isArchived: boolean;
-    chatHistory: ChatMessage[];
-  };
-  path: string;
-  sha: string;
-}
+import { Todo } from '../types';
 
 interface TodoSidebarProps {
   todos: Todo[];
