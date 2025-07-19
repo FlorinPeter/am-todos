@@ -45,7 +45,7 @@ describe('ProjectManager', () => {
 
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
 
-    expect(screen.getByText('Project:')).toBeInTheDocument();
+    // Check for project name display (no longer shows "Project:" label)
     expect(screen.getAllByText('todos')[0]).toBeInTheDocument();
     expect(screen.getByText('New Project')).toBeInTheDocument();
   });
@@ -61,7 +61,7 @@ describe('ProjectManager', () => {
 
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
 
-    expect(screen.getByText('Project:')).toBeInTheDocument();
+    // Check for project name display (no longer shows "Project:" label)
     expect(screen.getAllByText('work-tasks')[0]).toBeInTheDocument();
   });
 
