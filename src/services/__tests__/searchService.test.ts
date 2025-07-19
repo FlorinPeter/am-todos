@@ -49,6 +49,170 @@ describe('Search Service', () => {
       );
     });
 
+    it('should handle dual-config GitHub settings', async () => {
+      const mockSettings = {
+        gitProvider: 'github',
+        folder: 'tasks',
+        github: {
+          pat: 'github-token',
+          owner: 'github-owner',
+          repo: 'github-repo'
+        }
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      
+      const mockResponse = {
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          query: 'test',
+          scope: 'folder',
+          total_count: 0,
+          items: []
+        })
+      };
+
+      vi.mocked(fetch).mockResolvedValue(mockResponse as any);
+
+      await searchTodos('test', 'folder');
+
+      expect(fetch).toHaveBeenCalledWith('/api/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: 'test',
+          scope: 'folder',
+          folder: 'tasks',
+          provider: 'github',
+          owner: 'github-owner',
+          repo: 'github-repo',
+          token: 'github-token'
+        })
+      });
+    });
+
+    it('should handle dual-config GitLab settings', async () => {
+      const mockSettings = {
+        gitProvider: 'gitlab',
+        folder: 'work',
+        gitlab: {
+          token: 'gitlab-token',
+          instanceUrl: 'https://gitlab.work.com',
+          projectId: '456'
+        }
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      
+      const mockResponse = {
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          query: 'test',
+          scope: 'repo',
+          total_count: 0,
+          items: []
+        })
+      };
+
+      vi.mocked(fetch).mockResolvedValue(mockResponse as any);
+
+      await searchTodos('test', 'repo');
+
+      expect(fetch).toHaveBeenCalledWith('/api/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: 'test',
+          scope: 'repo',
+          folder: 'work',
+          provider: 'gitlab',
+          instanceUrl: 'https://gitlab.work.com',
+          projectId: '456',
+          token: 'gitlab-token'
+        })
+      });
+    });
+
+    it('should throw error for incomplete dual-config GitHub settings', async () => {
+      const mockSettings = {
+        gitProvider: 'github',
+        github: {
+          pat: 'token',
+          owner: 'owner'
+          // missing repo
+        }
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+
+      await expect(searchTodos('test')).rejects.toThrow(
+        'GitHub settings incomplete. Please configure your Personal Access Token, owner, and repository.'
+      );
+    });
+
+    it('should throw error for incomplete dual-config GitLab settings', async () => {
+      const mockSettings = {
+        gitProvider: 'gitlab',
+        gitlab: {
+          token: 'token',
+          instanceUrl: 'https://gitlab.com'
+          // missing projectId
+        }
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+
+      await expect(searchTodos('test')).rejects.toThrow(
+        'GitLab settings incomplete. Please configure your Access Token, instance URL, and project ID.'
+      );
+    });
+
+    it('should throw error for incomplete legacy GitHub settings', async () => {
+      const mockSettings = {
+        gitProvider: 'github',
+        pat: 'token',
+        owner: 'owner'
+        // missing repo
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+
+      await expect(searchTodos('test')).rejects.toThrow(
+        'GitHub settings incomplete. Please configure your Personal Access Token, owner, and repository.'
+      );
+    });
+
+    it('should throw error for incomplete legacy GitLab settings', async () => {
+      const mockSettings = {
+        gitProvider: 'gitlab',
+        token: 'token',
+        instanceUrl: 'https://gitlab.com'
+        // missing projectId
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+
+      await expect(searchTodos('test')).rejects.toThrow(
+        'GitLab settings incomplete. Please configure your Access Token, instance URL, and project ID.'
+      );
+    });
+
+    it('should throw error for invalid git provider', async () => {
+      const mockSettings = {
+        gitProvider: 'invalid'
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+
+      await expect(searchTodos('test')).rejects.toThrow(
+        'Invalid Git provider configured. Please select GitHub or GitLab.'
+      );
+    });
+
     it('should make GitHub search request with correct parameters', async () => {
       const mockSettings = {
         gitProvider: 'github',
@@ -168,6 +332,106 @@ describe('Search Service', () => {
       );
     });
 
+    it('should handle 401 authentication errors', async () => {
+      const mockSettings = {
+        gitProvider: 'github',
+        pat: 'test-token',
+        owner: 'test-owner',
+        repo: 'test-repo',
+        folder: 'todos'
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      
+      const mockResponse = {
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        text: vi.fn().mockResolvedValue('Invalid token')
+      };
+
+      vi.mocked(fetch).mockResolvedValue(mockResponse as any);
+
+      await expect(searchTodos('test')).rejects.toThrow(
+        'Authentication failed. Please check your access token in settings.'
+      );
+    });
+
+    it('should handle 403 permission errors', async () => {
+      const mockSettings = {
+        gitProvider: 'github',
+        pat: 'test-token',
+        owner: 'test-owner',
+        repo: 'test-repo',
+        folder: 'todos'
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      
+      const mockResponse = {
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        text: vi.fn().mockResolvedValue('Access denied')
+      };
+
+      vi.mocked(fetch).mockResolvedValue(mockResponse as any);
+
+      await expect(searchTodos('test')).rejects.toThrow(
+        'Access denied. Please check your repository permissions.'
+      );
+    });
+
+    it('should handle 400 bad request errors', async () => {
+      const mockSettings = {
+        gitProvider: 'github',
+        pat: 'test-token',
+        owner: 'test-owner',
+        repo: 'test-repo',
+        folder: 'todos'
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      
+      const mockResponse = {
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        text: vi.fn().mockResolvedValue('Invalid query')
+      };
+
+      vi.mocked(fetch).mockResolvedValue(mockResponse as any);
+
+      await expect(searchTodos('test')).rejects.toThrow(
+        'Invalid search query. Please check your search terms.'
+      );
+    });
+
+    it('should handle other HTTP error status codes', async () => {
+      const mockSettings = {
+        gitProvider: 'github',
+        pat: 'test-token',
+        owner: 'test-owner',
+        repo: 'test-repo',
+        folder: 'todos'
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      
+      const mockResponse = {
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        text: vi.fn().mockResolvedValue('Server error')
+      };
+
+      vi.mocked(fetch).mockResolvedValue(mockResponse as any);
+
+      await expect(searchTodos('test')).rejects.toThrow(
+        'Search API error: Internal Server Error'
+      );
+    });
+
     it('should handle network errors', async () => {
       const mockSettings = {
         gitProvider: 'github',
@@ -244,6 +508,52 @@ describe('Search Service', () => {
       expect(callbackCount).toBe(1);
       expect(fetch).toHaveBeenCalledTimes(1);
     });
+
+    it('should handle errors in debounced search', async () => {
+      const mockSettings = {
+        gitProvider: 'github',
+        pat: 'test-token',
+        owner: 'test-owner',
+        repo: 'test-repo',
+        folder: 'todos'
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      
+      // Mock fetch to reject
+      vi.mocked(fetch).mockRejectedValue(new Error('Network error'));
+
+      return new Promise<void>((resolve) => {
+        searchTodosDebounced('test', 'folder', (results, error) => {
+          expect(results).toBeNull();
+          expect(error).toBe('Network error');
+          resolve();
+        }, 10); // Short delay for faster test
+      });
+    });
+
+    it('should handle non-Error objects in debounced search catch', async () => {
+      const mockSettings = {
+        gitProvider: 'github',
+        pat: 'test-token',
+        owner: 'test-owner',
+        repo: 'test-repo',
+        folder: 'todos'
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      
+      // Mock fetch to reject with non-Error object
+      vi.mocked(fetch).mockRejectedValue('String error');
+
+      return new Promise<void>((resolve) => {
+        searchTodosDebounced('test', 'folder', (results, error) => {
+          expect(results).toBeNull();
+          expect(error).toBe('Unknown search error');
+          resolve();
+        }, 10); // Short delay for faster test
+      });
+    });
   });
 
   describe('Cache functionality', () => {
@@ -284,6 +594,140 @@ describe('Search Service', () => {
       const stats = getSearchCacheStats();
       expect(stats.totalEntries).toBe(0);
       expect(stats.validEntries).toBe(0);
+    });
+
+    it('should clean up old cache entries when cache size exceeds 50', async () => {
+      const mockSettings = {
+        gitProvider: 'github',
+        pat: 'test-token',
+        owner: 'test-owner', 
+        repo: 'test-repo',
+        folder: 'todos'
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      
+      const mockResponse = {
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          query: 'test',
+          scope: 'folder',
+          total_count: 0,
+          items: []
+        })
+      };
+
+      vi.mocked(fetch).mockResolvedValue(mockResponse as any);
+
+      // Clear cache first
+      clearSearchCache();
+
+      // Create 52 cache entries to trigger cleanup (> 50)
+      const promises = [];
+      for (let i = 0; i < 52; i++) {
+        promises.push(searchTodos(`query${i}`, 'folder'));
+      }
+      
+      await Promise.all(promises);
+      
+      // Cache should have triggered cleanup
+      const stats = getSearchCacheStats();
+      expect(stats.totalEntries).toBeLessThanOrEqual(52); // Some entries should remain
+      expect(fetch).toHaveBeenCalledTimes(52); // All should have been called since they're unique
+    });
+
+    it('should handle expired cache entries during cleanup', async () => {
+      const mockSettings = {
+        gitProvider: 'github',
+        pat: 'test-token',
+        owner: 'test-owner',
+        repo: 'test-repo', 
+        folder: 'todos'
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      
+      const mockResponse = {
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          query: 'test',
+          scope: 'folder',
+          total_count: 0,
+          items: []
+        })
+      };
+
+      vi.mocked(fetch).mockResolvedValue(mockResponse as any);
+
+      // Mock Date.now to simulate expired entries
+      const originalDateNow = Date.now;
+      const baseTime = 1000000000000; // Fixed timestamp
+      
+      // First, create some entries with old timestamps
+      Date.now = vi.fn().mockReturnValue(baseTime);
+      await searchTodos('old-query1', 'folder');
+      await searchTodos('old-query2', 'folder');
+      
+      // Then advance time to make entries expired
+      Date.now = vi.fn().mockReturnValue(baseTime + 6 * 60 * 1000); // 6 minutes later (> 5 min expiry)
+      
+      // Create many new entries to trigger cleanup
+      const promises = [];
+      for (let i = 0; i < 50; i++) {
+        promises.push(searchTodos(`new-query${i}`, 'folder'));
+      }
+      
+      await Promise.all(promises);
+      
+      // The old expired entries should be cleaned up
+      const stats = getSearchCacheStats();
+      expect(stats.expiredEntries).toBe(0); // Expired entries should be cleaned up
+      
+      // Restore original Date.now
+      Date.now = originalDateNow;
+    });
+
+    it('should provide accurate cache statistics', async () => {
+      clearSearchCache();
+      
+      const mockSettings = {
+        gitProvider: 'github',
+        pat: 'test-token',
+        owner: 'test-owner',
+        repo: 'test-repo',
+        folder: 'todos'
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      
+      const mockResponse = {
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          query: 'test',
+          scope: 'folder',
+          total_count: 0,
+          items: []
+        })
+      };
+
+      vi.mocked(fetch).mockResolvedValue(mockResponse as any);
+
+      // Initially empty
+      let stats = getSearchCacheStats();
+      expect(stats.totalEntries).toBe(0);
+      expect(stats.validEntries).toBe(0);
+      expect(stats.expiredEntries).toBe(0);
+      expect(stats.cacheHitRate).toBe('No recent searches');
+
+      // Add some entries
+      await searchTodos('query1', 'folder');
+      await searchTodos('query2', 'folder');
+      
+      stats = getSearchCacheStats();
+      expect(stats.totalEntries).toBe(2);
+      expect(stats.validEntries).toBe(2);
+      expect(stats.expiredEntries).toBe(0);
+      expect(stats.cacheHitRate).toBe('Available');
     });
   });
 
