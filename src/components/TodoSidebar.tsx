@@ -282,6 +282,47 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
         </button>
       </div>
 
+      {/* Search Error Banner (shows even with results) */}
+      {localSearchQuery.trim() && searchError && (
+        <div className="mx-4 mb-4 p-3 bg-red-900/30 border border-red-500/50 rounded-lg">
+          <div className="flex items-start space-x-3">
+            <svg className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-sm font-medium text-red-400 mb-1">Search Error</h4>
+              <p className="text-xs text-gray-300 mb-2">
+                {searchError}
+              </p>
+              {searchError.includes('rate limit') && (
+                <p className="text-xs text-yellow-400 mb-2">
+                  💡 Tip: Try searching less frequently or use more specific terms to avoid rate limits.
+                </p>
+              )}
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleSearchClear}
+                  className="px-2 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-500 transition-colors">
+                  Clear Search
+                </button>
+                <button
+                  onClick={() => {
+                    // Retry the same search
+                    if (onSearchQueryChange) {
+                      const currentQuery = localSearchQuery;
+                      handleSearchClear();
+                      setTimeout(() => onSearchQueryChange(currentQuery), 100);
+                    }
+                  }}
+                  className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors">
+                  Try Again
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Todo List */}
       <div className="flex-1 overflow-y-auto min-h-0">
         {sortedTodos.length === 0 ? (

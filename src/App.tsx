@@ -93,7 +93,8 @@ function App() {
         setIsSearching(false);
         if (error) {
           setSearchError(error);
-          setSearchResults([]);
+          // Don't clear search results on error - keep previous results visible
+          // setSearchResults([]); // REMOVED - this was causing UX confusion
         } else if (results) {
           setSearchError(null);
           setSearchResults(results.items);
@@ -126,7 +127,8 @@ function App() {
             setIsSearching(false);
             if (error) {
               setSearchError(error);
-              setSearchResults([]);
+              // Don't clear search results on error - keep previous results visible
+              // setSearchResults([]); // REMOVED - this was causing UX confusion
             } else if (results) {
               setSearchError(null);
               setSearchResults(results.items);
