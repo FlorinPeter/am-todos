@@ -682,7 +682,7 @@ Please return the updated markdown content:`;
     if (provider === 'gemini') {
       // Gemini API implementation
       const genAI = new GoogleGenerativeAI(apiKey);
-      const geminiModel = genAI.getGenerativeModel({ model: model || "gemini-1.5-flash" });
+      const geminiModel = genAI.getGenerativeModel({ model: model || "gemini-2.5-flash" });
       const result = await geminiModel.generateContent({ 
         contents: [{ role: "user", parts: [{ text: prompt }] }], 
         systemInstruction: { parts: [{ text: systemInstruction }] } 
@@ -741,7 +741,7 @@ Please return the updated markdown content:`;
     if (provider === 'gemini' && error.message?.includes('API key not valid')) {
       res.status(400).json({ error: 'Invalid Gemini API key. Please check your API key in settings and ensure it has the necessary permissions.' });
     } else if (provider === 'gemini' && error.message?.includes('model not found')) {
-      res.status(400).json({ error: 'Gemini model not available. Try using a different model like "gemini-1.5-flash" or "gemini-1.5-pro".' });
+      res.status(400).json({ error: 'Gemini model not available. Try using a different model like "gemini-2.5-flash" or "gemini-1.5-pro".' });
     } else {
       res.status(500).json({ error: `Failed to get response from ${provider} API` });
     }
