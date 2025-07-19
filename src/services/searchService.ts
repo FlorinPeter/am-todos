@@ -31,14 +31,7 @@ export interface SearchResponse {
   items: SearchResult[];
 }
 
-// Cache for search results with timestamp
-interface CacheEntry {
-  data: SearchResponse;
-  timestamp: number;
-}
-
-const searchCache = new Map<string, CacheEntry>();
-const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
+// No caching - removed to prevent stale data issues
 
 // Debounce utility
 let debounceTimer: number | null = null;
@@ -108,13 +101,7 @@ const getGitSettings = () => {
   }
 };
 
-const generateCacheKey = (query: string, scope: 'folder' | 'repo', folder: string, provider: string): string => {
-  return `${provider}:${scope}:${folder}:${query.toLowerCase().trim()}`;
-};
-
-const isValidCacheEntry = (entry: CacheEntry): boolean => {
-  return Date.now() - entry.timestamp < CACHE_EXPIRY;
-};
+// Cache utility functions removed
 
 export const searchTodos = async (
   query: string, 
@@ -131,15 +118,6 @@ export const searchTodos = async (
 
   try {
     const gitSettings = getGitSettings();
-    const cacheKey = generateCacheKey(query, scope, gitSettings.folder, gitSettings.provider);
-    
-    // Check cache first
-    const cachedEntry = searchCache.get(cacheKey);
-    if (cachedEntry && isValidCacheEntry(cachedEntry)) {
-      logger.log('Search cache hit:', cacheKey);
-      return cachedEntry.data;
-    }
-
     const apiUrl = getApiUrl();
     logger.log('Performing search:', { query, scope, provider: gitSettings.provider });
 
@@ -189,22 +167,6 @@ export const searchTodos = async (
 
     const data: SearchResponse = await response.json();
     
-    // Cache the result
-    searchCache.set(cacheKey, {
-      data,
-      timestamp: Date.now()
-    });
-
-    // Clean up old cache entries (keep cache size manageable)
-    if (searchCache.size > 50) {
-      const now = Date.now();
-      for (const [key, entry] of searchCache.entries()) {
-        if (!isValidCacheEntry(entry)) {
-          searchCache.delete(key);
-        }
-      }
-    }
-
     logger.log('Search completed:', { query, scope, totalResults: data.total_count });
     return data;
 
@@ -252,22 +214,7 @@ export const searchTodosDebounced = (
   }, delay);
 };
 
-export const clearSearchCache = (): void => {
-  searchCache.clear();
-  logger.log('Search cache cleared');
-};
-
-export const getSearchCacheStats = () => {
-  const now = Date.now();
-  const validEntries = Array.from(searchCache.values()).filter(entry => isValidCacheEntry(entry));
-  
-  return {
-    totalEntries: searchCache.size,
-    validEntries: validEntries.length,
-    expiredEntries: searchCache.size - validEntries.length,
-    cacheHitRate: validEntries.length > 0 ? 'Available' : 'No recent searches'
-  };
-};
+// Cache functions removed
 
 // Client-side filtering for local search within loaded todos
 export const filterTodosLocally = (

@@ -887,6 +887,23 @@ app.post('/api/search', async (req, res) => {
       results = results.filter(item => item.name.endsWith('.md') && item.name !== '.gitkeep');
     }
 
+    // CRITICAL: Deduplicate results by file path to prevent multiple copies of same file
+    // GitHub search API can return same file multiple times if query matches title AND content
+    const uniqueResults = [];
+    const seenPaths = new Set();
+    
+    for (const item of results) {
+      if (!seenPaths.has(item.path)) {
+        seenPaths.add(item.path);
+        uniqueResults.push(item);
+      } else {
+        logger.log('Deduplicating duplicate search result:', item.path);
+      }
+    }
+    
+    results = uniqueResults;
+    logger.log(`Search results: ${results.length} unique files after deduplication`);
+
     // Enhance search results with frontmatter data (priority, etc.)
     // This fixes the issue where search results always show P3 priority
     const enhancedResults = [];

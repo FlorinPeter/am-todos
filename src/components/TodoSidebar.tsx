@@ -123,6 +123,7 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
   if (localSearchQuery.trim()) {
     if (searchResults.length > 0) {
       // Use search results from API (convert SearchResult to Todo format)
+      // IMPORTANT: Clear any previous search results to prevent scope bleeding
       displayTodos = searchResults.map(result => ({
         id: result.sha,
         title: result.name.replace('.md', ''),
@@ -135,7 +136,8 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
           chatHistory: []
         },
         path: result.path,
-        sha: result.sha
+        sha: result.sha,
+        isSearchResult: true // Mark as search result for consistent rendering
       }));
     } else if (isSearching) {
       // While searching, use local filtering for immediate feedback
@@ -153,6 +155,8 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
       const priorityB = b.frontmatter?.priority || 3;
       return priorityA - priorityB;
     });
+
+  // Search debug logging removed
 
   const getCompletionPercentage = (content: string): number => {
     const checkboxes = content.match(/- \[[x ]\]/g) || [];
@@ -234,25 +238,6 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
               </button>
             </div>
           )}
-          
-          {/* Search Status */}
-          {isSearching && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-gray-600 text-gray-300 text-xs px-3 py-1 rounded">
-              Searching...
-            </div>
-          )}
-          
-          {searchError && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-red-600 text-white text-xs px-3 py-1 rounded">
-              {searchError}
-            </div>
-          )}
-          
-          {localSearchQuery && !isSearching && searchResults.length === 0 && sortedTodos.length === 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-gray-600 text-gray-300 text-xs px-3 py-1 rounded">
-              No tasks found for "{localSearchQuery}"
-            </div>
-          )}
         </div>
         <button
           onClick={onNewTodo}
@@ -312,8 +297,8 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
               const isSelected = selectedTodoId === todo.id;
               const completion = getCompletionPercentage(todo.content);
               const priority = todo.frontmatter?.priority || 3;
-              const isSearchResult = localSearchQuery.trim() && searchResults.length > 0;
-              const isFromDifferentFolder = isSearchResult && todo.path && !todo.path.includes(localSearchQuery.trim() ? '/' : '/todos/');
+              const isSearchResult = todo.isSearchResult || false; // Use consistent flag from todo object
+              const shouldShowPath = isSearchResult && todo.path; // Show path for all search results
               
               return (
                 <div
@@ -336,8 +321,8 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
                           <h3 className="font-semibold text-sm leading-tight flex-1" title={todo.frontmatter?.title || todo.title}>
                             {todo.frontmatter?.title || todo.title}
                           </h3>
-                          {isSearchResult && todo.path && (
-                            <span className={`text-xs px-1.5 py-0.5 rounded text-gray-300 bg-gray-600 ${
+                          {shouldShowPath && (
+                            <span className={`text-xs px-1.5 py-0.5 rounded text-gray-300 bg-gray-600 flex-shrink-0 ${
                               isSelected ? 'bg-blue-500' : ''
                             }`}>
                               {todo.path.split('/').slice(0, -1).join('/') || 'root'}

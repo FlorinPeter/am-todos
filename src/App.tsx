@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import NewTodoInput from './components/NewTodoInput';
 import TodoSidebar from './components/TodoSidebar';
 import TodoEditor from './components/TodoEditor';
@@ -52,6 +52,7 @@ function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searchScope, setSearchScope] = useState<'folder' | 'repo'>('folder');
+  const currentSearchIdRef = useRef<string>('');
 
   const getProviderName = () => {
     const provider = settings?.gitProvider || 'github';
@@ -73,22 +74,33 @@ function App() {
     if (!query.trim()) {
       setSearchResults([]);
       setIsSearching(false);
+      currentSearchIdRef.current = '';
       return;
     }
 
+    // Generate unique search ID to prevent race conditions
+    const searchId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    currentSearchIdRef.current = searchId;
+    
     // Clear previous results immediately for better UX
+    setSearchResults([]);
     setIsSearching(true);
 
     // Use debounced search
     searchTodosDebounced(query, searchScope, (results, error) => {
-      setIsSearching(false);
-      if (error) {
-        setSearchError(error);
-        setSearchResults([]);
-      } else if (results) {
-        setSearchError(null);
-        setSearchResults(results.items);
-        logger.log('Search completed:', results.total_count, 'results');
+      // Only process results if this search is still current
+      if (searchId === currentSearchIdRef.current) {
+        setIsSearching(false);
+        if (error) {
+          setSearchError(error);
+          setSearchResults([]);
+        } else if (results) {
+          setSearchError(null);
+          setSearchResults(results.items);
+          logger.log('Search completed:', results.total_count, 'results');
+        }
+      } else {
+        logger.log('Ignoring outdated search results for:', query);
       }
     });
   }, [searchScope]);
@@ -98,17 +110,29 @@ function App() {
     
     // Re-run search with new scope if there's an active query
     if (searchQuery.trim()) {
+      // Generate unique search ID to prevent race conditions
+      const searchId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      currentSearchIdRef.current = searchId;
+      
+      // CRITICAL: Immediately clear previous search results to prevent scope bleeding
+      setSearchResults([]);
       setIsSearching(true);
       setSearchError(null);
       
       searchTodosDebounced(searchQuery, scope, (results, error) => {
-        setIsSearching(false);
-        if (error) {
-          setSearchError(error);
-          setSearchResults([]);
-        } else if (results) {
-          setSearchError(null);
-          setSearchResults(results.items);
+        // Only process results if this search is still current
+        if (searchId === currentSearchIdRef.current) {
+          setIsSearching(false);
+          if (error) {
+            setSearchError(error);
+            setSearchResults([]);
+          } else if (results) {
+            setSearchError(null);
+            setSearchResults(results.items);
+            logger.log('Scope change search completed:', results.total_count, 'results');
+          }
+        } else {
+          logger.log('Ignoring outdated scope change results for scope:', scope);
         }
       }, 100); // Shorter delay for scope change
     }
