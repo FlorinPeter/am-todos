@@ -121,16 +121,6 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
   
   // If there's a search query, use appropriate results
   if (localSearchQuery.trim()) {
-    // Debug logging for search troubleshooting
-    console.log('🔍 Search Debug:', {
-      query: localSearchQuery,
-      scope: searchScope,
-      searchResultsCount: searchResults.length,
-      isSearching,
-      searchError,
-      sampleResults: searchResults.slice(0, 3).map(r => ({ path: r.path, name: r.name }))
-    });
-    
     if (searchResults.length > 0) {
       // Use search results from API (convert SearchResult to Todo format)
       displayTodos = searchResults.map(result => ({
@@ -148,16 +138,12 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
         sha: result.sha,
         isSearchResult: true // Mark as search result for consistent rendering
       }));
-      
-      console.log('✅ Using API search results:', displayTodos.length, 'todos');
     } else if (isSearching) {
       // While searching, use local filtering for immediate feedback
       displayTodos = filterTodosLocally(todos, localSearchQuery);
-      console.log('⏳ Searching... using local filter:', displayTodos.length, 'todos');
     } else {
       // If search completed with no results OR no search results provided yet, use local filtering
       displayTodos = filterTodosLocally(todos, localSearchQuery);
-      console.log('❌ No API results, using local filter:', displayTodos.length, 'todos');
     }
   }
 

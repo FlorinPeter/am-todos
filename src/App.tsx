@@ -1057,25 +1057,13 @@ function App() {
                     setSelectedTodoId(existingTodo.id);
                   } else {
                     // Need to fetch the full todo content
-                    logger.log('🔄 Fetching cross-folder todo:', {
-                      path: searchResult.path,
-                      name: searchResult.name,
-                      sha: searchResult.sha
-                    });
+                    logger.log('Loading cross-folder todo:', searchResult.path);
                     
                     const metadata = await getFileMetadata(searchResult.path);
-                    logger.log('✅ Metadata fetched:', { sha: metadata.sha });
-                    
                     const content = await getFileContent(searchResult.path);
-                    logger.log('✅ Content fetched:', { length: content.length });
-                    
                     const parsedMarkdown = parseMarkdownWithFrontmatter(content);
-                    logger.log('✅ Frontmatter parsed:', { 
-                      title: parsedMarkdown.frontmatter?.title,
-                      hasContent: !!parsedMarkdown.markdownContent 
-                    });
                     
-                    // Create a full todo object - fix frontmatter access
+                    // Create a full todo object with correct frontmatter access
                     const fullTodo = {
                       id: metadata.sha,
                       title: parsedMarkdown.frontmatter?.title || searchResult.name.replace('.md', ''),
@@ -1085,16 +1073,9 @@ function App() {
                       sha: metadata.sha
                     };
                     
-                    logger.log('✅ Full todo created:', { 
-                      id: fullTodo.id, 
-                      title: fullTodo.title,
-                      path: fullTodo.path 
-                    });
-                    
                     // Add to todos array and select it
                     setTodos(prev => [...prev, fullTodo]);
                     setSelectedTodoId(fullTodo.id);
-                    logger.log('✅ Todo added to array and selected');
                   }
                 } catch (error) {
                   logger.error('Error loading search result todo:', error);

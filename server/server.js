@@ -784,15 +784,7 @@ app.post('/api/search', async (req, res) => {
       }
 
       const githubUrl = `https://api.github.com/search/code?q=${encodeURIComponent(searchQuery)}&per_page=50`;
-      
-      // Debug logging for search troubleshooting
-      logger.log('🔍 GitHub Search Debug:', {
-        query: query,
-        scope: scope,
-        folder: folder,
-        searchQuery: searchQuery,
-        url: githubUrl
-      });
+      logger.log('GitHub search URL:', githubUrl);
 
       const response = await fetch(githubUrl, {
         method: 'GET',
@@ -877,8 +869,6 @@ app.post('/api/search', async (req, res) => {
     }
 
     // Filter results to only include markdown files and apply folder filtering
-    const rawResultsCount = results.length;
-    
     if (scope === 'folder') {
       results = results.filter(item => {
         const isMarkdown = item.name.endsWith('.md') && item.name !== '.gitkeep';
@@ -896,14 +886,6 @@ app.post('/api/search', async (req, res) => {
       // For repo-wide search, still filter to markdown files
       results = results.filter(item => item.name.endsWith('.md') && item.name !== '.gitkeep');
     }
-    
-    // Debug logging for filtering results
-    logger.log('📊 Search Filtering Results:', {
-      scope: scope,
-      rawResults: rawResultsCount,
-      filteredResults: results.length,
-      samplePaths: results.slice(0, 5).map(r => r.path)
-    });
 
     // CRITICAL: Deduplicate results by file path to prevent multiple copies of same file
     // GitHub search API can return same file multiple times if query matches title AND content
