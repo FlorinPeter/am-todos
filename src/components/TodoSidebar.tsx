@@ -119,31 +119,39 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
   // Determine which todos to display
   let displayTodos = todos;
   
-  // If there's a search query, use appropriate results
+  // If there's a search query, use API search results consistently for both scopes
   if (localSearchQuery.trim()) {
     if (searchResults.length > 0) {
-      // Use search results from API (convert SearchResult to Todo format)
-      displayTodos = searchResults.map(result => ({
-        id: result.sha,
-        title: result.name.replace('.md', ''),
-        content: '', // We don't have content in search results
-        frontmatter: {
+      // Use search results from API - this handles BOTH "This Folder" and "Entire Repo"
+      displayTodos = searchResults.map((result, index) => {
+        const projectName = result.path ? result.path.split('/')[0] || 'root' : 'unknown';
+        
+        // Create unique ID from path since sha is always "main" for search results
+        const uniqueId = `search-${result.path.replace(/[\/\s]/g, '-')}-${Date.now()}-${index}`;
+        
+        return {
+          id: uniqueId,
           title: result.name.replace('.md', ''),
-          createdAt: new Date().toISOString(), // Placeholder
-          priority: result.priority || 3, // Use actual priority from enhanced search results
-          isArchived: false,
-          chatHistory: []
-        },
-        path: result.path,
-        sha: result.sha,
-        isSearchResult: true // Mark as search result for consistent rendering
-      }));
+          content: '', // We don't have content in search results
+          frontmatter: {
+            title: result.name.replace('.md', ''),
+            createdAt: new Date().toISOString(), // Placeholder
+            priority: result.priority || 3,
+            isArchived: false,
+            chatHistory: []
+          },
+          path: result.path,
+          sha: result.sha,
+          isSearchResult: true,
+          projectName: projectName
+        };
+      });
     } else if (isSearching) {
-      // While searching, use local filtering for immediate feedback
-      displayTodos = filterTodosLocally(todos, localSearchQuery);
+      // Show loading state while API search is in progress
+      displayTodos = [];
     } else {
-      // If search completed with no results OR no search results provided yet, use local filtering
-      displayTodos = filterTodosLocally(todos, localSearchQuery);
+      // No results found - show empty
+      displayTodos = [];
     }
   }
 
@@ -191,14 +199,20 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
               onChange={handleSearchChange}
               className="w-full bg-gray-700 text-white placeholder-gray-400 rounded-lg pl-10 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-gray-600 transition-colors"
             />
-            <svg 
-              className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            {isSearching ? (
+              <div className="absolute left-3 top-2.5 w-4 h-4">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-400 border-t-blue-500"></div>
+              </div>
+            ) : (
+              <svg 
+                className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            )}
             {localSearchQuery && (
               <button
                 onClick={handleSearchClear}
@@ -310,13 +324,6 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
                           <h3 className="font-semibold text-sm leading-tight flex-1" title={todo.frontmatter?.title || todo.title}>
                             {todo.frontmatter?.title || todo.title}
                           </h3>
-                          {shouldShowPath && (
-                            <span className={`text-xs px-1.5 py-0.5 rounded text-gray-300 bg-gray-600 flex-shrink-0 ${
-                              isSelected ? 'bg-blue-500' : ''
-                            }`}>
-                              {todo.path.split('/').slice(0, -1).join('/') || 'root'}
-                            </span>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -342,17 +349,35 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
                     </div>
                   )}
 
-                  {/* Created Date */}
+                  {/* Project Name (for repo-wide search) or Created Date */}
                   <div className={`text-xs flex items-center space-x-1 ${
                     isSelected ? 'text-blue-100' : 'text-gray-400'
                   }`}>
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span>Created {todo.frontmatter?.createdAt ? 
-                      formatDate(todo.frontmatter.createdAt) :
-                      'No date'
-                    }</span>
+                    {todo.isSearchResult && todo.projectName ? (
+                      // Show project name for all search results (both folder and repo-wide)
+                      <>
+                        <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-5l-2-2H5a2 2 0 00-2 2z" />
+                        </svg>
+                        <span 
+                          className="truncate max-w-24" 
+                          title={`Project: ${todo.projectName}`}
+                        >
+                          {todo.projectName}
+                        </span>
+                      </>
+                    ) : (
+                      // Show created date for normal (non-search) views
+                      <>
+                        <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span>Created {todo.frontmatter?.createdAt ? 
+                          formatDate(todo.frontmatter.createdAt) :
+                          'No date'
+                        }</span>
+                      </>
+                    )}
                   </div>
                 </div>
               );

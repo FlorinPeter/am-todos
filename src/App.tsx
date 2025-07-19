@@ -106,37 +106,42 @@ function App() {
   }, [searchScope]);
 
   const handleSearchScopeChange = useCallback((scope: 'folder' | 'repo') => {
-    setSearchScope(scope);
-    
-    // Re-run search with new scope if there's an active query
-    if (searchQuery.trim()) {
-      // Generate unique search ID to prevent race conditions
-      const searchId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      currentSearchIdRef.current = searchId;
+    // Only trigger new search if scope actually changed
+    if (scope !== searchScope) {
+      setSearchScope(scope);
       
-      // CRITICAL: Immediately clear previous search results to prevent scope bleeding
-      setSearchResults([]);
-      setIsSearching(true);
-      setSearchError(null);
-      
-      searchTodosDebounced(searchQuery, scope, (results, error) => {
-        // Only process results if this search is still current
-        if (searchId === currentSearchIdRef.current) {
-          setIsSearching(false);
-          if (error) {
-            setSearchError(error);
-            setSearchResults([]);
-          } else if (results) {
-            setSearchError(null);
-            setSearchResults(results.items);
-            logger.log('Scope change search completed:', results.total_count, 'results');
+      // Re-run search with new scope if there's an active query
+      if (searchQuery.trim()) {
+        // Generate unique search ID to prevent race conditions
+        const searchId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        currentSearchIdRef.current = searchId;
+        
+        // Keep old results visible while loading new ones (better UX)
+        setIsSearching(true);
+        setSearchError(null);
+        
+        searchTodosDebounced(searchQuery, scope, (results, error) => {
+          // Only process results if this search is still current
+          if (searchId === currentSearchIdRef.current) {
+            setIsSearching(false);
+            if (error) {
+              setSearchError(error);
+              setSearchResults([]);
+            } else if (results) {
+              setSearchError(null);
+              setSearchResults(results.items);
+              logger.log('Scope change search completed:', results.total_count, 'results');
+            }
+          } else {
+            logger.log('Ignoring outdated scope change results for scope:', scope);
           }
-        } else {
-          logger.log('Ignoring outdated scope change results for scope:', scope);
-        }
-      }, 100); // Shorter delay for scope change
+        }, 100); // Shorter delay for scope change
+      }
+    } else {
+      // Scope didn't change, just update the state for UI consistency
+      setSearchScope(scope);
     }
-  }, [searchQuery]);
+  }, [searchQuery, searchScope]);
 
   const fetchTodosWithSettings = useCallback(async (useSettings?: any, useViewMode?: 'active' | 'archived', preserveTodoPath?: string) => {
     const currentSettings = useSettings || settings;
@@ -1071,8 +1076,11 @@ function App() {
                       saveSettings(newSettings);
                       setSettings(newSettings);
                       
-                      // Reload todos from new project context (will update sidebar)
-                      await fetchTodos();
+                      // Reload todos from new project context using explicit settings
+                      // This avoids React state batching issues where fetchTodos() uses old settings
+                      // Use preserveTodoPath to maintain selection after refresh
+                      logger.log('Refreshing todos with new project context:', todoFolder);
+                      await fetchTodosWithSettings(newSettings, viewMode, searchResult.path);
                       
                       // Clear search results since we're in new project context
                       setSearchResults([]);
@@ -1080,8 +1088,13 @@ function App() {
                       setIsSearching(false);
                       setSearchError(null);
                       
-                      // After project switch, check if the original todo is now in the loaded todos
-                      // If not, we'll still need to load it manually below
+                      logger.log('Project context switch completed');
+                      
+                      // Exit early - the preserveTodoPath should have handled selection
+                      return;
+                    } else {
+                      // User declined to switch projects, continue with normal loading
+                      logger.log('User declined project switch, loading cross-folder todo in current context');
                     }
                   }
                   

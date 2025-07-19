@@ -44,6 +44,32 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
     };
   }, []);
 
+  // Watch for external settings changes (like project context switching)
+  useEffect(() => {
+    const checkForSettingsChanges = () => {
+      const currentSettings = loadSettings();
+      const currentFolder = currentSettings?.folder || 'todos';
+      const localFolder = settings?.folder || 'todos';
+      
+      if (currentFolder !== localFolder) {
+        logger.log('ProjectManager: External settings change detected', { 
+          localFolder, 
+          currentFolder,
+          fullSettings: currentSettings 
+        });
+        setSettings(currentSettings);
+      }
+    };
+
+    // Check immediately
+    checkForSettingsChanges();
+    
+    // Set up interval to check for external changes
+    const interval = setInterval(checkForSettingsChanges, 500);
+    
+    return () => clearInterval(interval);
+  }, [settings?.folder]);
+
   const loadFolders = async () => {
     // Check if we have the required settings for any provider (new dual-config format)
     const hasGitHubSettings = !!(
