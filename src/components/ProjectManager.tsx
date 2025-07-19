@@ -167,8 +167,11 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
     <>
       {/* Mobile: Compact Project Management */}
       <div className="md:hidden flex items-center space-x-2">
+        {/* Visual indicator */}
+        <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+        
         {/* Project Switcher for mobile */}
-        {availableFolders.length > 1 && (
+        {availableFolders.length > 1 ? (
           <select
             value={currentProject}
             onChange={(e) => handleProjectSwitch(e.target.value)}
@@ -182,44 +185,44 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
               </option>
             ))}
           </select>
+        ) : (
+          <span className="text-xs font-medium text-white truncate max-w-20" title={currentProject}>
+            {currentProject}
+          </span>
         )}
         
         {/* Create button for mobile */}
         <button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center justify-center bg-green-600 hover:bg-green-700 text-white px-2 py-1.5 rounded-md text-sm min-h-[32px] w-8"
+          className="flex items-center justify-center bg-green-600 hover:bg-green-700 text-white px-2 py-1.5 rounded-md text-sm min-h-[32px] w-8 flex-shrink-0"
           title="Create New Project"
         >
           <span>+</span>
         </button>
       </div>
 
-      {/* Desktop: Full Project Management */}
+      {/* Desktop: Streamlined Project Management */}
       <div className="hidden md:flex items-center space-x-3">
-        {/* Current Project Display */}
+        {/* Project Switcher with Visual Indicator */}
         <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-400">Project:</span>
-          <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+          {availableFolders.length > 1 ? (
+            <select
+              value={currentProject}
+              onChange={(e) => handleProjectSwitch(e.target.value)}
+              className="text-sm bg-gray-700 border border-gray-600 rounded-md px-2 py-1 text-white focus:ring-blue-500 focus:border-blue-500"
+              disabled={isLoading}
+            >
+              {availableFolders.map((folder) => (
+                <option key={folder} value={folder}>
+                  {folder}
+                </option>
+              ))}
+            </select>
+          ) : (
             <span className="text-sm font-medium text-white">{currentProject}</span>
-          </div>
+          )}
         </div>
-
-        {/* Project Switcher */}
-        {availableFolders.length > 1 && (
-          <select
-            value={currentProject}
-            onChange={(e) => handleProjectSwitch(e.target.value)}
-            className="text-sm bg-gray-700 border border-gray-600 rounded-md px-2 py-1 text-white focus:ring-blue-500 focus:border-blue-500"
-            disabled={isLoading}
-          >
-            {availableFolders.map((folder) => (
-              <option key={folder} value={folder}>
-                {folder}
-              </option>
-            ))}
-          </select>
-        )}
 
         {/* Create New Project Button */}
         <button
