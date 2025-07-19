@@ -121,9 +121,18 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
   
   // If there's a search query, use appropriate results
   if (localSearchQuery.trim()) {
+    // Debug logging for search troubleshooting
+    console.log('🔍 Search Debug:', {
+      query: localSearchQuery,
+      scope: searchScope,
+      searchResultsCount: searchResults.length,
+      isSearching,
+      searchError,
+      sampleResults: searchResults.slice(0, 3).map(r => ({ path: r.path, name: r.name }))
+    });
+    
     if (searchResults.length > 0) {
       // Use search results from API (convert SearchResult to Todo format)
-      // IMPORTANT: Clear any previous search results to prevent scope bleeding
       displayTodos = searchResults.map(result => ({
         id: result.sha,
         title: result.name.replace('.md', ''),
@@ -139,13 +148,16 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
         sha: result.sha,
         isSearchResult: true // Mark as search result for consistent rendering
       }));
+      
+      console.log('✅ Using API search results:', displayTodos.length, 'todos');
     } else if (isSearching) {
       // While searching, use local filtering for immediate feedback
       displayTodos = filterTodosLocally(todos, localSearchQuery);
+      console.log('⏳ Searching... using local filter:', displayTodos.length, 'todos');
     } else {
       // If search completed with no results OR no search results provided yet, use local filtering
-      // This ensures backward compatibility with tests and provides better UX
       displayTodos = filterTodosLocally(todos, localSearchQuery);
+      console.log('❌ No API results, using local filter:', displayTodos.length, 'todos');
     }
   }
 
@@ -263,17 +275,12 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
                 </svg>
                 <h3 className="text-lg font-semibold text-gray-300 mb-2">No results found</h3>
                 <p className="text-sm text-gray-400 mb-4 max-w-xs">
-                  No tasks found for "{localSearchQuery}". Try a different search term or create a new task.
+                  No tasks found for "{localSearchQuery}"{searchScope === 'repo' ? ' in entire repository' : ' in this folder'}. Try a different search term.
                 </p>
                 <button
                   onClick={handleSearchClear}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors text-sm font-medium mr-2">
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors text-sm font-medium">
                   Clear Search
-                </button>
-                <button
-                  onClick={onNewTodo}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors text-sm font-medium">
-                  Create Task
                 </button>
               </>
             ) : (
@@ -283,12 +290,7 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                 </svg>
                 <h3 className="text-lg font-semibold text-gray-300 mb-2">No tasks yet</h3>
-                <p className="text-sm text-gray-400 mb-4 max-w-xs">Get started by creating your first task. AI will help you break it down into actionable steps.</p>
-                <button
-                  onClick={onNewTodo}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors text-sm font-medium">
-                  Create First Task
-                </button>
+                <p className="text-sm text-gray-400 max-w-xs">Get started by creating your first task using the "New Task" button above. AI will help you break it down into actionable steps.</p>
               </>
             )}
           </div>
