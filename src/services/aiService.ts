@@ -41,7 +41,7 @@ const getAISettings = () => {
   return {
     provider,
     apiKey,
-    model: settings.aiModel || (provider === 'gemini' ? 'gemini-2.5-flash' : 'anthropic/claude-3.5-sonnet')
+    model: settings.aiModel || (provider === 'gemini' ? 'gemini-1.5-flash' : 'anthropic/claude-3.5-sonnet')
   };
 };
 

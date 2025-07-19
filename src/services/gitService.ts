@@ -35,19 +35,40 @@ export const getGitSettings = (): GitSettings => {
   // Determine provider based on settings
   const provider = settings.gitProvider || 'github';
   
-  return {
+  const result: GitSettings = {
     provider,
     folder: settings.folder || 'todos',
-    // GitHub fields
-    pat: settings.pat,
-    owner: settings.owner,
-    repo: settings.repo,
-    // GitLab fields
-    instanceUrl: settings.instanceUrl,
-    projectId: settings.projectId,
-    token: settings.token,
     branch: 'main'
   };
+  
+  // Load provider-specific settings from new dual-configuration format
+  if (provider === 'github') {
+    if (settings.github) {
+      result.pat = settings.github.pat;
+      result.owner = settings.github.owner;
+      result.repo = settings.github.repo;
+      result.branch = settings.github.branch || 'main';
+    } else {
+      // Fallback to legacy direct fields for backward compatibility
+      result.pat = settings.pat;
+      result.owner = settings.owner;
+      result.repo = settings.repo;
+    }
+  } else if (provider === 'gitlab') {
+    if (settings.gitlab) {
+      result.instanceUrl = settings.gitlab.instanceUrl;
+      result.projectId = settings.gitlab.projectId;
+      result.token = settings.gitlab.token;
+      result.branch = settings.gitlab.branch || 'main';
+    } else {
+      // Fallback to legacy direct fields for backward compatibility
+      result.instanceUrl = settings.instanceUrl;
+      result.projectId = settings.projectId;
+      result.token = settings.token;
+    }
+  }
+  
+  return result;
 };
 
 /**

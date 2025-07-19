@@ -43,15 +43,29 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
     if (savedSettings) {
       setGitProvider(savedSettings.gitProvider || 'github');
       
-      // GitHub settings
-      setPat(savedSettings.pat || '');
-      setOwner(savedSettings.owner || '');
-      setRepo(savedSettings.repo || '');
+      // Load GitHub settings from new structure
+      if (savedSettings.github) {
+        setPat(savedSettings.github.pat || '');
+        setOwner(savedSettings.github.owner || '');
+        setRepo(savedSettings.github.repo || '');
+      } else {
+        // Fallback to legacy direct fields (migration will handle this)
+        setPat(savedSettings.pat || '');
+        setOwner(savedSettings.owner || '');
+        setRepo(savedSettings.repo || '');
+      }
       
-      // GitLab settings
-      setInstanceUrl(savedSettings.instanceUrl || 'https://gitlab.com');
-      setProjectId(savedSettings.projectId || '');
-      setToken(savedSettings.token || '');
+      // Load GitLab settings from new structure
+      if (savedSettings.gitlab) {
+        setInstanceUrl(savedSettings.gitlab.instanceUrl || 'https://gitlab.com');
+        setProjectId(savedSettings.gitlab.projectId || '');
+        setToken(savedSettings.gitlab.token || '');
+      } else {
+        // Fallback to legacy direct fields (migration will handle this)
+        setInstanceUrl(savedSettings.instanceUrl || 'https://gitlab.com');
+        setProjectId(savedSettings.projectId || '');
+        setToken(savedSettings.token || '');
+      }
       
       // Common settings
       setFolder(savedSettings.folder || 'todos');
@@ -118,8 +132,10 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
     }
   };
 
-  // Helper function to build provider-specific settings
+  // Helper function to build dual-configuration settings
   const buildProviderSpecificSettings = () => {
+    const savedSettings = loadSettings();
+    
     return {
       gitProvider,
       folder, 
@@ -127,24 +143,19 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
       aiProvider, 
       openRouterApiKey, 
       aiModel,
-      // Only include provider-specific fields based on current provider
-      ...(gitProvider === 'github' ? {
-        pat, 
-        owner, 
+      // Preserve both provider configurations
+      github: {
+        pat,
+        owner,
         repo,
-        // Clear GitLab fields
-        instanceUrl: '',
-        projectId: '',
-        token: ''
-      } : {
+        branch: savedSettings?.github?.branch || 'main'
+      },
+      gitlab: {
         instanceUrl,
         projectId,
         token,
-        // Clear GitHub fields
-        pat: '',
-        owner: '',
-        repo: ''
-      })
+        branch: savedSettings?.gitlab?.branch || 'main'
+      }
     };
   };
 
@@ -180,21 +191,7 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
 
   const handleProviderChange = (newProvider: 'github' | 'gitlab') => {
     setGitProvider(newProvider);
-    
-    // Clear provider-specific fields when switching to avoid conflicts
-    if (newProvider === 'github') {
-      // Clear GitLab-specific fields
-      setInstanceUrl('https://gitlab.com');
-      setProjectId('');
-      setToken('');
-    } else {
-      // Clear GitHub-specific fields
-      setPat('');
-      setOwner('');
-      setRepo('');
-    }
-    
-    logger.log(`Switched to ${newProvider} provider and cleared conflicting fields`);
+    logger.log(`Switched to ${newProvider} provider`);
   };
 
   return (

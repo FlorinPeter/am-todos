@@ -898,13 +898,12 @@ function App() {
               {/* Project Manager */}
               <ProjectManager onProjectChanged={handleProjectChanged} />
               
-              {/* Primary Action Button */}
+              {/* Primary Action Button - Hidden on mobile since it's available in sidebar */}
               <button
                 onClick={() => setShowNewTodoInput(true)}
-                className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors text-sm min-h-[32px] flex items-center justify-center"
+                className="hidden md:flex px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors text-sm min-h-[32px] items-center justify-center"
               >
-                <span className="hidden sm:inline">+ New Task</span>
-                <span className="sm:hidden">+</span>
+                + New Task
               </button>
               
               {/* Mobile Settings Button */}

@@ -51,27 +51,57 @@ const getGitSettings = () => {
   const provider = settings.gitProvider || 'github';
   
   if (provider === 'github') {
-    if (!settings.pat || !settings.owner || !settings.repo) {
-      throw new Error('GitHub settings incomplete. Please configure your Personal Access Token, owner, and repository.');
+    // Check new dual-configuration format first
+    if (settings.github) {
+      if (!settings.github.pat || !settings.github.owner || !settings.github.repo) {
+        throw new Error('GitHub settings incomplete. Please configure your Personal Access Token, owner, and repository.');
+      }
+      return {
+        provider: 'github',
+        token: settings.github.pat, // GitHub uses 'pat' field but we call it 'token' in the API
+        owner: settings.github.owner,
+        repo: settings.github.repo,
+        folder: settings.folder || 'todos'
+      };
+    } else {
+      // Fallback to legacy direct fields
+      if (!settings.pat || !settings.owner || !settings.repo) {
+        throw new Error('GitHub settings incomplete. Please configure your Personal Access Token, owner, and repository.');
+      }
+      return {
+        provider: 'github',
+        token: settings.pat, // GitHub uses 'pat' field but we call it 'token' in the API
+        owner: settings.owner,
+        repo: settings.repo,
+        folder: settings.folder || 'todos'
+      };
     }
-    return {
-      provider: 'github',
-      token: settings.pat, // GitHub uses 'pat' field but we call it 'token' in the API
-      owner: settings.owner,
-      repo: settings.repo,
-      folder: settings.folder || 'todos'
-    };
   } else if (provider === 'gitlab') {
-    if (!settings.token || !settings.instanceUrl || !settings.projectId) {
-      throw new Error('GitLab settings incomplete. Please configure your Access Token, instance URL, and project ID.');
+    // Check new dual-configuration format first
+    if (settings.gitlab) {
+      if (!settings.gitlab.token || !settings.gitlab.instanceUrl || !settings.gitlab.projectId) {
+        throw new Error('GitLab settings incomplete. Please configure your Access Token, instance URL, and project ID.');
+      }
+      return {
+        provider: 'gitlab',
+        token: settings.gitlab.token,
+        instanceUrl: settings.gitlab.instanceUrl,
+        projectId: settings.gitlab.projectId,
+        folder: settings.folder || 'todos'
+      };
+    } else {
+      // Fallback to legacy direct fields
+      if (!settings.token || !settings.instanceUrl || !settings.projectId) {
+        throw new Error('GitLab settings incomplete. Please configure your Access Token, instance URL, and project ID.');
+      }
+      return {
+        provider: 'gitlab',
+        token: settings.token,
+        instanceUrl: settings.instanceUrl,
+        projectId: settings.projectId,
+        folder: settings.folder || 'todos'
+      };
     }
-    return {
-      provider: 'gitlab',
-      token: settings.token,
-      instanceUrl: settings.instanceUrl,
-      projectId: settings.projectId,
-      folder: settings.folder || 'todos'
-    };
   } else {
     throw new Error('Invalid Git provider configured. Please select GitHub or GitLab.');
   }

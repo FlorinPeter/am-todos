@@ -1,18 +1,42 @@
 import logger from './logger';
 
-interface GitHubSettings {
+// Individual provider configurations
+interface GitHubConfig {
   pat: string;
   owner: string;
   repo: string;
+  branch?: string;
+}
+
+interface GitLabConfig {
+  instanceUrl: string;
+  projectId: string;
+  token: string;
+  branch?: string;
+}
+
+// Main settings interface supporting dual configurations
+interface GitHubSettings {
+  // Active provider
+  gitProvider: 'github' | 'gitlab';
+  
+  // Common settings
   folder: string;
-  geminiApiKey?: string;
+  
   // AI Provider settings
   aiProvider?: 'gemini' | 'openrouter';
+  geminiApiKey?: string;
   openRouterApiKey?: string;
   aiModel?: string;
-  // Git Provider settings
-  gitProvider?: 'github' | 'gitlab';
-  // GitLab-specific settings
+  
+  // Provider-specific configurations (preserved when switching)
+  github?: GitHubConfig;
+  gitlab?: GitLabConfig;
+  
+  // Legacy fields for backward compatibility (will be migrated)
+  pat?: string;
+  owner?: string;
+  repo?: string;
   instanceUrl?: string;
   projectId?: string;
   token?: string;
@@ -34,36 +58,74 @@ export const loadSettings = (): GitHubSettings | null => {
     const settingsString = localStorage.getItem(SETTINGS_KEY);
     if (!settingsString) return null;
     
-    const settings = JSON.parse(settingsString);
+    const rawSettings = JSON.parse(settingsString);
     
-    // Only add defaults for truly missing fields, not empty strings
-    if (settings.folder === undefined || settings.folder === null) {
+    // Migration: Check if this is legacy format (has direct provider fields)
+    const isLegacyFormat = rawSettings.pat || rawSettings.instanceUrl || (!rawSettings.github && !rawSettings.gitlab);
+    
+    let settings: GitHubSettings;
+    
+    if (isLegacyFormat) {
+      // Migrate from legacy format to new dual-configuration format
+      logger.log("Migrating settings from legacy format to dual-configuration format");
+      
+      settings = {
+        gitProvider: rawSettings.gitProvider || 'github',
+        folder: rawSettings.folder || 'todos',
+        aiProvider: rawSettings.aiProvider || 'gemini',
+        geminiApiKey: rawSettings.geminiApiKey || '',
+        openRouterApiKey: rawSettings.openRouterApiKey || '',
+        aiModel: rawSettings.aiModel || (rawSettings.aiProvider === 'gemini' ? 'gemini-1.5-flash' : 'anthropic/claude-3.5-sonnet')
+      };
+      
+      // Migrate GitHub configuration if present
+      if (rawSettings.pat || rawSettings.owner || rawSettings.repo) {
+        settings.github = {
+          pat: rawSettings.pat || '',
+          owner: rawSettings.owner || '',
+          repo: rawSettings.repo || '',
+          branch: rawSettings.branch || 'main'
+        };
+      }
+      
+      // Migrate GitLab configuration if present
+      if (rawSettings.instanceUrl || rawSettings.projectId || rawSettings.token) {
+        settings.gitlab = {
+          instanceUrl: rawSettings.instanceUrl || 'https://gitlab.com',
+          projectId: rawSettings.projectId || '',
+          token: rawSettings.token || '',
+          branch: rawSettings.branch || 'main'
+        };
+      }
+      
+      // Save the migrated settings immediately
+      saveSettings(settings);
+      logger.log("Settings migration completed and saved");
+    } else {
+      // Already in new format
+      settings = rawSettings;
+    }
+    
+    // Apply defaults for missing fields
+    if (!settings.folder) {
       settings.folder = 'todos';
     }
     if (!settings.aiProvider) {
       settings.aiProvider = 'gemini';
     }
     if (!settings.aiModel) {
-      settings.aiModel = settings.aiProvider === 'gemini' ? 'gemini-2.5-flash' : 'anthropic/claude-3.5-sonnet';
+      settings.aiModel = settings.aiProvider === 'gemini' ? 'gemini-1.5-flash' : 'anthropic/claude-3.5-sonnet';
     }
     if (!settings.gitProvider) {
       settings.gitProvider = 'github';
     }
-    if (!settings.branch) {
-      settings.branch = 'main';
-    }
     
-    // Clean up provider-specific fields based on current provider
-    if (settings.gitProvider === 'github') {
-      // Clear GitLab-specific fields when using GitHub
-      settings.instanceUrl = '';
-      settings.projectId = '';
-      settings.token = '';
-    } else if (settings.gitProvider === 'gitlab') {
-      // Clear GitHub-specific fields when using GitLab
-      settings.pat = '';
-      settings.owner = '';
-      settings.repo = '';
+    // Ensure branch defaults for each provider config
+    if (settings.github && !settings.github.branch) {
+      settings.github.branch = 'main';
+    }
+    if (settings.gitlab && !settings.gitlab.branch) {
+      settings.gitlab.branch = 'main';
     }
     
     return settings;
@@ -82,19 +144,36 @@ export const encodeSettingsToUrl = (settings: GitHubSettings): string => {
     const gitProvider = settings.gitProvider || 'github';
     if (gitProvider !== 'github') compressed.g = gitProvider === 'gitlab' ? 1 : gitProvider;
     
-    // GitHub settings
+    // GitHub settings (use nested structure for dual-config)
+    if (settings.github) {
+      const gh: any = {};
+      if (settings.github.pat) gh.p = settings.github.pat;
+      if (settings.github.owner) gh.o = settings.github.owner;
+      if (settings.github.repo) gh.r = settings.github.repo;
+      if (settings.github.branch && settings.github.branch !== 'main') gh.b = settings.github.branch;
+      if (Object.keys(gh).length > 0) compressed.gh = gh;
+    }
+    
+    // GitLab settings (use nested structure for dual-config)
+    if (settings.gitlab) {
+      const gl: any = {};
+      if (settings.gitlab.instanceUrl && settings.gitlab.instanceUrl !== 'https://gitlab.com') gl.u = settings.gitlab.instanceUrl;
+      if (settings.gitlab.projectId) gl.i = settings.gitlab.projectId;
+      if (settings.gitlab.token) gl.t = settings.gitlab.token;
+      if (settings.gitlab.branch && settings.gitlab.branch !== 'main') gl.b = settings.gitlab.branch;
+      if (Object.keys(gl).length > 0) compressed.gl = gl;
+    }
+    
+    // Legacy field support for backward compatibility with old URLs
     if (settings.pat) compressed.p = settings.pat;
     if (settings.owner) compressed.o = settings.owner;
     if (settings.repo) compressed.r = settings.repo;
-    
-    // GitLab settings
     if (settings.instanceUrl) compressed.u = settings.instanceUrl;
     if (settings.projectId) compressed.i = settings.projectId;
     if (settings.token) compressed.t = settings.token;
     
     // Common settings
     if (settings.folder && settings.folder !== 'todos') compressed.f = settings.folder;
-    if (settings.branch && settings.branch !== 'main') compressed.b = settings.branch;
     
     // AI settings (a: gemini=0, openrouter=1)
     const aiProvider = settings.aiProvider || 'gemini';
@@ -117,11 +196,12 @@ export const decodeSettingsFromUrl = (configParam: string): GitHubSettings | nul
     const decoded = atob(configParam);
     const compressed = JSON.parse(decoded);
     
-    // Check if this is the old format (has full field names) or new compressed format
+    // Check format type
     const isOldFormat = 'pat' in compressed || 'gitProvider' in compressed;
+    const isDualConfigFormat = 'gh' in compressed || 'gl' in compressed;
     
-    if (isOldFormat) {
-      // Handle legacy format
+    if (isOldFormat && !isDualConfigFormat) {
+      // Handle legacy single-provider format
       const settings = compressed;
       const gitProvider = settings.gitProvider || 'github';
       
@@ -141,50 +221,58 @@ export const decodeSettingsFromUrl = (configParam: string): GitHubSettings | nul
       settings.branch = settings.branch || 'main';
       return settings;
     } else {
-      // Handle new compressed format
+      // Handle new dual-configuration format
       const settings: GitHubSettings = {
-        pat: '',
-        owner: '',
-        repo: '',
-        folder: 'todos',
-        geminiApiKey: '',
-        aiProvider: 'gemini',
-        openRouterApiKey: '',
-        aiModel: '',
-        gitProvider: 'github',
-        instanceUrl: '',
-        projectId: '',
-        token: '',
-        branch: 'main'
+        gitProvider: compressed.g === 1 ? 'gitlab' : (compressed.g || 'github'),
+        folder: compressed.f !== undefined ? compressed.f : 'todos',
+        aiProvider: compressed.a === 1 ? 'openrouter' : (compressed.a || 'gemini'),
+        geminiApiKey: compressed.gk || '',
+        openRouterApiKey: compressed.ok || '',
+        aiModel: compressed.m || ''
       };
       
-      // Decompress values
-      settings.gitProvider = compressed.g === 1 ? 'gitlab' : (compressed.g || 'github');
-      settings.pat = compressed.p || '';
-      settings.owner = compressed.o || '';
-      settings.repo = compressed.r || '';
-      settings.instanceUrl = compressed.u || '';
-      settings.projectId = compressed.i || '';
-      settings.token = compressed.t || '';
-      settings.folder = compressed.f !== undefined ? compressed.f : 'todos';
-      settings.branch = compressed.b || 'main';
-      settings.aiProvider = compressed.a === 1 ? 'openrouter' : (compressed.a || 'gemini');
-      settings.geminiApiKey = compressed.gk || '';
-      settings.openRouterApiKey = compressed.ok || '';
-      settings.aiModel = compressed.m || '';
+      // Decode GitHub configuration
+      if (compressed.gh) {
+        settings.github = {
+          pat: compressed.gh.p || '',
+          owner: compressed.gh.o || '',
+          repo: compressed.gh.r || '',
+          branch: compressed.gh.b || 'main'
+        };
+      }
       
-      // Validate required fields
-      const gitProvider = settings.gitProvider;
-      if (gitProvider === 'github') {
-        if (!settings.pat || !settings.owner || !settings.repo) {
-          logger.error("Invalid GitHub settings configuration - missing required fields");
-          return null;
-        }
-      } else if (gitProvider === 'gitlab') {
-        if (!settings.instanceUrl || !settings.projectId || !settings.token) {
-          logger.error("Invalid GitLab settings configuration - missing required fields");
-          return null;
-        }
+      // Decode GitLab configuration
+      if (compressed.gl) {
+        settings.gitlab = {
+          instanceUrl: compressed.gl.u || 'https://gitlab.com',
+          projectId: compressed.gl.i || '',
+          token: compressed.gl.t || '',
+          branch: compressed.gl.b || 'main'
+        };
+      }
+      
+      // Support legacy direct fields for backward compatibility
+      if (compressed.p || compressed.o || compressed.r) {
+        if (!settings.github) settings.github = { pat: '', owner: '', repo: '', branch: 'main' };
+        settings.github.pat = compressed.p || settings.github.pat;
+        settings.github.owner = compressed.o || settings.github.owner;
+        settings.github.repo = compressed.r || settings.github.repo;
+      }
+      
+      if (compressed.u || compressed.i || compressed.t) {
+        if (!settings.gitlab) settings.gitlab = { instanceUrl: 'https://gitlab.com', projectId: '', token: '', branch: 'main' };
+        settings.gitlab.instanceUrl = compressed.u || settings.gitlab.instanceUrl;
+        settings.gitlab.projectId = compressed.i || settings.gitlab.projectId;
+        settings.gitlab.token = compressed.t || settings.gitlab.token;
+      }
+      
+      // Validate that at least one provider configuration is complete
+      const hasValidGitHub = settings.github && settings.github.pat && settings.github.owner && settings.github.repo;
+      const hasValidGitLab = settings.gitlab && settings.gitlab.instanceUrl && settings.gitlab.projectId && settings.gitlab.token;
+      
+      if (!hasValidGitHub && !hasValidGitLab) {
+        logger.error("Invalid configuration - no complete provider settings found");
+        return null;
       }
       
       return settings;
