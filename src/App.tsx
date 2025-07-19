@@ -986,8 +986,49 @@ function App() {
           <TodoSidebar
             todos={todos}
             selectedTodoId={selectedTodoId}
-            onTodoSelect={(id) => {
-              setSelectedTodoId(id);
+            onTodoSelect={async (id) => {
+              // Check if this is a search result by looking for it in search results
+              const searchResult = searchResults.find(result => result.sha === id);
+              
+              if (searchResult) {
+                // This is a search result - need to fetch the full todo content
+                try {
+                  logger.log('Loading search result todo:', searchResult.path);
+                  
+                  // Check if this todo is already in our todos array
+                  const existingTodo = todos.find(todo => todo.path === searchResult.path);
+                  if (existingTodo) {
+                    // Todo already exists, just select it
+                    setSelectedTodoId(existingTodo.id);
+                  } else {
+                    // Need to fetch the full todo content
+                    const metadata = await getFileMetadata(searchResult.path);
+                    const content = await getFileContent(searchResult.path);
+                    const frontmatter = parseMarkdownWithFrontmatter(content);
+                    
+                    // Create a full todo object
+                    const fullTodo = {
+                      id: metadata.sha,
+                      title: frontmatter.title || searchResult.name.replace('.md', ''),
+                      content: frontmatter.content,
+                      frontmatter: frontmatter.frontmatter,
+                      path: searchResult.path,
+                      sha: metadata.sha
+                    };
+                    
+                    // Add to todos array and select it
+                    setTodos(prev => [...prev, fullTodo]);
+                    setSelectedTodoId(fullTodo.id);
+                  }
+                } catch (error) {
+                  logger.error('Error loading search result todo:', error);
+                  alert('Failed to load selected todo: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                }
+              } else {
+                // Regular todo selection
+                setSelectedTodoId(id);
+              }
+              
               setSidebarOpen(false); // Close sidebar on mobile after selection
             }}
             onNewTodo={() => setShowNewTodoInput(true)}
