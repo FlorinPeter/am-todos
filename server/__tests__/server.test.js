@@ -823,4 +823,260 @@ describe('Server API Tests', () => {
         });
     });
   });
+
+  describe('Search Endpoint', () => {
+    it('should handle GitHub search rate limit errors', async () => {
+      const mockResponse = {
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        text: async () => 'API rate limit exceeded'
+      };
+
+      global.fetch.mockResolvedValueOnce(mockResponse);
+
+      await request(app)
+        .post('/api/search')
+        .send({
+          query: 'test',
+          scope: 'folder',
+          folder: 'todos',
+          provider: 'github',
+          owner: 'testuser',
+          repo: 'testrepo',
+          token: 'test-token'
+        })
+        .expect(429)
+        .expect((res) => {
+          expect(res.body.error).toBe('GitHub search API rate limit exceeded. Please try again in a few minutes.');
+        });
+    });
+
+    it('should handle GitHub search with invalid query', async () => {
+      const mockResponse = {
+        ok: false,
+        status: 422,
+        statusText: 'Unprocessable Entity',
+        text: async () => 'Validation Failed'
+      };
+
+      global.fetch.mockResolvedValueOnce(mockResponse);
+
+      await request(app)
+        .post('/api/search')
+        .send({
+          query: '',
+          scope: 'folder',
+          folder: 'todos',
+          provider: 'github',
+          owner: 'testuser',
+          repo: 'testrepo',
+          token: 'test-token'
+        })
+        .expect(400)
+        .expect((res) => {
+          expect(res.body.error).toBe('Missing or empty search query');
+        });
+    });
+
+    it('should handle successful GitHub search', async () => {
+      const mockResponse = {
+        ok: true,
+        json: async () => ({
+          items: [{
+            path: 'todos/test.md',
+            name: 'test.md',
+            sha: 'abc123',
+            html_url: 'https://github.com/test/repo/blob/main/todos/test.md',
+            repository: { full_name: 'test/repo' },
+            text_matches: []
+          }]
+        })
+      };
+
+      global.fetch.mockResolvedValueOnce(mockResponse);
+
+      await request(app)
+        .post('/api/search')
+        .send({
+          query: 'test',
+          scope: 'folder',
+          folder: 'todos',
+          provider: 'github',
+          owner: 'testuser',
+          repo: 'testrepo',
+          token: 'test-token'
+        })
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.query).toBe('test');
+          expect(res.body.scope).toBe('folder');
+          expect(res.body.items).toHaveLength(1);
+          expect(res.body.items[0].name).toBe('test.md');
+        });
+    });
+
+    it('should handle GitLab search rate limit errors', async () => {
+      const mockResponse = {
+        ok: false,
+        status: 429,
+        statusText: 'Too Many Requests',
+        text: async () => 'Rate limit exceeded'
+      };
+
+      global.fetch.mockResolvedValueOnce(mockResponse);
+
+      await request(app)
+        .post('/api/search')
+        .send({
+          query: 'test',
+          scope: 'folder',
+          folder: 'todos',
+          provider: 'gitlab',
+          instanceUrl: 'https://gitlab.com',
+          projectId: '12345',
+          token: 'glpat-test-token'
+        })
+        .expect(429)
+        .expect((res) => {
+          expect(res.body.error).toBe('GitLab search API rate limit exceeded. Please try again in a few minutes.');
+        });
+    });
+
+    it('should handle GitLab authentication errors', async () => {
+      const mockResponse = {
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        text: async () => 'Invalid token'
+      };
+
+      global.fetch.mockResolvedValueOnce(mockResponse);
+
+      await request(app)
+        .post('/api/search')
+        .send({
+          query: 'test',
+          scope: 'folder',
+          folder: 'todos',
+          provider: 'gitlab',
+          instanceUrl: 'https://gitlab.com',
+          projectId: '12345',
+          token: 'glpat-test-token'
+        })
+        .expect(401)
+        .expect((res) => {
+          expect(res.body.error).toBe('GitLab authentication failed. Please check your access token.');
+        });
+    });
+
+    it('should handle GitLab permission errors', async () => {
+      const mockResponse = {
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        text: async () => 'Access denied'
+      };
+
+      global.fetch.mockResolvedValueOnce(mockResponse);
+
+      await request(app)
+        .post('/api/search')
+        .send({
+          query: 'test',
+          scope: 'folder',
+          folder: 'todos',
+          provider: 'gitlab',
+          instanceUrl: 'https://gitlab.com',
+          projectId: '12345',
+          token: 'glpat-test-token'
+        })
+        .expect(403)
+        .expect((res) => {
+          expect(res.body.error).toBe('GitLab access denied. Please check your permissions.');
+        });
+    });
+
+    it('should handle successful GitLab search', async () => {
+      const mockResponse = {
+        ok: true,
+        json: async () => ([{
+          path: 'todos/test.md',
+          filename: 'test.md', // GitLab uses 'filename'
+          ref: 'def456',        // GitLab uses 'ref'
+        }])
+      };
+
+      global.fetch.mockResolvedValueOnce(mockResponse);
+
+      await request(app)
+        .post('/api/search')
+        .send({
+          query: 'test',
+          scope: 'folder',
+          folder: 'todos',
+          provider: 'gitlab',
+          instanceUrl: 'https://gitlab.com',
+          projectId: '12345',
+          token: 'glpat-test-token'
+        })
+        .expect(200)
+        .expect((res) => {
+          expect(res.body.query).toBe('test');
+          expect(res.body.scope).toBe('folder');
+          expect(res.body.items).toHaveLength(1);
+          expect(res.body.items[0].name).toBe('test.md');  // Normalized from 'filename'
+          expect(res.body.items[0].sha).toBe('def456');    // Normalized from 'ref'
+        });
+    });
+
+    it('should validate missing credentials', async () => {
+      await request(app)
+        .post('/api/search')
+        .send({
+          query: 'test',
+          scope: 'folder',
+          provider: 'github'
+          // Missing owner, repo, token
+        })
+        .expect(400)
+        .expect((res) => {
+          expect(res.body.error).toBe('Missing GitHub credentials: owner, repo, token');
+        });
+    });
+
+    it('should validate provider', async () => {
+      await request(app)
+        .post('/api/search')
+        .send({
+          query: 'test',
+          scope: 'folder'
+          // Missing provider
+        })
+        .expect(400)
+        .expect((res) => {
+          expect(res.body.error).toBe('Missing provider (github or gitlab)');
+        });
+    });
+
+    it('should handle network errors gracefully', async () => {
+      global.fetch.mockRejectedValueOnce(new Error('Network error'));
+
+      await request(app)
+        .post('/api/search')
+        .send({
+          query: 'test',
+          scope: 'folder',
+          folder: 'todos',
+          provider: 'github',
+          owner: 'testuser',
+          repo: 'testrepo',
+          token: 'test-token'
+        })
+        .expect(500)
+        .expect((res) => {
+          expect(res.body.error).toContain('Network error');
+        });
+    });
+  });
 });

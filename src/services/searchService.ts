@@ -14,14 +14,15 @@ const getApiUrl = () => {
 };
 
 // Search result interface
+// NOTE: Backend normalizes GitHub and GitLab responses to consistent format
 export interface SearchResult {
   path: string;
-  name: string;
-  sha: string;
+  name: string;         // Normalized: GitHub 'name' / GitLab 'filename' -> 'name'
+  sha: string;          // Normalized: GitHub 'sha' / GitLab 'ref' -> 'sha'
   url: string;
   repository: string;
   text_matches: any[];
-  priority?: number; // Enhanced search results now include priority from frontmatter
+  priority?: number;    // Enhanced search results now include priority from frontmatter
 }
 
 export interface SearchResponse {
@@ -148,21 +149,31 @@ export const searchTodos = async (
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      logger.error('Search API error response:', errorText);
+      let errorMessage = `Search API error: ${response.statusText}`;
       
-      // Handle specific error cases
-      if (response.status === 429) {
-        throw new Error('Search API rate limit exceeded. Please try again in a few minutes.');
-      } else if (response.status === 401) {
-        throw new Error('Authentication failed. Please check your access token in settings.');
-      } else if (response.status === 403) {
-        throw new Error('Access denied. Please check your repository permissions.');
-      } else if (response.status === 400) {
-        throw new Error('Invalid search query. Please check your search terms.');
+      try {
+        // Get response text first, then try to parse as JSON
+        const responseText = await response.text();
+        logger.error('Search API error response:', responseText);
+        
+        try {
+          // Try to parse as JSON to get structured error message
+          const errorData = JSON.parse(responseText);
+          if (errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (jsonError) {
+          // If JSON parsing fails, use the raw text
+          if (responseText) {
+            errorMessage = responseText;
+          }
+        }
+      } catch (responseError) {
+        // If reading response fails, use default message
+        logger.error('Failed to read error response:', responseError);
       }
       
-      throw new Error(`Search API error: ${response.statusText}`);
+      throw new Error(errorMessage);
     }
 
     const data: SearchResponse = await response.json();

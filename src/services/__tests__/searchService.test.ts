@@ -321,13 +321,13 @@ describe('Search Service', () => {
         ok: false,
         status: 429,
         statusText: 'Too Many Requests',
-        text: vi.fn().mockResolvedValue('Rate limit exceeded')
+        text: vi.fn().mockResolvedValue('{"error":"GitHub search API rate limit exceeded. Please try again in a few minutes."}')
       };
 
       vi.mocked(fetch).mockResolvedValue(mockResponse as any);
 
       await expect(searchTodos('test')).rejects.toThrow(
-        'Search API rate limit exceeded. Please try again in a few minutes.'
+        'GitHub search API rate limit exceeded. Please try again in a few minutes.'
       );
     });
 
@@ -346,7 +346,7 @@ describe('Search Service', () => {
         ok: false,
         status: 401,
         statusText: 'Unauthorized',
-        text: vi.fn().mockResolvedValue('Invalid token')
+        text: vi.fn().mockResolvedValue('{"error":"Authentication failed. Please check your access token in settings."}')
       };
 
       vi.mocked(fetch).mockResolvedValue(mockResponse as any);
@@ -371,7 +371,7 @@ describe('Search Service', () => {
         ok: false,
         status: 403,
         statusText: 'Forbidden',
-        text: vi.fn().mockResolvedValue('Access denied')
+        text: vi.fn().mockResolvedValue('{"error":"Access denied. Please check your repository permissions."}')
       };
 
       vi.mocked(fetch).mockResolvedValue(mockResponse as any);
@@ -396,7 +396,7 @@ describe('Search Service', () => {
         ok: false,
         status: 400,
         statusText: 'Bad Request',
-        text: vi.fn().mockResolvedValue('Invalid query')
+        text: vi.fn().mockResolvedValue('{"error":"Invalid search query. Please check your search terms."}')
       };
 
       vi.mocked(fetch).mockResolvedValue(mockResponse as any);
@@ -421,7 +421,7 @@ describe('Search Service', () => {
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
-        text: vi.fn().mockResolvedValue('Server error')
+        text: vi.fn().mockResolvedValue('{"error":"Search API error: Internal Server Error"}')
       };
 
       vi.mocked(fetch).mockResolvedValue(mockResponse as any);
