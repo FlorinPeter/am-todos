@@ -6,7 +6,6 @@ import TodoSidebar from '../TodoSidebar';
 
 // Mock search service
 vi.mock('../../services/searchService', () => ({
-  searchTodosDebounced: vi.fn(),
   filterTodosLocally: vi.fn((todos, query) => 
     todos.filter(todo => todo.frontmatter.title.toLowerCase().includes(query.toLowerCase()))
   ),
@@ -62,14 +61,12 @@ const mockSearchResults = [
 ];
 
 describe('TodoSidebar - Enhanced Coverage Tests', () => {
-  let mockSearchTodosDebounced: any;
   let mockFilterTodosLocally: any;
 
   beforeEach(async () => {
     vi.clearAllMocks();
     
     // Set up mocks
-    mockSearchTodosDebounced = vi.mocked((await import('../../services/searchService')).searchTodosDebounced);
     mockFilterTodosLocally = vi.mocked((await import('../../services/searchService')).filterTodosLocally);
     
     // Default return values
