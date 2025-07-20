@@ -352,12 +352,6 @@ npm run test:coverage # Full coverage report (same as CI)
 npm run test:all-fast # Fast test execution without coverage (24% faster)
 ```
 
-**Performance Optimized Testing:**
-- `test:all-fast` uses `happy-dom` (2-3x faster DOM operations than jsdom)
-- Optimized for single-core systems with minimal output (dot reporter)
-- **24% faster execution**: ~107s vs ~140s for coverage
-- Same test scope (74 files, 996 tests) without coverage instrumentation overhead
-
 #### Server Tests (Backend API)
 ```bash
 # Server tests (excluded from main suite)
