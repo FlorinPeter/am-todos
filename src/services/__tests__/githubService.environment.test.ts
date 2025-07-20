@@ -32,95 +32,70 @@ describe('githubService - Simple Coverage', () => {
     vi.resetModules();
   });
 
-  describe('environment detection', () => {
-    it('should detect Cloud Run environment - run.app', async () => {
+  describe('relative URL architecture', () => {
+    it('should use relative URLs for all environments', async () => {
       mockLocation.hostname = 'myapp-123.run.app';
       mockLocation.port = '';
       
       await import('../githubService');
       
       expect(mockLogger.log).toHaveBeenCalledWith(
-        'Environment detection:',
-        expect.objectContaining({
-          'isCloudRun': true,
-          'BACKEND_URL': ''
-        })
+        'GitHub Service using relative URLs for all environments'
       );
     });
 
-    it('should detect Cloud Run environment - run.googleapis.com', async () => {
+    it('should use relative URLs for Cloud Run', async () => {
       mockLocation.hostname = 'service-123.run.googleapis.com';
       mockLocation.port = '';
       
       await import('../githubService');
       
       expect(mockLogger.log).toHaveBeenCalledWith(
-        'Environment detection:',
-        expect.objectContaining({
-          'isCloudRun': true,
-          'BACKEND_URL': ''
-        })
+        'GitHub Service using relative URLs for all environments'
       );
     });
 
-    it('should detect development environment with localhost', async () => {
+    it('should use relative URLs for localhost', async () => {
       mockLocation.hostname = 'localhost';
       mockLocation.port = '3000';
       
       await import('../githubService');
       
       expect(mockLogger.log).toHaveBeenCalledWith(
-        'Environment detection:',
-        expect.objectContaining({
-          'isDevelopment': true,
-          'BACKEND_URL': 'http://localhost:3001'
-        })
+        'GitHub Service using relative URLs for all environments'
       );
     });
 
-    it('should detect development environment with IP address', async () => {
+    it('should use relative URLs for IP addresses', async () => {
       mockLocation.hostname = '159.65.120.9';
       mockLocation.port = '3000';
       
       await import('../githubService');
       
       expect(mockLogger.log).toHaveBeenCalledWith(
-        'Environment detection:',
-        expect.objectContaining({
-          'isDevelopment': true,
-          'BACKEND_URL': 'http://159.65.120.9:3001'
-        })
+        'GitHub Service using relative URLs for all environments'
       );
     });
 
-    it('should use relative URLs for production environment', async () => {
+    it('should use relative URLs for production', async () => {
       mockLocation.hostname = 'myapp.com';
       mockLocation.port = '443';
       
       await import('../githubService');
       
       expect(mockLogger.log).toHaveBeenCalledWith(
-        'Environment detection:',
-        expect.objectContaining({
-          'isCloudRun': false,
-          'isDevelopment': false,
-          'BACKEND_URL': ''
-        })
+        'GitHub Service using relative URLs for all environments'
       );
     });
 
-    it('should detect development with port 3000 regardless of hostname', async () => {
+    it('should use relative URLs for custom domains', async () => {
       mockLocation.hostname = 'custom.domain.com';
       mockLocation.port = '3000';
       
       await import('../githubService');
       
       expect(mockLogger.log).toHaveBeenCalledWith(
-        'Environment detection:',
-        expect.objectContaining({
-          'isDevelopment': true,
-          'BACKEND_URL': 'http://custom.domain.com:3001'
-        })
+        'GitHub Service using relative URLs for all environments'
       );
     });
   });
@@ -202,15 +177,15 @@ describe('githubService - Simple Coverage', () => {
   });
 
   describe('edge cases and error handling', () => {
-    it('should handle environment variables correctly', async () => {
+    it('should consistently use relative URLs', async () => {
       // Test various combinations of hostname and port
       const testCases = [
-        { hostname: 'app.run.app', port: '', expectedCloudRun: true, expectedDev: false },
-        { hostname: 'service.run.googleapis.com', port: '8080', expectedCloudRun: true, expectedDev: false },
-        { hostname: 'localhost', port: '3000', expectedCloudRun: false, expectedDev: true },
-        { hostname: '127.0.0.1', port: '3000', expectedCloudRun: false, expectedDev: true },
-        { hostname: '159.65.120.9', port: '8080', expectedCloudRun: false, expectedDev: true },
-        { hostname: 'example.com', port: '80', expectedCloudRun: false, expectedDev: false },
+        { hostname: 'app.run.app', port: '' },
+        { hostname: 'service.run.googleapis.com', port: '8080' },
+        { hostname: 'localhost', port: '3000' },
+        { hostname: '127.0.0.1', port: '3000' },
+        { hostname: '159.65.120.9', port: '8080' },
+        { hostname: 'example.com', port: '80' },
       ];
 
       for (const testCase of testCases) {
@@ -223,11 +198,7 @@ describe('githubService - Simple Coverage', () => {
         await import('../githubService');
         
         expect(mockLogger.log).toHaveBeenCalledWith(
-          'Environment detection:',
-          expect.objectContaining({
-            'isCloudRun': testCase.expectedCloudRun,
-            'isDevelopment': testCase.expectedDev,
-          })
+          'GitHub Service using relative URLs for all environments'
         );
       }
     });
@@ -239,31 +210,18 @@ describe('githubService - Simple Coverage', () => {
       await import('../githubService');
       
       expect(mockLogger.log).toHaveBeenCalledWith(
-        'Environment detection:',
-        expect.objectContaining({
-          'isCloudRun': false,
-          'isDevelopment': false,
-          'BACKEND_URL': ''
-        })
+        'GitHub Service using relative URLs for all environments'
       );
     });
 
-    it('should log all environment detection details', async () => {
+    it('should log consistent message regardless of environment', async () => {
       mockLocation.hostname = 'test.example.com';
       mockLocation.port = '8080';
       
       await import('../githubService');
       
       expect(mockLogger.log).toHaveBeenCalledWith(
-        'Environment detection:',
-        expect.objectContaining({
-          'process.env.NODE_ENV': expect.any(String),
-          'window.location.hostname': 'test.example.com',
-          'window.location.port': '8080',
-          'isCloudRun': expect.any(Boolean),
-          'isDevelopment': expect.any(Boolean),
-          'BACKEND_URL': expect.any(String)
-        })
+        'GitHub Service using relative URLs for all environments'
       );
     });
   });

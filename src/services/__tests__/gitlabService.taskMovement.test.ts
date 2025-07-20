@@ -80,7 +80,7 @@ describe('gitlabService - Focused Coverage', () => {
 
       // Should make the correct API call (line 295)
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3001/api/gitlab',
+        '/api/gitlab',
         {
           method: 'POST',
           headers: {
@@ -173,7 +173,7 @@ describe('gitlabService - Focused Coverage', () => {
 
       // Should make the correct API call (line 304)
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3001/api/gitlab',
+        '/api/gitlab',
         {
           method: 'POST',
           headers: {
@@ -275,7 +275,7 @@ describe('gitlabService - Focused Coverage', () => {
       const result = await getFileAtCommit(settings, 'internal/file.md', 'commit-sha');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3001/api/gitlab',
+        '/api/gitlab',
         expect.objectContaining({
           body: expect.stringContaining('"instanceUrl":"https://gitlab.mycompany.com"')
         })

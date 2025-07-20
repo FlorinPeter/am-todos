@@ -88,7 +88,7 @@ describe('githubService - Focused Coverage', () => {
       const result = await getFileAtCommit('testtoken', 'testowner', 'testrepo', 'test/file.md', 'abc123');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3001/api/file-at-commit',
+        '/api/file-at-commit',
         {
           method: 'POST',
           headers: {
@@ -150,7 +150,7 @@ describe('githubService - Focused Coverage', () => {
       await getFileAtCommit('testtoken', 'testowner', 'testrepo', 'test/file.md', 'abc123');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://159.65.120.9:3001/api/file-at-commit',
+        '/api/file-at-commit',
         expect.any(Object)
       );
     });
@@ -171,11 +171,11 @@ describe('githubService - Focused Coverage', () => {
   });
 
   describe('edge cases and environment variations', () => {
-    it('should handle different hostname scenarios for getFileAtCommit', async () => {
+    it('should use relative URLs for all environments', async () => {
       const testCases = [
-        { hostname: 'localhost', port: '3000', expectedUrl: 'http://localhost:3001/api/file-at-commit' },
-        { hostname: '127.0.0.1', port: '3000', expectedUrl: 'http://127.0.0.1:3001/api/file-at-commit' },
-        { hostname: 'production.example.com', port: '80', expectedUrl: '/api/file-at-commit' },
+        { hostname: 'localhost', port: '3000' },
+        { hostname: '127.0.0.1', port: '3000' },
+        { hostname: 'production.example.com', port: '80' },
       ];
 
       for (const testCase of testCases) {
@@ -196,7 +196,7 @@ describe('githubService - Focused Coverage', () => {
         await getFileAtCommit('token', 'owner', 'repo', 'path', 'sha');
         
         expect(mockFetch).toHaveBeenCalledWith(
-          testCase.expectedUrl,
+          '/api/file-at-commit',
           expect.any(Object)
         );
       }
