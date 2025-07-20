@@ -292,23 +292,15 @@ describe('ProjectManager', () => {
 
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
 
-    // Wait for folders to load
+    // Wait for folders to load - should have both mobile and desktop select elements
     await waitFor(() => {
-      expect(screen.getByText('Switch to:')).toBeInTheDocument();
+      const selects = screen.getAllByDisplayValue('todos');
+      expect(selects).toHaveLength(2); // mobile + desktop
     });
 
-    // Should show current project
-    expect(screen.getByText(/Current Project:/)).toBeInTheDocument();
-    expect(screen.getByText('todos')).toBeInTheDocument();
-
-    // Should show switcher select with all options
-    const select = screen.getByDisplayValue('todos');
-    expect(select).toBeInTheDocument();
-    expect(select.closest('select')).not.toBeDisabled();
-
-    // Check that all folders are available as options
-    expect(screen.getByText('work-tasks')).toBeInTheDocument();
-    expect(screen.getByText('personal')).toBeInTheDocument();
+    // Should show available options in selects
+    expect(screen.getAllByText('work-tasks')).toHaveLength(2); // mobile + desktop
+    expect(screen.getAllByText('personal')).toHaveLength(2); // mobile + desktop
   });
 
   it('hides project switcher when only one folder exists', async () => {
@@ -328,12 +320,11 @@ describe('ProjectManager', () => {
       expect(mockListProjectFolders).toHaveBeenCalled();
     });
 
-    // Should still show current project
-    expect(screen.getByText(/Current Project:/)).toBeInTheDocument();
-    expect(screen.getByText('todos')).toBeInTheDocument();
-
-    // Should NOT show switcher when only one folder
-    expect(screen.queryByText('Switch to:')).not.toBeInTheDocument();
+    // Should show current project name but no select dropdowns when only one folder
+    expect(screen.getAllByText('todos')).toHaveLength(2); // mobile + desktop display
+    
+    // Should NOT show select dropdowns when only one folder
+    expect(screen.queryByDisplayValue('todos')).not.toBeInTheDocument();
   });
 
   it('disables project switcher during loading', async () => {
@@ -354,16 +345,18 @@ describe('ProjectManager', () => {
 
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
 
-    // Initially should not show switcher (loading state)
-    expect(screen.queryByText('Switch to:')).not.toBeInTheDocument();
+    // Initially should not show select dropdowns during loading
+    expect(screen.queryByDisplayValue('todos')).not.toBeInTheDocument();
 
     // Resolve with multiple folders
     resolvePromise!(['todos', 'work-tasks']);
 
-    // Wait for switcher to appear and be enabled
+    // Wait for selects to appear and be enabled
     await waitFor(() => {
-      const select = screen.getByDisplayValue('todos');
-      expect(select).not.toBeDisabled();
+      const selects = screen.getAllByDisplayValue('todos');
+      expect(selects).toHaveLength(2); // mobile + desktop
+      expect(selects[0]).not.toBeDisabled();
+      expect(selects[1]).not.toBeDisabled();
     });
   });
 
@@ -388,8 +381,12 @@ describe('ProjectManager', () => {
       expect(screen.getByText('Switch to:')).toBeInTheDocument();
     });
 
+    // Find the modal select (which should be the 3rd one: mobile + desktop + modal)
+    const allSelects = screen.getAllByDisplayValue('todos');
+    expect(allSelects).toHaveLength(3); // mobile + desktop + modal
+    const modalSelect = allSelects[2]; // The modal select should be the last one
+
     // Switch project in modal - should close modal
-    const modalSelect = screen.getByDisplayValue('todos');
     fireEvent.change(modalSelect, { target: { value: 'work-tasks' } });
 
     // Modal should close after switching
