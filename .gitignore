@@ -61,6 +61,9 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+fix-*.js
+*.backup
+*.orig
 
 # Google Cloud credentials (if accidentally created)
 *.json
