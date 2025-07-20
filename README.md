@@ -18,6 +18,7 @@ An AI-powered todo application that merges the simplicity of plain text markdown
 
 - **🤖 AI-Powered Task Generation**: Transform high-level goals into detailed actionable checklists
 - **📝 Git-Native Storage**: Tasks stored as markdown files in your GitHub/GitLab repository with full version control
+- **🔍 Intelligent Search**: Real-time search across tasks with folder/repo scope control and keyboard shortcuts
 - **📁 Multi-Folder Support**: Organize tasks in different folders for multiple projects
 - **💬 AI Chat Assistant**: Natural language commands to modify and enhance your tasks
 - **📱 Mobile-First Design**: Responsive interface with hamburger menu and touch-friendly controls
@@ -153,10 +154,11 @@ For local development and customization:
 ```
 
 ### Data Flow
-1. **User Input** → High-level goal or task modification
+1. **User Input** → High-level goal, task modification, or search query
 2. **AI Processing** → Backend calls Gemini AI for intelligent planning
-3. **GitHub Storage** → Generated tasks saved as markdown files
-4. **Real-Time UI** → Frontend displays interactive markdown with live updates
+3. **GitHub/GitLab Storage** → Generated tasks saved as markdown files
+4. **Search & Retrieval** → Real-time search across tasks with scope control
+5. **Real-Time UI** → Frontend displays interactive markdown with live updates
 
 ## 📁 Project Structure
 
@@ -165,11 +167,12 @@ am-todos/
 ├── src/
 │   ├── components/          # React components
 │   │   ├── TodoEditor.tsx   # Main task editor
-│   │   ├── TodoSidebar.tsx  # Task list navigation
+│   │   ├── TodoSidebar.tsx  # Task list navigation with search
 │   │   ├── AIChat.tsx       # AI chat interface
 │   │   └── ...
 │   ├── services/            # API integrations
 │   │   ├── githubService.ts # GitHub API client
+│   │   ├── searchService.ts # Real-time search functionality
 │   │   └── aiService.ts     # Gemini AI client
 │   └── utils/               # Helper functions
 ├── server/                  # Express backend
@@ -230,8 +233,9 @@ npm run test:basic     # Run feature validation tests
 ### Quick Start Example
 1. **Create task**: "Plan weekend camping trip"
 2. **AI generates**: Detailed checklist with gear, reservations, route planning
-3. **Organize**: Use checkboxes to track progress  
-4. **Archive**: Move completed tasks to archive when done
+3. **Search & organize**: Use Ctrl/Cmd+F to search tasks, toggle folder/repo scope
+4. **Track progress**: Use checkboxes to track completion
+5. **Archive**: Move completed tasks to archive when done
 
 ## 📋 Releases
 

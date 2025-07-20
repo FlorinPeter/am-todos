@@ -78,7 +78,72 @@ class GitLabService {
 ```
 
 
-### **2. Multi-Folder Support for Task Organization** 
+### **2. Intelligent Search Functionality**
+**Status:** ✅ **FULLY FUNCTIONAL**
+
+**Evidence:**
+- **Backend Search API:** `server/server.js` lines 345+ - Complete `/api/search` endpoint with GitHub/GitLab integration
+- **Search Service:** `src/services/searchService.ts` - Comprehensive search functionality with debouncing and error handling
+- **Frontend Integration:** `src/components/TodoSidebar.tsx` lines 51-97, 188-253 - Integrated search UI with keyboard shortcuts
+- **App State Management:** `src/App.tsx` lines 50-110 - Search state management and result coordination
+- **Multi-Provider Support:** Works identically with both GitHub and GitLab repositories
+- **Test Coverage:** `src/services/__tests__/searchService.test.ts` - Comprehensive test suite for search functionality
+
+**Key Features:**
+- **Real-Time Search**: Debounced search with 300ms delay for optimal performance
+- **Dual Search Scope**: Toggle between "This Folder" and "Entire Repo" search modes
+- **Keyboard Shortcuts**: Ctrl/Cmd+F to focus search input, Escape to clear search
+- **Visual Feedback**: Loading states, error handling with retry functionality, and result counters
+- **Smart Results Display**: Shows project names for repo-wide searches, preserves priority information
+- **GitHub/GitLab Integration**: Uses provider-specific search APIs with normalized response format
+- **Error Recovery**: Comprehensive error states with user-friendly messaging and retry options
+- **Performance Optimized**: Client-side debouncing, result caching, and efficient API calls
+
+**Code References:**
+```typescript
+// src/services/searchService.ts - Core search functionality
+export const searchTodos = async (
+  query: string, 
+  scope: 'folder' | 'repo' = 'folder'
+): Promise<SearchResponse> => {
+  // Implementation with GitHub/GitLab API integration
+}
+
+export const searchTodosDebounced = (
+  query: string,
+  scope: 'folder' | 'repo' = 'folder',
+  callback: (results: SearchResponse | null, error: string | null) => void,
+  delay: number = 300
+): void => {
+  // Debounced search implementation for real-time UX
+}
+
+// src/components/TodoSidebar.tsx - Search UI integration
+const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const query = e.target.value;
+  setLocalSearchQuery(query);
+  onSearchQueryChange?.(query);
+}, [onSearchQueryChange]);
+
+// Keyboard shortcuts for search
+useEffect(() => {
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
+      event.preventDefault();
+      searchInputRef.current?.focus();
+    }
+  };
+  document.addEventListener('keydown', handleKeyDown);
+}, []);
+
+// server/server.js - Backend search endpoint
+app.post('/api/search', async (req, res) => {
+  const { query, scope = 'folder', folder = 'todos', provider, ...credentials } = req.body;
+  // GitHub/GitLab search API implementation with security validation
+});
+```
+
+### **3. Multi-Folder Support for Task Organization** 
 **Status:** ✅ **FULLY FUNCTIONAL** 
 
 **Evidence:**
@@ -140,7 +205,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
 ```
 
 
-### **2. AI-Powered Task Generation**
+### **4. AI-Powered Task Generation**
 **Status:** ✅ **FULLY FUNCTIONAL**
 
 **Evidence:**
@@ -159,7 +224,7 @@ export const generateInitialPlan = async (goal: string): Promise<string> => {
 }
 ```
 
-### **2. GitHub Integration & CRUD Operations**
+### **5. GitHub Integration & CRUD Operations**
 **Status:** ✅ **FULLY FUNCTIONAL**
 
 **Evidence:**
@@ -181,7 +246,7 @@ export const createOrUpdateTodo = async (
   // ... implementation
 ```
 
-### **3. Interactive Markdown Editor with Progress Tracking**
+### **6. Interactive Markdown Editor with Progress Tracking**
 **Status:** ✅ **FULLY FUNCTIONAL**
 
 **Evidence:**
@@ -208,7 +273,7 @@ const handleEditModeToggle = () => {
 }
 ```
 
-### **4. AI Chat Assistant**
+### **7. AI Chat Assistant**
 **Status:** ✅ **FULLY FUNCTIONAL**
 
 **Evidence:**
@@ -228,7 +293,7 @@ export const processChatMessage = async (
   // ... implementation
 ```
 
-### **5. Task Management System**
+### **8. Task Management System**
 **Status:** ✅ **FULLY FUNCTIONAL**
 
 **Evidence:**
@@ -249,7 +314,7 @@ export const processChatMessage = async (
 >
 ```
 
-### **6. Smart File Naming System**
+### **9. Smart File Naming System**
 **Status:** ✅ **FULLY FUNCTIONAL**
 
 **Evidence:**
@@ -272,7 +337,7 @@ const generateFileName = (title: string): string => {
 };
 ```
 
-### **7. Auto-Directory Setup with Multi-Folder Support**
+### **10. Auto-Directory Setup with Multi-Folder Support**
 **Status:** ✅ **FULLY FUNCTIONAL**
 
 **Evidence:**
@@ -308,7 +373,7 @@ export const ensureTodosDirectory = async (
 };
 ```
 
-### **8. Conventional Commits with AI**
+### **11. Conventional Commits with AI**
 **Status:** ✅ **FULLY FUNCTIONAL**
 
 **Evidence:**
@@ -330,7 +395,7 @@ export const generateCommitMessage = async (
   // ... implementation
 ```
 
-### **9. Git History & Version Control**
+### **12. Git History & Version Control**
 **Status:** ✅ **FULLY FUNCTIONAL**
 
 **Evidence:**
@@ -352,7 +417,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
 }
 ```
 
-### **10. Mobile-First Responsive Design**
+### **13. Mobile-First Responsive Design**
 **Status:** ✅ **FULLY FUNCTIONAL**
 
 **Evidence:**
@@ -373,7 +438,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
 </button>
 ```
 
-### **11. Comprehensive Testing Infrastructure**
+### **14. Comprehensive Testing Infrastructure**
 **Status:** ✅ **FULLY FUNCTIONAL**
 
 > **🧪 Testing Details**: See [TESTING.md](TESTING.md) for complete test coverage documentation
@@ -384,7 +449,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
 - **Test Scripts:** Multiple test commands in `package.json`
 - **Mocking:** Proper API mocking for isolated testing
 
-### **12. Markdown Rendering with Custom Components**
+### **15. Markdown Rendering with Custom Components**
 **Status:** ✅ **FULLY FUNCTIONAL**
 
 **Evidence:**
@@ -412,7 +477,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
 
 ---
 
-### **13. Interactive Checkbox Functionality**
+### **16. Interactive Checkbox Functionality**
 **Status:** ✅ **FULLY FUNCTIONAL**
 
 **Evidence:**
@@ -481,11 +546,11 @@ const PrioritySelector: React.FC<PrioritySelectorProps> = ({
 
 | Category | Implemented | Total |
 |----------|-------------|-------|
-| **Core Features** | 13 | 13 |
+| **Core Features** | 14 | 14 |
 | **UI Components** | 8 | 8 |
 | **Backend Services** | 6 | 6 |
 | **Testing Infrastructure** | 1 | 1 |
-| **Total** | **28** | **28** |
+| **Total** | **29** | **29** |
 
 **Implementation Percentage: 100%**
 

@@ -15,6 +15,7 @@ This is "Agentic Markdown Todos" - an AI-powered todo application that transform
 
 ### Core Features Overview
 - **AI-Powered Task Generation**: High-level goals → detailed actionable checklists
+- **Intelligent Search**: Real-time search across tasks with folder/repo scope control and keyboard shortcuts
 - **Multi-Folder Support**: Organize tasks in configurable folders for different projects
 - **Interactive Checkboxes**: Click to toggle task completion with real-time Git sync
 - **Markdown Edit Mode**: Toggle between view and edit modes with full editing capabilities
@@ -121,7 +122,7 @@ NODE_ENV=production node server/server.js
   - `TodoEditor.tsx`: Main content area with task editing and management
   - `NewTodoInput.tsx`: Modal for creating new tasks with AI generation
   - `AIChat.tsx`: Collapsible chat interface for task modifications
-- `src/services/`: API layers (githubService, aiService)
+- `src/services/`: API layers (githubService, searchService, aiService)
 - `src/utils/`: Utilities (localStorage with URL encoding/decoding, markdown parsing)
 - `server/`: Express backend with AI integration
 
@@ -136,6 +137,16 @@ NODE_ENV=production node server/server.js
 - **Delete functionality**: Complete file removal from repository with confirmation
 - **Unicode support**: Proper Base64 encoding handles special characters and emojis
 - Every action (create, update, archive, delete) results in a versioned commit
+
+### Search Functionality
+- **Real-time Search**: Debounced search with 300ms delay for optimal performance
+- **Dual Search Scope**: Toggle between "This Folder" and "Entire Repo" search modes
+- **Multi-Provider Support**: Works identically with both GitHub and GitLab repositories
+- **Keyboard Shortcuts**: Ctrl/Cmd+F to focus search input, Escape to clear search
+- **Smart Results Display**: Shows project names for repo-wide searches, preserves priority information
+- **Performance Optimized**: Client-side debouncing, result caching, and efficient API calls
+- **Error Recovery**: Comprehensive error states with user-friendly messaging and retry options
+- **Backend Integration**: `/api/search` endpoint with security validation and rate limit handling
 
 ### AI Integration
 - Backend acts as secure proxy to protect AI API keys (never exposed to client)
@@ -225,6 +236,15 @@ All core functionality is implemented and production-ready:
 4. **Copy/Share**: User can copy link or scan QR code to share configuration
 5. **Auto-Configuration**: Opening shared URL automatically configures app and saves settings to localStorage
 6. **Security Notice**: Clear warning about sensitive data being shared
+
+### Using Search Functionality
+1. **Focus Search**: Press Ctrl/Cmd+F or click search input in sidebar
+2. **Enter Search Query**: Type search terms (e.g., "deployment", "authentication", "bug fix")
+3. **Search Scope Selection**: Toggle between "This Folder" (current project) and "Entire Repo" (all projects)
+4. **Real-time Results**: Results appear automatically with 300ms debouncing for performance
+5. **Navigate Results**: Click any result to open that task, shows project name for repo-wide searches
+6. **Clear Search**: Press Escape key or click clear button to return to normal task list
+7. **Error Recovery**: If search fails, retry functionality available with user-friendly error messages
 
 ### AI Provider Setup
 1. **Choose Provider**: In Settings → AI Provider Configuration, select "Google Gemini" or "OpenRouter"
