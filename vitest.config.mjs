@@ -26,6 +26,7 @@ export default defineConfig({
         'vitest.config.mjs',
         '.github/**',
         'server/**',  // Exclude server files from coverage
+        'scripts/**',  // Exclude scripts folder from coverage
       ],
     },
   },

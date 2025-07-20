@@ -809,10 +809,11 @@ app.post('/api/search', async (req, res) => {
 
       const searchResults = await response.json();
       
+      // Normalize GitHub results to consistent format
       results = searchResults.items.map(item => ({
         path: item.path,
-        name: item.name,
-        sha: item.sha,
+        name: item.name,           // GitHub uses 'name'
+        sha: item.sha,             // GitHub uses 'sha'
         url: item.html_url,
         repository: item.repository.full_name,
         text_matches: item.text_matches || []
@@ -848,20 +849,27 @@ app.post('/api/search', async (req, res) => {
         if (response.status === 403) {
           return res.status(403).json({ error: 'GitLab access denied. Please check your permissions.' });
         }
+        if (response.status === 429) {
+          return res.status(429).json({ error: 'GitLab search API rate limit exceeded. Please try again in a few minutes.' });
+        }
+        if (response.status === 422) {
+          return res.status(400).json({ error: 'Invalid GitLab search query. Please check your search terms.' });
+        }
         const errorText = await response.text();
         logger.error('GitLab search API error:', response.status, errorText);
-        throw new Error(`GitLab search API error: ${response.statusText}`);
+        return res.status(500).json({ error: `GitLab search API error: ${response.statusText}` });
       }
 
       const searchResults = await response.json();
       
+      // Normalize GitLab results to match GitHub format for consistency
       results = searchResults.map(item => ({
         path: item.path,
-        name: item.filename,
-        sha: item.ref,
+        name: item.filename,       // GitLab uses 'filename' -> normalize to 'name'
+        sha: item.ref,             // GitLab uses 'ref' -> normalize to 'sha'
         url: `${instanceUrl}/${projectId}/-/blob/main/${item.path}`,
         repository: `project-${projectId}`,
-        text_matches: [] // GitLab doesn't provide text matches in the same format
+        text_matches: []           // GitLab doesn't provide text matches in the same format
       }));
 
     } else {

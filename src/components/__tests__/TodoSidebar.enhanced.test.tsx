@@ -6,7 +6,6 @@ import TodoSidebar from '../TodoSidebar';
 
 // Mock search service
 vi.mock('../../services/searchService', () => ({
-  searchTodosDebounced: vi.fn(),
   filterTodosLocally: vi.fn((todos, query) => 
     todos.filter(todo => todo.frontmatter.title.toLowerCase().includes(query.toLowerCase()))
   ),
@@ -62,14 +61,12 @@ const mockSearchResults = [
 ];
 
 describe('TodoSidebar - Enhanced Coverage Tests', () => {
-  let mockSearchTodosDebounced: any;
   let mockFilterTodosLocally: any;
 
   beforeEach(async () => {
     vi.clearAllMocks();
     
     // Set up mocks
-    mockSearchTodosDebounced = vi.mocked((await import('../../services/searchService')).searchTodosDebounced);
     mockFilterTodosLocally = vi.mocked((await import('../../services/searchService')).filterTodosLocally);
     
     // Default return values
@@ -293,7 +290,8 @@ describe('TodoSidebar - Enhanced Coverage Tests', () => {
       expect(screen.getByText('No results found')).toBeInTheDocument();
       expect(screen.getAllByText(/No tasks found for "nonexistent query"/).length).toBeGreaterThan(0);
       expect(screen.getByText('Clear Search')).toBeInTheDocument();
-      expect(screen.getByText('Create Task')).toBeInTheDocument();
+      // "New Task" button is already visible at the top - no duplicate needed
+      expect(screen.getByText('New Task')).toBeInTheDocument();
     });
 
     it('calls clear search from empty state clear button', async () => {
@@ -318,7 +316,7 @@ describe('TodoSidebar - Enhanced Coverage Tests', () => {
       expect(onSearchQueryChange).toHaveBeenCalledWith('');
     });
 
-    it('calls onNewTodo from empty state create task button', async () => {
+    it('can create new task from the main New Task button even in search empty state', async () => {
       mockFilterTodosLocally.mockReturnValue([]);
       
       const onNewTodo = vi.fn();
@@ -334,8 +332,9 @@ describe('TodoSidebar - Enhanced Coverage Tests', () => {
         />
       );
 
-      const createButton = screen.getByText('Create Task');
-      await userEvent.click(createButton);
+      // The main "New Task" button should still work even when showing search empty state
+      const newTaskButton = screen.getByText('New Task');
+      await userEvent.click(newTaskButton);
       
       expect(onNewTodo).toHaveBeenCalled();
     });
@@ -380,7 +379,7 @@ describe('TodoSidebar - Enhanced Coverage Tests', () => {
       expect(screen.getByText('root')).toBeInTheDocument();
     });
 
-    it('highlights path badge when search result is selected', () => {
+    it('shows project path as clean text when search result is selected', () => {
       render(
         <TodoSidebar
           todos={mockTodos}
@@ -393,8 +392,10 @@ describe('TodoSidebar - Enhanced Coverage Tests', () => {
         />
       );
 
-      const pathBadge = screen.getByText('work/tasks');
-      expect(pathBadge).toHaveClass('bg-blue-500');
+      // Project path should be displayed as clean text, not as a styled badge
+      const pathText = screen.getByText('work/tasks');
+      expect(pathText).toBeInTheDocument();
+      expect(pathText).toHaveClass('truncate', 'max-w-24');
     });
   });
 
@@ -415,7 +416,8 @@ describe('TodoSidebar - Enhanced Coverage Tests', () => {
       expect(screen.getByText('No results found')).toBeInTheDocument();
     });
 
-    it('shows search error message', () => {
+    it('shows search error message with retry functionality', () => {
+      const onSearchQueryChange = vi.fn();
       render(
         <TodoSidebar
           todos={mockTodos}
@@ -424,11 +426,57 @@ describe('TodoSidebar - Enhanced Coverage Tests', () => {
           onNewTodo={vi.fn()}
           searchQuery="test search"
           searchError="Network error occurred"
+          onSearchQueryChange={onSearchQueryChange}
         />
       );
 
-      // Search error messages were removed from UI - test now checks for empty state
-      expect(screen.getByText('No results found')).toBeInTheDocument();
+      // Should show error banner (not empty state error anymore)
+      expect(screen.getByRole('heading', { level: 4, name: 'Search Error' })).toBeInTheDocument();
+      expect(screen.getByText('Network error occurred')).toBeInTheDocument();
+      expect(screen.getAllByText('Clear Search')).toHaveLength(2); // One in banner, one in empty state
+      expect(screen.getByRole('button', { name: 'Try Again' })).toBeInTheDocument();
+    });
+
+    it('shows rate limit specific guidance for rate limit errors', () => {
+      render(
+        <TodoSidebar
+          todos={mockTodos}
+          selectedTodoId={null}
+          onTodoSelect={vi.fn()}
+          onNewTodo={vi.fn()}
+          searchQuery="test search"
+          searchError="GitHub search API rate limit exceeded. Please try again in a few minutes."
+          onSearchQueryChange={vi.fn()}
+        />
+      );
+
+      // Should show error banner with rate limit tip
+      expect(screen.getByRole('heading', { level: 4, name: 'Search Error' })).toBeInTheDocument();
+      expect(screen.getByText(/rate limit exceeded/)).toBeInTheDocument();
+      expect(screen.getByText(/💡 Tip.*rate limits/)).toBeInTheDocument();
+    });
+
+    it('can retry search after error', async () => {
+      const onSearchQueryChange = vi.fn();
+      render(
+        <TodoSidebar
+          todos={mockTodos}
+          selectedTodoId={null}
+          onTodoSelect={vi.fn()}
+          onNewTodo={vi.fn()}
+          searchQuery="test search"
+          searchError="Network error occurred"
+          onSearchQueryChange={onSearchQueryChange}
+        />
+      );
+
+      const tryAgainButton = screen.getByRole('button', { name: 'Try Again' });
+      await userEvent.click(tryAgainButton);
+
+      // Should clear search first, then retry with same query
+      expect(onSearchQueryChange).toHaveBeenCalledWith('');
+      // Note: The retry call happens after setTimeout, so we can't easily test it here
+      // but the clear functionality should work
     });
 
     it('shows no results message when search returns empty', () => {

@@ -8,7 +8,8 @@ import { loadSettings, getUrlConfig, saveSettings, saveSelectedTodoId, loadSelec
 import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDirectory, moveTaskToArchive, moveTaskFromArchive, deleteFile } from './services/gitService';
 import { generateInitialPlan, generateCommitMessage } from './services/aiService';
 import { searchTodosDebounced, SearchResult } from './services/searchService';
-import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, TodoFrontmatter } from './utils/markdown';
+import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter } from './utils/markdown';
+import { TodoFrontmatter, Todo, ChatMessage } from './types';
 import logger from './utils/logger';
 
 function App() {
@@ -93,7 +94,8 @@ function App() {
         setIsSearching(false);
         if (error) {
           setSearchError(error);
-          setSearchResults([]);
+          // Don't clear search results on error - keep previous results visible
+          // setSearchResults([]); // REMOVED - this was causing UX confusion
         } else if (results) {
           setSearchError(null);
           setSearchResults(results.items);
@@ -106,37 +108,43 @@ function App() {
   }, [searchScope]);
 
   const handleSearchScopeChange = useCallback((scope: 'folder' | 'repo') => {
-    setSearchScope(scope);
-    
-    // Re-run search with new scope if there's an active query
-    if (searchQuery.trim()) {
-      // Generate unique search ID to prevent race conditions
-      const searchId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      currentSearchIdRef.current = searchId;
+    // Only trigger new search if scope actually changed
+    if (scope !== searchScope) {
+      setSearchScope(scope);
       
-      // CRITICAL: Immediately clear previous search results to prevent scope bleeding
-      setSearchResults([]);
-      setIsSearching(true);
-      setSearchError(null);
-      
-      searchTodosDebounced(searchQuery, scope, (results, error) => {
-        // Only process results if this search is still current
-        if (searchId === currentSearchIdRef.current) {
-          setIsSearching(false);
-          if (error) {
-            setSearchError(error);
-            setSearchResults([]);
-          } else if (results) {
-            setSearchError(null);
-            setSearchResults(results.items);
-            logger.log('Scope change search completed:', results.total_count, 'results');
+      // Re-run search with new scope if there's an active query
+      if (searchQuery.trim()) {
+        // Generate unique search ID to prevent race conditions
+        const searchId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        currentSearchIdRef.current = searchId;
+        
+        // Keep old results visible while loading new ones (better UX)
+        setIsSearching(true);
+        setSearchError(null);
+        
+        searchTodosDebounced(searchQuery, scope, (results, error) => {
+          // Only process results if this search is still current
+          if (searchId === currentSearchIdRef.current) {
+            setIsSearching(false);
+            if (error) {
+              setSearchError(error);
+              // Don't clear search results on error - keep previous results visible
+              // setSearchResults([]); // REMOVED - this was causing UX confusion
+            } else if (results) {
+              setSearchError(null);
+              setSearchResults(results.items);
+              logger.log('Scope change search completed:', results.total_count, 'results');
+            }
+          } else {
+            logger.log('Ignoring outdated scope change results for scope:', scope);
           }
-        } else {
-          logger.log('Ignoring outdated scope change results for scope:', scope);
-        }
-      }, 100); // Shorter delay for scope change
+        }, 100); // Shorter delay for scope change
+      }
+    } else {
+      // Scope didn't change, just update the state for UI consistency
+      setSearchScope(scope);
     }
-  }, [searchQuery]);
+  }, [searchQuery, searchScope]);
 
   const fetchTodosWithSettings = useCallback(async (useSettings?: any, useViewMode?: 'active' | 'archived', preserveTodoPath?: string) => {
     const currentSettings = useSettings || settings;
@@ -1050,6 +1058,49 @@ function App() {
                 try {
                   logger.log('Loading search result todo:', searchResult.path);
                   
+                  // Check if this todo is from a different project and offer to switch context
+                  const todoPath = searchResult.path;
+                  const pathParts = todoPath.split('/');
+                  const todoFolder = pathParts.length > 1 ? pathParts[0] : (settings?.folder || 'todos');
+                  const currentFolder = settings?.folder || 'todos';
+                  
+                  if (todoFolder !== currentFolder && pathParts.length > 1) {
+                    const switchProject = window.confirm(
+                      `This todo is from '${todoFolder}' project.\n\n` +
+                      `Switch to '${todoFolder}' project to see related todos?\n\n` +
+                      `Current: ${currentFolder} → Switch to: ${todoFolder}`
+                    );
+                    
+                    if (switchProject) {
+                      logger.log('Switching project context:', { from: currentFolder, to: todoFolder });
+                      
+                      // Update settings to new project
+                      const newSettings = { ...settings, folder: todoFolder };
+                      saveSettings(newSettings);
+                      setSettings(newSettings);
+                      
+                      // Reload todos from new project context using explicit settings
+                      // This avoids React state batching issues where fetchTodos() uses old settings
+                      // Use preserveTodoPath to maintain selection after refresh
+                      logger.log('Refreshing todos with new project context:', todoFolder);
+                      await fetchTodosWithSettings(newSettings, viewMode, searchResult.path);
+                      
+                      // Clear search results since we're in new project context
+                      setSearchResults([]);
+                      setSearchQuery('');
+                      setIsSearching(false);
+                      setSearchError(null);
+                      
+                      logger.log('Project context switch completed');
+                      
+                      // Exit early - the preserveTodoPath should have handled selection
+                      return;
+                    } else {
+                      // User declined to switch projects, continue with normal loading
+                      logger.log('User declined project switch, loading cross-folder todo in current context');
+                    }
+                  }
+                  
                   // Check if this todo is already in our todos array
                   const existingTodo = todos.find(todo => todo.path === searchResult.path);
                   if (existingTodo) {
@@ -1057,16 +1108,18 @@ function App() {
                     setSelectedTodoId(existingTodo.id);
                   } else {
                     // Need to fetch the full todo content
+                    logger.log('Loading cross-folder todo:', searchResult.path);
+                    
                     const metadata = await getFileMetadata(searchResult.path);
                     const content = await getFileContent(searchResult.path);
-                    const frontmatter = parseMarkdownWithFrontmatter(content);
+                    const parsedMarkdown = parseMarkdownWithFrontmatter(content);
                     
-                    // Create a full todo object
+                    // Create a full todo object with correct frontmatter access
                     const fullTodo = {
                       id: metadata.sha,
-                      title: frontmatter.title || searchResult.name.replace('.md', ''),
-                      content: frontmatter.content,
-                      frontmatter: frontmatter.frontmatter,
+                      title: parsedMarkdown.frontmatter?.title || searchResult.name.replace('.md', ''),
+                      content: parsedMarkdown.markdownContent,
+                      frontmatter: parsedMarkdown.frontmatter,
                       path: searchResult.path,
                       sha: metadata.sha
                     };

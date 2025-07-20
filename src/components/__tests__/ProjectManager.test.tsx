@@ -280,6 +280,121 @@ describe('ProjectManager', () => {
     expect(screen.getAllByText('todos')[0]).toBeInTheDocument();
   });
 
+  it('shows project switcher when multiple folders exist', async () => {
+    mockLoadSettings.mockReturnValue({
+      gitProvider: 'github',
+      pat: 'token',
+      owner: 'user',
+      repo: 'repo',
+      folder: 'todos'
+    });
+    mockListProjectFolders.mockResolvedValue(['todos', 'work-tasks', 'personal']);
+
+    render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
+
+    // Wait for folders to load - should have both mobile and desktop select elements
+    await waitFor(() => {
+      const selects = screen.getAllByDisplayValue('todos');
+      expect(selects).toHaveLength(2); // mobile + desktop
+    });
+
+    // Should show available options in selects
+    expect(screen.getAllByText('work-tasks')).toHaveLength(2); // mobile + desktop
+    expect(screen.getAllByText('personal')).toHaveLength(2); // mobile + desktop
+  });
+
+  it('hides project switcher when only one folder exists', async () => {
+    mockLoadSettings.mockReturnValue({
+      gitProvider: 'github',
+      pat: 'token',
+      owner: 'user',
+      repo: 'repo',
+      folder: 'todos'
+    });
+    mockListProjectFolders.mockResolvedValue(['todos']); // Only one folder
+
+    render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
+
+    // Wait for folders to load
+    await waitFor(() => {
+      expect(mockListProjectFolders).toHaveBeenCalled();
+    });
+
+    // Should show current project name but no select dropdowns when only one folder
+    expect(screen.getAllByText('todos')).toHaveLength(2); // mobile + desktop display
+    
+    // Should NOT show select dropdowns when only one folder
+    expect(screen.queryByDisplayValue('todos')).not.toBeInTheDocument();
+  });
+
+  it('disables project switcher during loading', async () => {
+    mockLoadSettings.mockReturnValue({
+      gitProvider: 'github',
+      pat: 'token',
+      owner: 'user',
+      repo: 'repo',
+      folder: 'todos'
+    });
+    
+    // Simulate delayed response
+    let resolvePromise: (value: string[]) => void;
+    const foldersPromise = new Promise<string[]>((resolve) => {
+      resolvePromise = resolve;
+    });
+    mockListProjectFolders.mockReturnValue(foldersPromise);
+
+    render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
+
+    // Initially should not show select dropdowns during loading
+    expect(screen.queryByDisplayValue('todos')).not.toBeInTheDocument();
+
+    // Resolve with multiple folders
+    resolvePromise!(['todos', 'work-tasks']);
+
+    // Wait for selects to appear and be enabled
+    await waitFor(() => {
+      const selects = screen.getAllByDisplayValue('todos');
+      expect(selects).toHaveLength(2); // mobile + desktop
+      expect(selects[0]).not.toBeDisabled();
+      expect(selects[1]).not.toBeDisabled();
+    });
+  });
+
+  it('closes modal when switching projects in modal switcher', async () => {
+    mockLoadSettings.mockReturnValue({
+      gitProvider: 'github',
+      pat: 'token',
+      owner: 'user',
+      repo: 'repo',
+      folder: 'todos'
+    });
+    mockListProjectFolders.mockResolvedValue(['todos', 'work-tasks']);
+
+    render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
+
+    // Open modal
+    fireEvent.click(screen.getByText('New Project'));
+    expect(screen.getByText('Project Management')).toBeInTheDocument();
+
+    // Wait for modal content to load
+    await waitFor(() => {
+      expect(screen.getByText('Switch to:')).toBeInTheDocument();
+    });
+
+    // Find the modal select (which should be the 3rd one: mobile + desktop + modal)
+    const allSelects = screen.getAllByDisplayValue('todos');
+    expect(allSelects).toHaveLength(3); // mobile + desktop + modal
+    const modalSelect = allSelects[2]; // The modal select should be the last one
+
+    // Switch project in modal - should close modal
+    fireEvent.change(modalSelect, { target: { value: 'work-tasks' } });
+
+    // Modal should close after switching
+    await waitFor(() => {
+      expect(screen.queryByText('Project Management')).not.toBeInTheDocument();
+    });
+  });
+
   it('shows mobile view correctly', () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',

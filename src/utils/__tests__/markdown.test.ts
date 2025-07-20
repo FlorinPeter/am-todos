@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, TodoFrontmatter } from '../markdown';
+import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter } from '../markdown';
+import { TodoFrontmatter } from '../../types';
 
 // Mock logger
 vi.mock('../logger', () => ({

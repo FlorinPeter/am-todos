@@ -2,27 +2,7 @@ import React, { useState } from 'react';
 import MarkdownViewer from './MarkdownViewer';
 import { formatDate } from '../utils/dateFormat';
 import { clearOtherDrafts, clearOtherChatSessions } from '../utils/localStorage';
-
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: string;
-}
-
-interface Todo {
-  id: string;
-  title: string;
-  content: string;
-  frontmatter: {
-    title: string;
-    createdAt: string;
-    priority: number;
-    isArchived: boolean;
-    chatHistory: ChatMessage[];
-  };
-  path: string;
-  sha: string;
-}
+import { Todo, ChatMessage } from '../types';
 
 interface TodoEditorProps {
   selectedTodo: Todo | null;
@@ -69,7 +49,6 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
         clearOtherChatSessions(selectedTodo.id);
       } catch (error) {
         // Silently handle localStorage errors - cleanup is not critical
-        console.warn('Failed to clear other drafts/chat sessions:', error);
       }
     }
   }, [selectedTodo?.id]);
