@@ -141,10 +141,10 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   const handleChatMessage = async (
     message: string, 
     currentContent: string
-  ): Promise<string> => {
+  ) => {
     // Always work with the latest frontend content, no persistent chat history
-    const updatedContent = await processChatMessage(message, currentContent, []);
-    return updatedContent;
+    const response = await processChatMessage(message, currentContent, []);
+    return response;
   };
 
   const handleContentUpdate = (newContent: string) => {

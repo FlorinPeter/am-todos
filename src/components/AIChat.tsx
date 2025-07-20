@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { saveCheckpoint, getCheckpoints, clearCheckpoints, generateCheckpointId, Checkpoint, saveChatSession, getChatSession, clearChatSession, AIChatSession } from '../utils/localStorage';
-import { ChatMessage } from '../types';
+import { ChatMessage, AIResponseWithFallback } from '../types';
 import logger from '../utils/logger';
 
 interface AIChatProps {
   currentContent: string;
   onContentUpdate: (newContent: string) => void;
-  onChatMessage: (message: string, currentContent: string) => Promise<string>;
+  onChatMessage: (message: string, currentContent: string) => Promise<AIResponseWithFallback>;
   taskId?: string; // Unique identifier for the current task
   todoId?: string; // SHA-based unique identifier for the todo
   filePath?: string; // File path for the todo
@@ -119,7 +119,7 @@ const AIChat: React.FC<AIChatProps> = ({
     }
 
     try {
-      const updatedContent = await onChatMessage(inputMessage.trim(), currentContent);
+      const response = await onChatMessage(inputMessage.trim(), currentContent);
       
       // Check if component is still mounted before updating state
       // Only skip if unmounted AND not currently processing (to handle remount during requests)
@@ -130,14 +130,14 @@ const AIChat: React.FC<AIChatProps> = ({
       
       const assistantMessage: ChatMessage = {
         role: 'assistant',
-        content: 'Task updated successfully',
+        content: response.description || 'Task updated successfully',
         timestamp: new Date().toISOString(),
         checkpointId: checkpointId
       };
 
       const finalLocalHistory = [...newLocalHistory, assistantMessage];
       setLocalChatHistory(finalLocalHistory);
-      onContentUpdate(updatedContent);
+      onContentUpdate(response.content);
     } catch (error) {
       logger.error('Error processing chat message:', error);
       

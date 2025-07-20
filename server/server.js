@@ -655,15 +655,16 @@ Rules:
         prompt = `Generate a conventional commit message for the following change: ${payload.changeDescription}`;
         break;
       case 'processChatMessage':
-        systemInstruction = `You are an AI assistant helping users modify their task lists. Given a user's natural language request, the current markdown content, and chat history, return the updated markdown content with the requested changes applied.
+        systemInstruction = `You are an AI assistant helping users modify their task lists. Given a user's natural language request, the current markdown content, and chat history, return a JSON object with the updated content and a description of what you changed.
 
 Rules:
-1. Return ONLY the updated markdown content, no explanations or additional text
-2. Preserve the existing structure and formatting
+1. Return ONLY a JSON object with this exact structure: {"content": "updated markdown content", "description": "brief description of changes made"}
+2. Preserve the existing structure and formatting in the content
 3. Make precise changes based on the user's request
 4. Handle requests like "add a step for...", "rephrase the second item...", "remove the third task...", etc.
 5. Keep checkbox format intact: - [ ] for unchecked, - [x] for checked
-6. Maintain proper markdown syntax`;
+6. Maintain proper markdown syntax
+7. The description should be concise and explain what was changed (e.g., "Added authentication step to task 3", "Rephrased second item to be more formal")`;
         prompt = `Current markdown content:
 ${payload.currentContent}
 
@@ -672,7 +673,7 @@ ${payload.chatHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n')}
 
 User request: ${payload.message}
 
-Please return the updated markdown content:`;
+Please return a JSON object with the updated markdown content and description of changes:`;
         break;
       // Add more cases for other AI actions as needed
       default:
@@ -683,9 +684,16 @@ Please return the updated markdown content:`;
       // Gemini API implementation
       const genAI = new GoogleGenerativeAI(apiKey);
       const geminiModel = genAI.getGenerativeModel({ model: model || "gemini-2.5-flash" });
+      
+      // Use JSON mode for processChatMessage to get structured output
+      const config = action === 'processChatMessage' ? {
+        generationConfig: { responseMimeType: "application/json" }
+      } : {};
+      
       const result = await geminiModel.generateContent({ 
         contents: [{ role: "user", parts: [{ text: prompt }] }], 
-        systemInstruction: { parts: [{ text: systemInstruction }] } 
+        systemInstruction: { parts: [{ text: systemInstruction }] },
+        ...config
       });
       response = await result.response;
       const text = response.text();
@@ -705,7 +713,9 @@ Please return the updated markdown content:`;
           messages: [
             { role: 'system', content: systemInstruction },
             { role: 'user', content: prompt }
-          ]
+          ],
+          // Use JSON mode for processChatMessage to get structured output
+          ...(action === 'processChatMessage' ? { response_format: { type: "json_object" } } : {})
         })
       });
 

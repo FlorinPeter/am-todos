@@ -1,4 +1,5 @@
 import { loadSettings } from '../utils/localStorage';
+import { AIResponse, AIResponseWithFallback } from '../types';
 import logger from '../utils/logger';
 
 // Dynamically determine the API URL based on the current hostname
@@ -120,7 +121,7 @@ export const processChatMessage = async (
   message: string, 
   currentContent: string, 
   chatHistory: Array<{ role: string; content: string }>
-) => {
+): Promise<AIResponseWithFallback> => {
   try {
     const aiSettings = getAISettings();
     const apiUrl = getApiUrl();
@@ -149,7 +150,21 @@ export const processChatMessage = async (
     }
 
     const data = await response.json();
-    return data.text;
+    
+    // Try to parse structured JSON response first
+    try {
+      const structuredResponse: AIResponse = JSON.parse(data.text);
+      if (structuredResponse.content && structuredResponse.description) {
+        return structuredResponse;
+      }
+      // If JSON doesn't have expected structure, fall back to text mode
+      logger.log('AI Service: JSON response missing expected fields, falling back to text mode');
+      return { content: data.text, description: undefined };
+    } catch (jsonError) {
+      // If JSON parsing fails, treat as plain text (backward compatibility)
+      logger.log('AI Service: Response is not JSON, treating as plain text');
+      return { content: data.text, description: undefined };
+    }
   } catch (error) {
     logger.error('AI Service: processChatMessage error:', error);
     throw error;
