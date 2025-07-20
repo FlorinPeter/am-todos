@@ -1,221 +1,310 @@
-import { describe, it, expect } from 'vitest';
-import { ChatMessage, Todo, TodoFrontmatter } from '../index';
+import { 
+  ChatMessage, 
+  Todo, 
+  TodoFrontmatter, 
+  AIResponse, 
+  AIResponseWithFallback 
+} from '../index';
 
-describe('Centralized Types', () => {
-  describe('ChatMessage interface', () => {
-    it('should properly type ChatMessage objects', () => {
+describe('Type Definitions', () => {
+  describe('ChatMessage Interface', () => {
+    it('should accept valid ChatMessage with all properties', () => {
       const chatMessage: ChatMessage = {
         role: 'user',
         content: 'Test message',
-        timestamp: '2023-01-01T00:00:00.000Z'
+        timestamp: '2023-01-01T12:00:00.000Z',
+        checkpointId: 'checkpoint-123'
       };
 
       expect(chatMessage.role).toBe('user');
       expect(chatMessage.content).toBe('Test message');
-      expect(chatMessage.timestamp).toBe('2023-01-01T00:00:00.000Z');
+      expect(chatMessage.timestamp).toBe('2023-01-01T12:00:00.000Z');
+      expect(chatMessage.checkpointId).toBe('checkpoint-123');
+    });
+
+    it('should accept valid ChatMessage without optional checkpointId', () => {
+      const chatMessage: ChatMessage = {
+        role: 'assistant',
+        content: 'Assistant response',
+        timestamp: '2023-01-01T12:00:00.000Z'
+      };
+
+      expect(chatMessage.role).toBe('assistant');
+      expect(chatMessage.content).toBe('Assistant response');
       expect(chatMessage.checkpointId).toBeUndefined();
     });
 
-    it('should support optional checkpointId field', () => {
-      const chatMessageWithCheckpoint: ChatMessage = {
-        role: 'assistant',
-        content: 'AI response',
-        timestamp: '2023-01-01T00:00:00.000Z',
-        checkpointId: 'checkpoint_123'
-      };
-
-      expect(chatMessageWithCheckpoint.checkpointId).toBe('checkpoint_123');
-    });
-
-    it('should enforce role type constraints', () => {
+    it('should enforce role type restrictions', () => {
+      // TypeScript would catch this at compile time, but we can test runtime behavior
       const userMessage: ChatMessage = {
         role: 'user' as const,
         content: 'User message',
-        timestamp: '2023-01-01T00:00:00.000Z'
+        timestamp: '2023-01-01T12:00:00.000Z'
       };
 
       const assistantMessage: ChatMessage = {
         role: 'assistant' as const,
         content: 'Assistant message',
-        timestamp: '2023-01-01T00:00:00.000Z'
+        timestamp: '2023-01-01T12:00:00.000Z'
       };
 
-      expect(userMessage.role).toBe('user');
-      expect(assistantMessage.role).toBe('assistant');
+      expect(['user', 'assistant']).toContain(userMessage.role);
+      expect(['user', 'assistant']).toContain(assistantMessage.role);
     });
   });
 
-  describe('Todo interface', () => {
-    it('should properly type Todo objects', () => {
+  describe('Todo Interface', () => {
+    it('should accept valid Todo with all properties', () => {
       const todo: Todo = {
         id: 'todo-123',
         title: 'Test Todo',
-        content: '# Test Content\n\n- [ ] Task 1',
+        content: '# Test Todo\n\n- [ ] Task 1',
         frontmatter: {
           title: 'Test Todo',
-          createdAt: '2023-01-01T00:00:00.000Z',
+          createdAt: '2023-01-01T12:00:00.000Z',
           priority: 3,
           isArchived: false,
           chatHistory: []
         },
-        path: 'todos/test-todo.md',
-        sha: 'abc123'
+        path: '/todos/test.md',
+        sha: 'abc123def456'
       };
 
       expect(todo.id).toBe('todo-123');
       expect(todo.title).toBe('Test Todo');
       expect(todo.frontmatter.priority).toBe(3);
       expect(todo.frontmatter.isArchived).toBe(false);
-      expect(todo.frontmatter.chatHistory).toEqual([]);
     });
 
-    it('should support optional search result fields', () => {
-      const searchResultTodo: Todo = {
-        id: 'search-123',
-        title: 'Search Result',
-        content: 'Content',
+    it('should accept Todo with optional search result properties', () => {
+      const searchTodo: Todo = {
+        id: 'search-todo-123',
+        title: 'Search Result Todo',
+        content: '# Search Result',
         frontmatter: {
-          title: 'Search Result',
-          createdAt: '2023-01-01T00:00:00.000Z',
-          priority: 2,
+          title: 'Search Result Todo',
+          createdAt: '2023-01-01T12:00:00.000Z',
+          priority: 1,
           isArchived: false,
           chatHistory: []
         },
-        path: 'project/todo.md',
-        sha: 'def456',
+        path: '/todos/search.md',
+        sha: 'search123',
         isSearchResult: true,
-        projectName: 'project'
+        projectName: 'My Project'
       };
 
-      expect(searchResultTodo.isSearchResult).toBe(true);
-      expect(searchResultTodo.projectName).toBe('project');
+      expect(searchTodo.isSearchResult).toBe(true);
+      expect(searchTodo.projectName).toBe('My Project');
     });
 
-    it('should properly type frontmatter with chat history', () => {
-      const todoWithChat: Todo = {
-        id: 'todo-chat',
+    it('should accept Todo with chat history', () => {
+      const chatHistory: ChatMessage[] = [
+        {
+          role: 'user',
+          content: 'Add a task',
+          timestamp: '2023-01-01T12:00:00.000Z'
+        },
+        {
+          role: 'assistant',
+          content: 'Task added',
+          timestamp: '2023-01-01T12:01:00.000Z'
+        }
+      ];
+
+      const todo: Todo = {
+        id: 'todo-with-chat',
         title: 'Todo with Chat',
-        content: 'Content',
+        content: '# Todo with Chat',
         frontmatter: {
           title: 'Todo with Chat',
-          createdAt: '2023-01-01T00:00:00.000Z',
-          priority: 1,
+          createdAt: '2023-01-01T12:00:00.000Z',
+          priority: 2,
           isArchived: false,
-          chatHistory: [
-            {
-              role: 'user',
-              content: 'Add a task',
-              timestamp: '2023-01-01T00:00:00.000Z'
-            },
-            {
-              role: 'assistant',
-              content: 'Task added',
-              timestamp: '2023-01-01T00:01:00.000Z',
-              checkpointId: 'checkpoint_456'
-            }
-          ]
+          chatHistory
         },
-        path: 'todos/chat-todo.md',
-        sha: 'ghi789'
+        path: '/todos/chat.md',
+        sha: 'chat123'
       };
 
-      expect(todoWithChat.frontmatter.chatHistory).toHaveLength(2);
-      expect(todoWithChat.frontmatter.chatHistory[0].role).toBe('user');
-      expect(todoWithChat.frontmatter.chatHistory[1].checkpointId).toBe('checkpoint_456');
+      expect(todo.frontmatter.chatHistory).toHaveLength(2);
+      expect(todo.frontmatter.chatHistory[0].role).toBe('user');
+      expect(todo.frontmatter.chatHistory[1].role).toBe('assistant');
     });
   });
 
-  describe('TodoFrontmatter interface', () => {
-    it('should properly type TodoFrontmatter objects', () => {
+  describe('TodoFrontmatter Interface', () => {
+    it('should accept valid TodoFrontmatter', () => {
       const frontmatter: TodoFrontmatter = {
         title: 'Frontmatter Test',
-        createdAt: '2023-01-01T00:00:00.000Z',
+        createdAt: '2023-01-01T12:00:00.000Z',
         priority: 4,
         isArchived: true,
         chatHistory: []
       };
 
       expect(frontmatter.title).toBe('Frontmatter Test');
-      expect(frontmatter.createdAt).toBe('2023-01-01T00:00:00.000Z');
       expect(frontmatter.priority).toBe(4);
       expect(frontmatter.isArchived).toBe(true);
       expect(frontmatter.chatHistory).toEqual([]);
     });
 
-    it('should support different priority levels', () => {
+    it('should handle priority number values', () => {
       const priorities = [1, 2, 3, 4, 5];
       
       priorities.forEach(priority => {
         const frontmatter: TodoFrontmatter = {
-          title: `Priority ${priority} Task`,
-          createdAt: '2023-01-01T00:00:00.000Z',
-          priority: priority,
+          title: `Priority ${priority} Todo`,
+          createdAt: '2023-01-01T12:00:00.000Z',
+          priority,
           isArchived: false,
           chatHistory: []
         };
 
         expect(frontmatter.priority).toBe(priority);
+        expect(typeof frontmatter.priority).toBe('number');
       });
     });
 
-    it('should properly type complex chat history in frontmatter', () => {
-      const frontmatter: TodoFrontmatter = {
-        title: 'Complex Chat History',
-        createdAt: '2023-01-01T00:00:00.000Z',
-        priority: 2,
-        isArchived: false,
-        chatHistory: [
-          {
-            role: 'user',
-            content: 'Create a complex task',
-            timestamp: '2023-01-01T00:00:00.000Z'
-          },
-          {
-            role: 'assistant',
-            content: 'Task created with multiple steps',
-            timestamp: '2023-01-01T00:01:00.000Z',
-            checkpointId: 'checkpoint_complex'
-          },
-          {
-            role: 'user',
-            content: 'Add more details',
-            timestamp: '2023-01-01T00:02:00.000Z'
-          }
-        ]
+    it('should handle boolean isArchived values', () => {
+      const archivedFrontmatter: TodoFrontmatter = {
+        title: 'Archived Todo',
+        createdAt: '2023-01-01T12:00:00.000Z',
+        priority: 1,
+        isArchived: true,
+        chatHistory: []
       };
 
-      expect(frontmatter.chatHistory).toHaveLength(3);
-      expect(frontmatter.chatHistory[1].checkpointId).toBe('checkpoint_complex');
-      expect(frontmatter.chatHistory[2].checkpointId).toBeUndefined();
+      const activeFrontmatter: TodoFrontmatter = {
+        title: 'Active Todo',
+        createdAt: '2023-01-01T12:00:00.000Z',
+        priority: 1,
+        isArchived: false,
+        chatHistory: []
+      };
+
+      expect(archivedFrontmatter.isArchived).toBe(true);
+      expect(activeFrontmatter.isArchived).toBe(false);
     });
   });
 
-  describe('Type consistency', () => {
-    it('should maintain consistency between Todo frontmatter and TodoFrontmatter interface', () => {
+  describe('AIResponse Interface', () => {
+    it('should accept valid AIResponse with content and description', () => {
+      const response: AIResponse = {
+        content: '# Updated Todo\n\n- [x] Completed task\n- [ ] New task',
+        description: 'Added a new task to the todo list'
+      };
+
+      expect(response.content).toContain('Updated Todo');
+      expect(response.description).toBe('Added a new task to the todo list');
+    });
+
+    it('should enforce required properties', () => {
+      const response: AIResponse = {
+        content: 'Required content',
+        description: 'Required description'
+      };
+
+      expect(response.content).toBeDefined();
+      expect(response.description).toBeDefined();
+      expect(typeof response.content).toBe('string');
+      expect(typeof response.description).toBe('string');
+    });
+  });
+
+  describe('AIResponseWithFallback Interface', () => {
+    it('should accept AIResponseWithFallback with content and optional description', () => {
+      const responseWithDesc: AIResponseWithFallback = {
+        content: '# Updated Content',
+        description: 'Optional description present'
+      };
+
+      const responseWithoutDesc: AIResponseWithFallback = {
+        content: '# Updated Content'
+      };
+
+      expect(responseWithDesc.content).toBe('# Updated Content');
+      expect(responseWithDesc.description).toBe('Optional description present');
+      expect(responseWithoutDesc.content).toBe('# Updated Content');
+      expect(responseWithoutDesc.description).toBeUndefined();
+    });
+
+    it('should handle backward compatibility scenarios', () => {
+      // Simulating responses from different AI service versions
+      const modernResponse: AIResponseWithFallback = {
+        content: 'Modern response content',
+        description: 'Modern response description'
+      };
+
+      const legacyResponse: AIResponseWithFallback = {
+        content: 'Legacy response content'
+        // No description property for backward compatibility
+      };
+
+      expect(modernResponse.description).toBeDefined();
+      expect(legacyResponse.description).toBeUndefined();
+      expect(modernResponse.content).toBeDefined();
+      expect(legacyResponse.content).toBeDefined();
+    });
+
+    it('should be compatible with AIResponse interface', () => {
+      // AIResponseWithFallback should be assignable to AIResponse when description is present
+      const responseWithDesc: AIResponseWithFallback = {
+        content: 'Test content',
+        description: 'Test description'
+      };
+
+      // This should work without type errors
+      const asAIResponse: AIResponse = {
+        content: responseWithDesc.content,
+        description: responseWithDesc.description || 'Default description'
+      };
+
+      expect(asAIResponse.content).toBe('Test content');
+      expect(asAIResponse.description).toBe('Test description');
+    });
+  });
+
+  describe('Type Compatibility and Integration', () => {
+    it('should demonstrate proper usage of all types together', () => {
+      const chatHistory: ChatMessage[] = [
+        {
+          role: 'user',
+          content: 'Please add a task for testing',
+          timestamp: '2023-01-01T12:00:00.000Z'
+        }
+      ];
+
       const frontmatter: TodoFrontmatter = {
-        title: 'Consistency Test',
-        createdAt: '2023-01-01T00:00:00.000Z',
+        title: 'Integration Test Todo',
+        createdAt: '2023-01-01T12:00:00.000Z',
         priority: 3,
         isArchived: false,
-        chatHistory: [
-          {
-            role: 'user',
-            content: 'Test consistency',
-            timestamp: '2023-01-01T00:00:00.000Z'
-          }
-        ]
+        chatHistory
       };
 
       const todo: Todo = {
-        id: 'consistency-test',
-        title: 'Consistency Test',
-        content: 'Test content',
-        frontmatter: frontmatter, // Should be assignable
-        path: 'todos/test.md',
-        sha: 'jkl012'
+        id: 'integration-test',
+        title: frontmatter.title,
+        content: '# Integration Test\n\n- [ ] Test task',
+        frontmatter,
+        path: '/todos/integration.md',
+        sha: 'integration123'
       };
 
-      expect(todo.frontmatter).toEqual(frontmatter);
+      const aiResponse: AIResponse = {
+        content: '# Integration Test\n\n- [ ] Test task\n- [ ] Added task',
+        description: 'Added a new task for testing'
+      };
+
+      const fallbackResponse: AIResponseWithFallback = {
+        content: aiResponse.content,
+        description: aiResponse.description
+      };
+
+      expect(todo.frontmatter.chatHistory).toHaveLength(1);
+      expect(aiResponse.description).toContain('testing');
+      expect(fallbackResponse.content).toBe(aiResponse.content);
     });
   });
 });
