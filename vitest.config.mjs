@@ -28,6 +28,7 @@ export default defineConfig({
         '.github/**',
         'server/**',  // Exclude server files from coverage
         'scripts/**',  // Exclude scripts folder from coverage
+        'src/types/**',  // Exclude TypeScript interface files (no executable code)
       ],
     },
   },

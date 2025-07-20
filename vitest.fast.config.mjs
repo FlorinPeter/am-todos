@@ -27,6 +27,27 @@ export default defineConfig({
       'server/**/__tests__/**',  // Exclude server tests from frontend test runs
     ],
     
+    // Coverage configuration for fast runs (when --coverage is used)
+    coverage: {
+      exclude: [
+        'node_modules/',
+        'src/setupTests.ts',
+        'src/**/*.test.*',
+        'src/**/__tests__/**',
+        'src/__mocks__/**',
+        'src/reportWebVitals.ts',
+        'src/index.tsx',
+        'src/react-app-env.d.ts',
+        'vite.config.mjs',
+        'vitest.config.mjs',
+        'vitest.fast.config.mjs',
+        '.github/**',
+        'server/**',
+        'scripts/**',
+        'src/types/**',  // Exclude TypeScript interface files (no executable code)
+      ],
+    },
+    
     // File watching optimizations (for dev mode)
     watchExclude: [
       '**/node_modules/**',
