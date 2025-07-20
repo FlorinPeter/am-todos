@@ -1,5 +1,7 @@
 import { loadSettings } from '../utils/localStorage';
 import logger from '../utils/logger';
+import { validateAndSanitizeSearchQuery } from '../utils/redosProtection';
+import { fetchWithTimeout, TIMEOUT_VALUES } from '../utils/fetchWithTimeout';
 
 // Always use relative URLs - let infrastructure handle routing
 // Development: Vite proxy routes /api/* to localhost:3001/api/*
@@ -110,13 +112,22 @@ export const searchTodos = async (
     };
   }
 
+  // ReDoS protection: Validate and sanitize search query
+  const validation = validateAndSanitizeSearchQuery(query.trim());
+  if (!validation.isValid) {
+    throw new Error(`Invalid search query: ${validation.error}`);
+  }
+
+  const sanitizedQuery = validation.sanitizedQuery!;
+  logger.log('Search query sanitized:', { original: query, sanitized: sanitizedQuery });
+
   try {
     const gitSettings = getGitSettings();
     const apiUrl = getApiUrl();
-    logger.log('Performing search:', { query, scope, provider: gitSettings.provider });
+    logger.log('Performing search:', { query: sanitizedQuery, scope, provider: gitSettings.provider });
 
     const requestBody: any = {
-      query: query.trim(),
+      query: sanitizedQuery,
       scope,
       folder: gitSettings.folder,
       provider: gitSettings.provider
@@ -133,12 +144,13 @@ export const searchTodos = async (
       requestBody.token = gitSettings.token;
     }
 
-    const response = await fetch(apiUrl, {
+    const response = await fetchWithTimeout(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(requestBody),
+      timeout: TIMEOUT_VALUES.NORMAL,
     });
 
     if (!response.ok) {
@@ -229,12 +241,24 @@ export const filterTodosLocally = (
     return todos;
   }
 
-  const searchTerm = query.toLowerCase().trim();
+  // ReDoS protection for local filtering
+  const validation = validateAndSanitizeSearchQuery(query.trim());
+  if (!validation.isValid) {
+    logger.error('Invalid search query for local filtering:', validation.error);
+    return todos; // Return all todos if query is invalid rather than throwing
+  }
+
+  const searchTerm = validation.sanitizedQuery!.toLowerCase();
   
   return todos.filter(todo => {
-    const title = (todo.frontmatter?.title || todo.title || '').toLowerCase();
-    const content = (todo.content || '').toLowerCase();
-    
-    return title.includes(searchTerm) || content.includes(searchTerm);
+    try {
+      const title = (todo.frontmatter?.title || todo.title || '').toLowerCase();
+      const content = (todo.content || '').toLowerCase();
+      
+      return title.includes(searchTerm) || content.includes(searchTerm);
+    } catch (error) {
+      logger.error('Error filtering todo:', error);
+      return false; // Exclude todo if filtering fails
+    }
   });
 };

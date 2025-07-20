@@ -54,7 +54,7 @@ describe('AI Service Integration Tests', () => {
 
       const result = await aiService.generateInitialPlan('Deploy web application');
 
-      expect(mockFetch).toHaveBeenCalledWith('/api/ai', {
+      expect(mockFetch).toHaveBeenCalledWith('/api/ai', expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -63,8 +63,9 @@ describe('AI Service Integration Tests', () => {
           provider: 'gemini',
           apiKey: 'test-gemini-key',
           model: 'gemini-2.5-flash'
-        })
-      });
+        }),
+        signal: expect.any(AbortSignal)
+      }));
 
       expect(result).toBe(mockPlan);
     });
@@ -82,7 +83,7 @@ describe('AI Service Integration Tests', () => {
 
       const result = await aiService.generateInitialPlan('Create tasks');
 
-      expect(mockFetch).toHaveBeenCalledWith('/api/ai', {
+      expect(mockFetch).toHaveBeenCalledWith('/api/ai', expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -91,8 +92,9 @@ describe('AI Service Integration Tests', () => {
           provider: 'openrouter',
           apiKey: 'test-openrouter-key',
           model: 'anthropic/claude-3.5-sonnet'
-        })
-      });
+        }),
+        signal: expect.any(AbortSignal)
+      }));
 
       expect(result).toBe(mockPlan);
     });
@@ -141,7 +143,7 @@ describe('AI Service Integration Tests', () => {
       ));
 
       await expect(aiService.generateInitialPlan('test goal'))
-        .rejects.toThrow('AI API error: Too Many Requests');
+        .rejects.toThrow('HTTP error! status: 429');
     });
 
     it('should throw error when no settings configured', async () => {
@@ -194,7 +196,7 @@ describe('AI Service Integration Tests', () => {
 
       const result = await aiService.generateCommitMessage('Added new todo task');
 
-      expect(mockFetch).toHaveBeenCalledWith('/api/ai', {
+      expect(mockFetch).toHaveBeenCalledWith('/api/ai', expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -203,8 +205,9 @@ describe('AI Service Integration Tests', () => {
           provider: 'gemini',
           apiKey: 'test-key',
           model: 'gemini-2.5-flash'
-        })
-      });
+        }),
+        signal: expect.any(AbortSignal)
+      }));
 
       expect(result).toBe(mockCommitMessage);
     });
@@ -223,7 +226,7 @@ describe('AI Service Integration Tests', () => {
       ));
 
       await expect(aiService.generateCommitMessage('test change'))
-        .rejects.toThrow('AI API error: Bad Request');
+        .rejects.toThrow('HTTP error! status: 400');
     });
 
     it('should handle network errors', async () => {
@@ -264,7 +267,7 @@ describe('AI Service Integration Tests', () => {
         mockChatHistory
       );
 
-      expect(mockFetch).toHaveBeenCalledWith('/api/ai', {
+      expect(mockFetch).toHaveBeenCalledWith('/api/ai', expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -277,8 +280,9 @@ describe('AI Service Integration Tests', () => {
           provider: 'openrouter',
           apiKey: 'test-key',
           model: 'anthropic/claude-3.5-sonnet'
-        })
-      });
+        }),
+        signal: expect.any(AbortSignal)
+      }));
 
       expect(result).toEqual({
         content: '# Updated Content\n\n- [ ] Original task\n- [ ] New testing task',
@@ -321,7 +325,7 @@ describe('AI Service Integration Tests', () => {
       ));
 
       await expect(aiService.processChatMessage('test', 'content', []))
-        .rejects.toThrow('AI API error: Payload Too Large');
+        .rejects.toThrow('HTTP error! status: 413');
     });
 
     it('should handle settings errors', async () => {
