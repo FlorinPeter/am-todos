@@ -5,11 +5,12 @@ import logger from '../utils/logger';
 const getApiUrl = () => {
   const hostname = window.location.hostname;
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    // Use proxy when accessing via localhost
+    // Use proxy when accessing via localhost in development
     return '/api/ai';
   } else {
-    // Use direct backend URL when accessing via external IP
-    return `http://${hostname}:3001/api/ai`;
+    // In production, frontend and backend run in same container
+    // Use relative URL to avoid protocol/port issues
+    return '/api/ai';
   }
 };
 
