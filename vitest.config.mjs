@@ -6,12 +6,32 @@ export default defineConfig({
     setupFiles: ['./src/setupTests.ts'],
     globals: true,
     css: false,
+    // Performance optimizations
+    pool: 'forks',  // Use fork pool for better isolation and performance
+    poolOptions: {
+      forks: {
+        singleFork: true,  // Use single fork on single-core systems
+      }
+    },
+    // Keep test isolation for stability
+    isolate: true,
+    // Optimize file watching
+    watchExclude: [
+      '**/node_modules/**',
+      '**/coverage/**',
+      '**/build/**',
+      '**/dist/**',
+    ],
     exclude: [
       '**/node_modules/**',
       'server/**/__tests__/**',  // Exclude server tests from frontend test runs
     ],
+    // Faster test execution
+    testTimeout: 10000,  // 10 second timeout
+    hookTimeout: 10000,  // 10 second hook timeout
     coverage: {
-      reporter: ['text', 'json', 'html', 'lcov', 'cobertura'],
+      provider: 'v8',  // Explicitly set faster v8 provider
+      reporter: ['text', 'json', 'html'],  // Reduce reporters for speed
       reportsDirectory: './coverage',
       exclude: [
         'node_modules/',
