@@ -31,7 +31,10 @@ vi.mock('../../utils/localStorage', () => ({
 const mockProps = {
   currentContent: '# Test Todo\n\n- [ ] Task 1\n- [ ] Task 2',
   onContentUpdate: vi.fn(),
-  onChatMessage: vi.fn().mockResolvedValue('Updated content with new task'),
+  onChatMessage: vi.fn().mockResolvedValue({
+    content: 'Updated content with new task',
+    description: 'Added a new task to the list'
+  }),
   taskId: 'test-task-id',
   onCheckpointRestore: vi.fn()
 };
@@ -99,7 +102,7 @@ describe('AIChat Component', () => {
       await userEvent.click(sendButton);
       
       await waitFor(() => {
-        expect(mockProps.onChatMessage).toHaveBeenCalledWith('Add a test task', mockProps.currentContent);
+        expect(mockProps.onChatMessage).toHaveBeenCalledWith('Add a test task', mockProps.currentContent, []);
       });
     });
 
