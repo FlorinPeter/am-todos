@@ -140,10 +140,16 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
 
   const handleChatMessage = async (
     message: string, 
-    currentContent: string
+    currentContent: string,
+    chatHistory: ChatMessage[]
   ) => {
-    // Always work with the latest frontend content, no persistent chat history
-    const response = await processChatMessage(message, currentContent, []);
+    // Convert ChatMessage format to simple format expected by AI service
+    const historyForAI = chatHistory.map(msg => ({
+      role: msg.role,
+      content: msg.content
+    }));
+    
+    const response = await processChatMessage(message, currentContent, historyForAI);
     return response;
   };
 
