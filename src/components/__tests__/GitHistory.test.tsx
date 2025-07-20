@@ -295,6 +295,162 @@ This content has malformed frontmatter.`;
     expect(mockOnRestore).toHaveBeenCalledWith('', 'abc123');
   });
 
+  it('should show loading spinner during preview loading', async () => {
+    // Create a promise that we can control
+    let resolveFileAtCommit: (value: any) => void;
+    const fileAtCommitPromise = new Promise((resolve) => {
+      resolveFileAtCommit = resolve;
+    });
+    mockGetFileAtCommit.mockReturnValue(fileAtCommitPromise);
+
+    render(
+      <GitHistory
+        filePath="todos/test.md"
+        onRestore={mockOnRestore}
+        onClose={mockOnClose}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Git History')).toBeInTheDocument();
+    });
+
+    // Switch to preview tab and click a commit
+    fireEvent.click(screen.getByText('Preview'));
+    const firstCommit = screen.getAllByText('feat: Add initial todo')[0];
+    fireEvent.click(firstCommit);
+
+    // Should show loading spinner
+    await waitFor(() => {
+      expect(screen.getByText('Loading preview...')).toBeInTheDocument();
+      const spinner = screen.getByText('Loading preview...').closest('div')?.querySelector('div.animate-spin');
+      expect(spinner).toBeInTheDocument();
+    });
+
+    // Resolve the promise to complete loading
+    resolveFileAtCommit!({
+      content: 'Test content',
+      sha: 'abc123'
+    });
+
+    // Loading should disappear
+    await waitFor(() => {
+      expect(screen.queryByText('Loading preview...')).not.toBeInTheDocument();
+    });
+  });
+
+  it('should show "Select a commit" message when no commit is selected in preview', async () => {
+    render(
+      <GitHistory
+        filePath="todos/test.md"
+        onRestore={mockOnRestore}
+        onClose={mockOnClose}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Git History')).toBeInTheDocument();
+    });
+
+    // On desktop view, should show desktop select message
+    await waitFor(() => {
+      expect(screen.getByText('Select a commit to view its content')).toBeInTheDocument();
+    });
+  });
+
+  it('should show loading state when preview content is loading but preview is not set', async () => {
+    render(
+      <GitHistory
+        filePath="todos/test.md"
+        onRestore={mockOnRestore}
+        onClose={mockOnClose}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Git History')).toBeInTheDocument();
+    });
+
+    // On desktop view, should show desktop select message when no commit selected
+    expect(screen.getByText('Select a commit to view its content')).toBeInTheDocument();
+  });
+
+  it('should display preview content correctly after loading', async () => {
+    const testContent = `---
+title: 'Test Todo'
+createdAt: '2023-01-01T00:00:00.000Z'
+priority: 3
+isArchived: false
+chatHistory: []
+---
+# Test Todo
+
+This is test content for preview.
+
+- [x] Task 1
+- [ ] Task 2`;
+
+    mockGetFileAtCommit.mockResolvedValue({
+      content: testContent,
+      sha: 'abc123'
+    });
+
+    render(
+      <GitHistory
+        filePath="todos/test.md"
+        onRestore={mockOnRestore}
+        onClose={mockOnClose}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Git History')).toBeInTheDocument();
+    });
+
+    // Switch to preview tab and select a commit
+    fireEvent.click(screen.getByText('Preview'));
+    const firstCommit = screen.getAllByText('feat: Add initial todo')[0];
+    fireEvent.click(firstCommit);
+
+    // Should show the preview content in a code block
+    await waitFor(() => {
+      const previewContainers = screen.getAllByText(/# Test Todo/);
+      expect(previewContainers[0]).toBeInTheDocument();
+      const previewContainer = previewContainers[0].closest('pre');
+      expect(previewContainer).toBeInTheDocument();
+      expect(previewContainer).toHaveClass('text-sm', 'whitespace-pre-wrap', 'text-gray-200', 'font-mono');
+    });
+  });
+
+  it('should handle preview loading failure gracefully', async () => {
+    mockGetFileAtCommit.mockRejectedValue(new Error('Failed to load preview'));
+
+    render(
+      <GitHistory
+        filePath="todos/test.md"
+        onRestore={mockOnRestore}
+        onClose={mockOnClose}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Git History')).toBeInTheDocument();
+    });
+
+    // Switch to preview tab and try to load a commit
+    fireEvent.click(screen.getByText('Preview'));
+    const firstCommit = screen.getAllByText('feat: Add initial todo')[0];
+    fireEvent.click(firstCommit);
+
+    // Should handle error gracefully and not show preview
+    await waitFor(() => {
+      expect(mockGetFileAtCommit).toHaveBeenCalled();
+    });
+
+    // Should not crash and should not show preview content
+    expect(screen.queryByText(/# Test Todo/)).not.toBeInTheDocument();
+  });
+
   it('should handle API errors gracefully', async () => {
     mockGetFileHistory.mockRejectedValue(new Error('API Error'));
 
