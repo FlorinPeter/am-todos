@@ -1,6 +1,7 @@
 import { loadSettings } from '../utils/localStorage';
 import { AIResponse, AIResponseWithFallback } from '../types';
 import logger from '../utils/logger';
+import { fetchJsonWithTimeout, TIMEOUT_VALUES } from '../utils/fetchWithTimeout';
 
 // Dynamically determine the API URL based on the current hostname
 const getApiUrl = () => {
@@ -51,7 +52,7 @@ export const generateInitialPlan = async (goal: string) => {
   try {
     const aiSettings = getAISettings();
     const apiUrl = getApiUrl();
-    const response = await fetch(apiUrl, {
+    const data = await fetchJsonWithTimeout(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -63,15 +64,9 @@ export const generateInitialPlan = async (goal: string) => {
         apiKey: aiSettings.apiKey,
         model: aiSettings.model,
       }),
+      timeout: TIMEOUT_VALUES.AI,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      logger.error('AI Service error response:', errorText);
-      throw new Error(`AI API error: ${response.statusText} - ${errorText}`);
-    }
-
-    const data = await response.json();
     return data.text;
   } catch (error) {
     logger.error('AI Service: Network or fetch error:', error);
@@ -86,7 +81,7 @@ export const generateCommitMessage = async (changeDescription: string) => {
   try {
     const aiSettings = getAISettings();
     const apiUrl = getApiUrl();
-    const response = await fetch(apiUrl, {
+    const data = await fetchJsonWithTimeout(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -98,15 +93,9 @@ export const generateCommitMessage = async (changeDescription: string) => {
         apiKey: aiSettings.apiKey,
         model: aiSettings.model,
       }),
+      timeout: TIMEOUT_VALUES.AI,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      logger.error('AI Service commit message error:', errorText);
-      throw new Error(`AI API error: ${response.statusText} - ${errorText}`);
-    }
-
-    const data = await response.json();
     return data.text;
   } catch (error) {
     logger.error('AI Service: Commit message generation error:', error);
@@ -125,7 +114,7 @@ export const processChatMessage = async (
   try {
     const aiSettings = getAISettings();
     const apiUrl = getApiUrl();
-    const response = await fetch(apiUrl, {
+    const data = await fetchJsonWithTimeout(apiUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -141,15 +130,8 @@ export const processChatMessage = async (
       apiKey: aiSettings.apiKey,
       model: aiSettings.model,
     }),
+    timeout: TIMEOUT_VALUES.AI,
   });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      logger.error('AI Service: API error response:', errorText);
-      throw new Error(`AI API error: ${response.statusText} - ${errorText}`);
-    }
-
-    const data = await response.json();
     
     // Try to parse structured JSON response first
     try {

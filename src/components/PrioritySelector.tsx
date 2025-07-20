@@ -6,6 +6,15 @@ interface PrioritySelectorProps {
   disabled?: boolean;
 }
 
+// Priority validation function
+const validatePriority = (priority: number): number => {
+  if (!Number.isInteger(priority) || priority < 1 || priority > 5) {
+    console.warn(`Invalid priority ${priority}, defaulting to 3`);
+    return 3;
+  }
+  return priority;
+};
+
 const PrioritySelector: React.FC<PrioritySelectorProps> = ({ 
   priority, 
   onPriorityChange, 
@@ -19,7 +28,8 @@ const PrioritySelector: React.FC<PrioritySelectorProps> = ({
     5: { label: 'P5', color: 'bg-gray-600 text-white', description: 'Lowest' }
   };
 
-  const currentPriority = priorityLabels[priority as keyof typeof priorityLabels] || priorityLabels[3];
+  const validatedPriority = validatePriority(priority);
+  const currentPriority = priorityLabels[validatedPriority as keyof typeof priorityLabels] || priorityLabels[3];
 
   return (
     <div className="flex items-center space-x-2">
@@ -45,9 +55,9 @@ const PrioritySelector: React.FC<PrioritySelectorProps> = ({
               {Object.entries(priorityLabels).map(([value, config]) => (
                 <button
                   key={value}
-                  onClick={() => onPriorityChange(parseInt(value))}
+                  onClick={() => onPriorityChange(validatePriority(parseInt(value)))}
                   className={`w-full text-left px-3 py-2 rounded text-sm transition-colors duration-150 ${
-                    parseInt(value) === priority
+                    parseInt(value) === validatedPriority
                       ? `${config.color} opacity-100`
                       : 'text-gray-300 hover:bg-gray-700'
                   }`}

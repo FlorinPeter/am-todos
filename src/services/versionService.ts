@@ -1,4 +1,5 @@
 import logger from '../utils/logger';
+import { fetchJsonWithTimeout, TIMEOUT_VALUES } from '../utils/fetchWithTimeout';
 
 export interface VersionInfo {
   version: string;
@@ -16,11 +17,9 @@ const getBackendUrl = () => {
 
 export const getVersionInfo = async (): Promise<VersionInfo> => {
   try {
-    const response = await fetch(`${getBackendUrl()}/api/version`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    return await response.json();
+    return await fetchJsonWithTimeout(`${getBackendUrl()}/api/version`, {
+      timeout: TIMEOUT_VALUES.FAST,
+    });
   } catch (error) {
     logger.error('Failed to fetch version info:', error);
     // Return fallback version info

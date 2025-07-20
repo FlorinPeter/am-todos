@@ -968,7 +968,14 @@ app.post('/api/search', async (req, res) => {
             const frontmatterText = frontmatterMatch[1];
             const priorityMatch = frontmatterText.match(/^priority:\s*(\d+)$/m);
             if (priorityMatch) {
-              priority = parseInt(priorityMatch[1], 10);
+              const parsedPriority = parseInt(priorityMatch[1], 10);
+              // Validate priority range (1-5)
+              if (parsedPriority >= 1 && parsedPriority <= 5) {
+                priority = parsedPriority;
+              } else {
+                console.warn(`Invalid priority ${parsedPriority} in file ${result.path}, using default: 3`);
+                priority = 3;
+              }
             }
           }
         }
