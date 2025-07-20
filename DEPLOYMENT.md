@@ -14,7 +14,7 @@ gcloud auth login
 # Your configuration
 export GOOGLE_CLOUD_PROJECT="gen-lang-client-0595755698"
 export SOURCE_IMAGE="ghcr.io/florinpeter/am-todos:1.5.4"
-export CUSTOM_DOMAIN="todo.peter.tools"
+export CUSTOM_DOMAIN="your-domain.com"
 
 # Deploy with automatic security configuration
 ./hack/deploy-all.sh
