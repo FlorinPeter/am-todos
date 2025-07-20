@@ -3,30 +3,12 @@
 
 import logger from '../utils/logger';
 
-// Environment-aware backend URL detection
-const isCloudRun = window.location.hostname.includes('run.app') || 
-                   window.location.hostname.includes('run.googleapis.com');
+// Always use relative URLs - let infrastructure handle routing
+// Development: Vite proxy routes /api/* to localhost:3001/api/*
+// Production: Same origin serves both frontend and backend
+const BACKEND_URL = '';
 
-const isDevelopment = window.location.port === '3000' || 
-                     window.location.hostname === 'localhost' ||
-                     window.location.hostname.startsWith('159.65.120.9');
-
-let BACKEND_URL: string;
-if (isCloudRun) {
-  BACKEND_URL = ''; // Use relative URLs for Cloud Run
-} else if (isDevelopment) {
-  BACKEND_URL = `http://${window.location.hostname}:3001`; // Use same host with port 3001
-} else {
-  BACKEND_URL = ''; // Default to relative URLs
-}
-
-logger.log('GitLab Service - Environment detection:', {
-  'window.location.hostname': window.location.hostname,
-  'window.location.port': window.location.port,
-  'isCloudRun': isCloudRun,
-  'isDevelopment': isDevelopment,
-  'BACKEND_URL': BACKEND_URL
-});
+logger.log('GitLab Service using relative URLs for all environments');
 
 interface GitLabFile {
   name: string;
