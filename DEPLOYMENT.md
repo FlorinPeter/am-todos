@@ -12,8 +12,8 @@ sudo ./hack/install-dependencies.sh
 gcloud auth login
 
 # Your configuration
-export GOOGLE_CLOUD_PROJECT="gen-lang-client-0595755698"
-export SOURCE_IMAGE="ghcr.io/florinpeter/am-todos:1.5.4"
+export GOOGLE_CLOUD_PROJECT="your-project-id"
+export SOURCE_IMAGE="ghcr.io/florinpeter/am-todos:latest"
 export CUSTOM_DOMAIN="your-domain.com"
 
 # Deploy with automatic security configuration
@@ -64,7 +64,7 @@ Real-time detection for:
 #### **Basic Secure Deployment**
 ```bash
 export GOOGLE_CLOUD_PROJECT="your-project-id"
-export SOURCE_IMAGE="ghcr.io/your-username/am-todos:latest"
+export SOURCE_IMAGE="ghcr.io/florinpeter/am-todos:latest"
 export CUSTOM_DOMAIN="your-domain.com"
 ./hack/deploy-all.sh
 ```
@@ -106,7 +106,7 @@ for i in {1..105}; do curl -s "https://your-domain.com/health" >/dev/null; done
 #### **Quick Start with Docker**
 ```bash
 # Pull and run with basic security
-docker pull ghcr.io/your-username/am-todos:latest
+docker pull ghcr.io/florinpeter/am-todos:latest
 docker run -d \
   --name am-todos \
   -p 3001:3001 \
@@ -114,7 +114,7 @@ docker run -d \
   -e CORS_ORIGINS="https://your-domain.com" \
   -e RATE_LIMIT_MAX_REQUESTS=100 \
   --restart unless-stopped \
-  ghcr.io/your-username/am-todos:latest
+  ghcr.io/florinpeter/am-todos:latest
 ```
 
 #### **Enhanced Security Docker Deployment**
@@ -131,7 +131,7 @@ docker run -d \
   --cap-drop=ALL \
   --user 1001:1001 \
   --restart unless-stopped \
-  ghcr.io/your-username/am-todos:latest
+  ghcr.io/florinpeter/am-todos:latest
 ```
 
 #### **Docker Compose with Security**
@@ -139,7 +139,7 @@ docker run -d \
 version: '3.8'
 services:
   am-todos:
-    image: ghcr.io/your-username/am-todos:latest
+    image: ghcr.io/florinpeter/am-todos:latest
     ports:
       - "3001:3001"
     environment:
@@ -185,7 +185,7 @@ spec:
         fsGroup: 1001
       containers:
       - name: am-todos
-        image: ghcr.io/your-username/am-todos:latest
+        image: ghcr.io/florinpeter/am-todos:latest
         ports:
         - containerPort: 3001
         env:
@@ -365,9 +365,9 @@ kubectl logs -f deployment/am-todos
 ./hack/deploy-all.sh  # Uses latest image
 
 # Docker
-docker pull ghcr.io/your-username/am-todos:latest
+docker pull ghcr.io/florinpeter/am-todos:latest
 docker stop am-todos && docker rm am-todos
-docker run -d --name am-todos <your-config> ghcr.io/your-username/am-todos:latest
+docker run -d --name am-todos <your-config> ghcr.io/florinpeter/am-todos:latest
 ```
 
 ### **Emergency Security Adjustments**
