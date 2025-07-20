@@ -65,7 +65,7 @@ describe('gitlabService - Additional Functions Coverage', () => {
 
       // Should make the correct API call (line 282)
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3001/api/gitlab',
+        '/api/gitlab',
         {
           method: 'POST',
           headers: {
@@ -157,7 +157,7 @@ describe('gitlabService - Additional Functions Coverage', () => {
 
       // First call: create file in active folder
       expect(mockFetch).toHaveBeenNthCalledWith(1,
-        'http://localhost:3001/api/gitlab',
+        '/api/gitlab',
         expect.objectContaining({
           body: expect.stringContaining('"action":"createOrUpdateFile"')
         })
@@ -165,7 +165,7 @@ describe('gitlabService - Additional Functions Coverage', () => {
 
       // Second call: delete file from archive
       expect(mockFetch).toHaveBeenNthCalledWith(2,
-        'http://localhost:3001/api/gitlab',
+        '/api/gitlab',
         expect.objectContaining({
           body: expect.stringContaining('"action":"deleteFile"')
         })
@@ -326,7 +326,7 @@ describe('gitlabService - Additional Functions Coverage', () => {
       await getFileHistory(settings, 'internal/file.md');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://192.168.1.100:3001/api/gitlab',
+        '/api/gitlab',
         expect.any(Object)
       );
     });

@@ -39,9 +39,9 @@ describe('aiService - Focused Coverage', () => {
     vi.resetModules();
   });
 
-  describe('getApiUrl function - external IP fallback', () => {
-    it('should use external IP URL when not localhost', async () => {
-      // Set hostname to external IP to trigger lines 12-13
+  describe('getApiUrl function - relative URLs for all environments', () => {
+    it('should use relative URL when not localhost', async () => {
+      // Set hostname to external IP 
       mockLocation.hostname = '159.65.120.9';
       
       // Mock successful AI settings and response
@@ -62,14 +62,14 @@ describe('aiService - Focused Coverage', () => {
       
       await generateInitialPlan('test goal');
       
-      // Should have called the external IP URL (lines 12-13)
+      // Should always use relative URL regardless of hostname
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://159.65.120.9:3001/api/ai',
+        '/api/ai',
         expect.any(Object)
       );
     });
 
-    it('should use proxy URL for localhost', async () => {
+    it('should use relative URL for localhost', async () => {
       // Keep hostname as localhost
       mockLocation.hostname = 'localhost';
       
@@ -89,14 +89,14 @@ describe('aiService - Focused Coverage', () => {
       
       await generateInitialPlan('test goal');
       
-      // Should use proxy URL (not the external IP path)
+      // Should always use relative URL
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/ai',
         expect.any(Object)
       );
     });
 
-    it('should use proxy URL for 127.0.0.1', async () => {
+    it('should use relative URL for 127.0.0.1', async () => {
       mockLocation.hostname = '127.0.0.1';
       
       mockLoadSettings.mockReturnValue({
@@ -115,14 +115,14 @@ describe('aiService - Focused Coverage', () => {
       
       await generateInitialPlan('test goal');
       
-      // Should use proxy URL
+      // Should always use relative URL
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/ai',
         expect.any(Object)
       );
     });
 
-    it('should use external IP URL for custom domain', async () => {
+    it('should use relative URL for custom domain', async () => {
       mockLocation.hostname = 'my-app.custom-domain.com';
       
       mockLoadSettings.mockReturnValue({
@@ -141,18 +141,18 @@ describe('aiService - Focused Coverage', () => {
       
       await generateInitialPlan('test goal');
       
-      // Should use external IP URL pattern (lines 12-13)
+      // Should always use relative URL regardless of domain
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://my-app.custom-domain.com:3001/api/ai',
+        '/api/ai',
         expect.any(Object)
       );
     });
 
     it('should handle various hostname scenarios', async () => {
       const testCases = [
-        { hostname: '192.168.1.100', expectedUrl: 'http://192.168.1.100:3001/api/ai' },
-        { hostname: 'production.example.com', expectedUrl: 'http://production.example.com:3001/api/ai' },
-        { hostname: 'staging-server', expectedUrl: 'http://staging-server:3001/api/ai' },
+        { hostname: '192.168.1.100', expectedUrl: '/api/ai' },
+        { hostname: 'production.example.com', expectedUrl: '/api/ai' },
+        { hostname: 'staging-server', expectedUrl: '/api/ai' },
         { hostname: 'localhost', expectedUrl: '/api/ai' },
         { hostname: '127.0.0.1', expectedUrl: '/api/ai' },
       ];
@@ -188,7 +188,7 @@ describe('aiService - Focused Coverage', () => {
   });
 
   describe('edge cases and error scenarios', () => {
-    it('should handle network errors with external IP', async () => {
+    it('should handle network errors with relative URL', async () => {
       mockLocation.hostname = '10.0.0.5';
       
       mockLoadSettings.mockReturnValue({
@@ -203,14 +203,14 @@ describe('aiService - Focused Coverage', () => {
       await expect(generateInitialPlan('test goal'))
         .rejects.toThrow('Network error');
       
-      // Should have tried the external IP URL
+      // Should always use relative URL
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://10.0.0.5:3001/api/ai',
+        '/api/ai',
         expect.any(Object)
       );
     });
 
-    it('should handle server errors with external IP URL', async () => {
+    it('should handle server errors with relative URL', async () => {
       mockLocation.hostname = '172.16.0.10';
       
       mockLoadSettings.mockReturnValue({
@@ -230,9 +230,9 @@ describe('aiService - Focused Coverage', () => {
       await expect(generateInitialPlan('test goal'))
         .rejects.toThrow();
       
-      // Should have used external IP URL
+      // Should always use relative URL
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://172.16.0.10:3001/api/ai',
+        '/api/ai',
         expect.any(Object)
       );
     });

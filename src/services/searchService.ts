@@ -1,17 +1,10 @@
 import { loadSettings } from '../utils/localStorage';
 import logger from '../utils/logger';
 
-// Dynamically determine the API URL based on the current hostname
-const getApiUrl = () => {
-  const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    // Use proxy when accessing via localhost
-    return '/api/search';
-  } else {
-    // Use direct backend URL when accessing via external IP
-    return `http://${hostname}:3001/api/search`;
-  }
-};
+// Always use relative URLs - let infrastructure handle routing
+// Development: Vite proxy routes /api/* to localhost:3001/api/*
+// Production: Same origin serves both frontend and backend
+const getApiUrl = () => '/api/search';
 
 // Search result interface
 // NOTE: Backend normalizes GitHub and GitLab responses to consistent format

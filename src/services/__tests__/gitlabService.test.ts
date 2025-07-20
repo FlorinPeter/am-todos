@@ -46,7 +46,7 @@ describe('GitLab Service', () => {
       );
 
       expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:3001/api/gitlab',
+        '/api/gitlab',
         expect.objectContaining({
           method: 'POST',
           headers: {
@@ -103,7 +103,7 @@ describe('GitLab Service', () => {
       const result = await gitlabService.getTodos(mockSettings, 'todos', false);
 
       expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:3001/api/gitlab',
+        '/api/gitlab',
         expect.objectContaining({
           body: JSON.stringify({
             action: 'listFiles',
@@ -135,7 +135,7 @@ describe('GitLab Service', () => {
       const result = await gitlabService.getTodos(mockSettings, 'todos', true);
 
       expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:3001/api/gitlab',
+        '/api/gitlab',
         expect.objectContaining({
           body: JSON.stringify({
             action: 'listFiles',
@@ -181,7 +181,7 @@ describe('GitLab Service', () => {
       const result = await gitlabService.getFileContent(mockSettings, 'todos/test-todo.md');
 
       expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:3001/api/gitlab',
+        '/api/gitlab',
         expect.objectContaining({
           body: JSON.stringify({
             action: 'getRawFile',
@@ -214,7 +214,7 @@ describe('GitLab Service', () => {
       );
 
       expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:3001/api/gitlab',
+        '/api/gitlab',
         expect.objectContaining({
           body: JSON.stringify({
             action: 'deleteFile',
@@ -286,7 +286,7 @@ describe('GitLab Service', () => {
 
       // Should call getRepositoryTree action
       expect(fetch).toHaveBeenCalledWith(
-        'http://localhost:3001/api/gitlab',
+        '/api/gitlab',
         expect.objectContaining({
           body: JSON.stringify({
             action: 'getRepositoryTree',
@@ -338,7 +338,7 @@ describe('GitLab Service', () => {
       
       // Should create main folder .gitkeep
       expect(fetch).toHaveBeenNthCalledWith(1, 
-        'http://localhost:3001/api/gitlab',
+        '/api/gitlab',
         expect.objectContaining({
           body: expect.stringContaining('"filePath":"work-tasks/.gitkeep"')
         })
@@ -346,7 +346,7 @@ describe('GitLab Service', () => {
 
       // Should create archive folder .gitkeep
       expect(fetch).toHaveBeenNthCalledWith(2,
-        'http://localhost:3001/api/gitlab', 
+        '/api/gitlab', 
         expect.objectContaining({
           body: expect.stringContaining('"filePath":"work-tasks/archive/.gitkeep"')
         })

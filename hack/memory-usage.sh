@@ -4,7 +4,7 @@
 # Usage: ./hack/memory-usage.sh [local|production]
 
 MODE=${1:-production}
-SERVICE_URL="https://todo.peter.tools"
+SERVICE_URL="https://your-domain.com"
 
 if [ "$MODE" = "local" ]; then
     SERVICE_URL="http://localhost:3001"
