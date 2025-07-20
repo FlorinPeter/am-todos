@@ -49,3 +49,21 @@ export interface TodoFrontmatter {
   isArchived: boolean;
   chatHistory: ChatMessage[];
 }
+
+/**
+ * AI response interface for structured output
+ * Used in: aiService, AIChat
+ */
+export interface AIResponse {
+  content: string;
+  description: string;
+}
+
+/**
+ * AI response with fallback for backward compatibility
+ * Used in: aiService when parsing potentially unstructured responses
+ */
+export interface AIResponseWithFallback {
+  content: string;
+  description?: string;
+}

@@ -252,8 +252,11 @@ describe('AI Service Integration Tests', () => {
         aiModel: 'anthropic/claude-3.5-sonnet'
       });
 
-      const mockResponseText = '# Updated Content\n\n- [ ] Original task\n- [ ] New testing task';
-      mockFetch.mockResolvedValueOnce(mockResponse({ text: mockResponseText }));
+      const mockStructuredResponse = JSON.stringify({
+        content: '# Updated Content\n\n- [ ] Original task\n- [ ] New testing task',
+        description: 'Added a testing task to the todo list'
+      });
+      mockFetch.mockResolvedValueOnce(mockResponse({ text: mockStructuredResponse }));
 
       const result = await aiService.processChatMessage(
         'Add a testing task',
@@ -277,7 +280,31 @@ describe('AI Service Integration Tests', () => {
         })
       });
 
-      expect(result).toBe(mockResponseText);
+      expect(result).toEqual({
+        content: '# Updated Content\n\n- [ ] Original task\n- [ ] New testing task',
+        description: 'Added a testing task to the todo list'
+      });
+    });
+
+    it('should handle plain text response as fallback', async () => {
+      vi.mocked(loadSettings).mockReturnValue({
+        aiProvider: 'gemini',
+        geminiApiKey: 'test-key'
+      });
+
+      const mockPlainTextResponse = '# Updated Content\n\n- [ ] Original task\n- [ ] New testing task';
+      mockFetch.mockResolvedValueOnce(mockResponse({ text: mockPlainTextResponse }));
+
+      const result = await aiService.processChatMessage(
+        'Add a testing task',
+        '# Original Content\n\n- [ ] Original task',
+        mockChatHistory
+      );
+
+      expect(result).toEqual({
+        content: mockPlainTextResponse,
+        description: undefined
+      });
     });
 
     it('should handle API errors', async () => {
