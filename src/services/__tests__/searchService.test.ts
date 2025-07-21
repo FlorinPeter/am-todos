@@ -75,7 +75,7 @@ describe('Search Service', () => {
 
       await searchTodos('test', 'folder');
 
-      expect(fetch).toHaveBeenCalledWith('/api/search', {
+      expect(fetch).toHaveBeenCalledWith('/api/search', expect.objectContaining({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -88,8 +88,9 @@ describe('Search Service', () => {
           owner: 'github-owner',
           repo: 'github-repo',
           token: 'github-token'
-        })
-      });
+        }),
+        signal: expect.any(AbortSignal)
+      }));
     });
 
     it('should handle dual-config GitLab settings', async () => {
@@ -119,7 +120,7 @@ describe('Search Service', () => {
 
       await searchTodos('test', 'repo');
 
-      expect(fetch).toHaveBeenCalledWith('/api/search', {
+      expect(fetch).toHaveBeenCalledWith('/api/search', expect.objectContaining({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -132,8 +133,9 @@ describe('Search Service', () => {
           instanceUrl: 'https://gitlab.work.com',
           projectId: '456',
           token: 'gitlab-token'
-        })
-      });
+        }),
+        signal: expect.any(AbortSignal)
+      }));
     });
 
     it('should throw error for incomplete dual-config GitHub settings', async () => {
@@ -244,7 +246,7 @@ describe('Search Service', () => {
 
       const result = await searchTodos('test', 'folder');
 
-      expect(fetch).toHaveBeenCalledWith('/api/search', {
+      expect(fetch).toHaveBeenCalledWith('/api/search', expect.objectContaining({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -257,8 +259,9 @@ describe('Search Service', () => {
           owner: 'test-owner',
           repo: 'test-repo',
           token: 'test-token'
-        })
-      });
+        }),
+        signal: expect.any(AbortSignal)
+      }));
 
       expect(result.total_count).toBe(1);
       expect(result.items).toHaveLength(1);
@@ -289,7 +292,7 @@ describe('Search Service', () => {
 
       await searchTodos('test', 'repo');
 
-      expect(fetch).toHaveBeenCalledWith('/api/search', {
+      expect(fetch).toHaveBeenCalledWith('/api/search', expect.objectContaining({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -302,8 +305,9 @@ describe('Search Service', () => {
           instanceUrl: 'https://gitlab.example.com',
           projectId: '123',
           token: 'test-token'
-        })
-      });
+        }),
+        signal: expect.any(AbortSignal)
+      }));
     });
 
     it('should handle API errors gracefully', async () => {

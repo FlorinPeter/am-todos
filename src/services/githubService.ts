@@ -1,4 +1,5 @@
 import logger from '../utils/logger';
+import { fetchWithTimeout, TIMEOUT_VALUES } from '../utils/fetchWithTimeout';
 
 // Always use relative URLs - let infrastructure handle routing
 // Development: Vite proxy routes /api/* to localhost:3001/api/*
@@ -21,7 +22,7 @@ const makeGitHubRequest = async (path: string, method = 'GET', headers = {}, bod
   logger.log('Making proxy request to:', proxyUrl);
   logger.log('Proxy request data:', { path, method, headers: Object.keys(headers), owner, repo });
   
-  const response = await fetch(proxyUrl, {
+  const response = await fetchWithTimeout(proxyUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -33,7 +34,8 @@ const makeGitHubRequest = async (path: string, method = 'GET', headers = {}, bod
       body,
       owner,
       repo
-    })
+    }),
+    timeout: TIMEOUT_VALUES.NORMAL,
   });
   
   logger.log('Proxy response status:', response.status);
@@ -373,13 +375,14 @@ export const getFileHistory = async (
   repo: string,
   path: string
 ) => {
-  const response = await fetch(`${BACKEND_URL}/api/git-history`, {
+  const response = await fetchWithTimeout(`${BACKEND_URL}/api/git-history`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `token ${token}`,
     },
     body: JSON.stringify({ path, owner, repo }),
+    timeout: TIMEOUT_VALUES.NORMAL,
   });
 
   if (!response.ok) {
@@ -465,13 +468,14 @@ export const getFileAtCommit = async (
   path: string,
   sha: string
 ) => {
-  const response = await fetch(`${BACKEND_URL}/api/file-at-commit`, {
+  const response = await fetchWithTimeout(`${BACKEND_URL}/api/file-at-commit`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `token ${token}`,
     },
     body: JSON.stringify({ path, sha, owner, repo }),
+    timeout: TIMEOUT_VALUES.NORMAL,
   });
 
   if (!response.ok) {

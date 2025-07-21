@@ -1,6 +1,39 @@
 import logger from './logger';
 import { ChatMessage } from '../types';
 
+// URL validation helper functions
+const validateUrlComponent = (value: string, fieldName: string): string => {
+  if (typeof value !== 'string') {
+    throw new Error(`${fieldName} must be a string`);
+  }
+  
+  // Remove any potentially dangerous characters
+  const sanitized = value
+    .replace(/[<>"\\']/g, '') // Remove HTML/script injection chars
+    .replace(/javascript:/gi, '') // Remove javascript: URLs
+    .replace(/data:/gi, '') // Remove data: URLs
+    .replace(/vbscript:/gi, '') // Remove vbscript: URLs
+    .trim();
+  
+  if (sanitized.length > 500) {
+    throw new Error(`${fieldName} too long (max 500 characters)`);
+  }
+  
+  return sanitized;
+};
+
+// Validate URL structure components
+const validateUrlStructure = (url: string): void => {
+  try {
+    const urlObj = new URL(url);
+    if (!['http:', 'https:'].includes(urlObj.protocol)) {
+      throw new Error('URL must use http or https protocol');
+    }
+  } catch (e) {
+    throw new Error('Invalid URL structure');
+  }
+};
+
 // Individual provider configurations
 interface GitHubConfig {
   pat: string;
@@ -148,43 +181,66 @@ export const encodeSettingsToUrl = (settings: GitHubSettings): string => {
     // GitHub settings (use nested structure for dual-config)
     if (settings.github) {
       const gh: any = {};
-      if (settings.github.pat) gh.p = settings.github.pat;
-      if (settings.github.owner) gh.o = settings.github.owner;
-      if (settings.github.repo) gh.r = settings.github.repo;
-      if (settings.github.branch && settings.github.branch !== 'main') gh.b = settings.github.branch;
+      if (settings.github.pat) gh.p = validateUrlComponent(settings.github.pat, 'GitHub PAT');
+      if (settings.github.owner) gh.o = validateUrlComponent(settings.github.owner, 'GitHub owner');
+      if (settings.github.repo) gh.r = validateUrlComponent(settings.github.repo, 'GitHub repo');
+      if (settings.github.branch && settings.github.branch !== 'main') {
+        gh.b = validateUrlComponent(settings.github.branch, 'GitHub branch');
+      }
       if (Object.keys(gh).length > 0) compressed.gh = gh;
     }
     
     // GitLab settings (use nested structure for dual-config)
     if (settings.gitlab) {
       const gl: any = {};
-      if (settings.gitlab.instanceUrl && settings.gitlab.instanceUrl !== 'https://gitlab.com') gl.u = settings.gitlab.instanceUrl;
-      if (settings.gitlab.projectId) gl.i = settings.gitlab.projectId;
-      if (settings.gitlab.token) gl.t = settings.gitlab.token;
-      if (settings.gitlab.branch && settings.gitlab.branch !== 'main') gl.b = settings.gitlab.branch;
+      if (settings.gitlab.instanceUrl && settings.gitlab.instanceUrl !== 'https://gitlab.com') {
+        const validatedUrl = validateUrlComponent(settings.gitlab.instanceUrl, 'GitLab URL');
+        validateUrlStructure(validatedUrl);
+        gl.u = validatedUrl;
+      }
+      if (settings.gitlab.projectId) gl.i = validateUrlComponent(settings.gitlab.projectId, 'GitLab project ID');
+      if (settings.gitlab.token) gl.t = validateUrlComponent(settings.gitlab.token, 'GitLab token');
+      if (settings.gitlab.branch && settings.gitlab.branch !== 'main') {
+        gl.b = validateUrlComponent(settings.gitlab.branch, 'GitLab branch');
+      }
       if (Object.keys(gl).length > 0) compressed.gl = gl;
     }
     
     // Legacy field support for backward compatibility with old URLs
-    if (settings.pat) compressed.p = settings.pat;
-    if (settings.owner) compressed.o = settings.owner;
-    if (settings.repo) compressed.r = settings.repo;
-    if (settings.instanceUrl) compressed.u = settings.instanceUrl;
-    if (settings.projectId) compressed.i = settings.projectId;
-    if (settings.token) compressed.t = settings.token;
+    if (settings.pat) compressed.p = validateUrlComponent(settings.pat, 'PAT');
+    if (settings.owner) compressed.o = validateUrlComponent(settings.owner, 'owner');
+    if (settings.repo) compressed.r = validateUrlComponent(settings.repo, 'repo');
+    if (settings.instanceUrl) {
+      const validatedUrl = validateUrlComponent(settings.instanceUrl, 'instance URL');
+      validateUrlStructure(validatedUrl);
+      compressed.u = validatedUrl;
+    }
+    if (settings.projectId) compressed.i = validateUrlComponent(settings.projectId, 'project ID');
+    if (settings.token) compressed.t = validateUrlComponent(settings.token, 'token');
     
     // Common settings
-    if (settings.folder && settings.folder !== 'todos') compressed.f = settings.folder;
+    if (settings.folder && settings.folder !== 'todos') {
+      compressed.f = validateUrlComponent(settings.folder, 'folder');
+    }
     
     // AI settings (a: gemini=0, openrouter=1)
     const aiProvider = settings.aiProvider || 'gemini';
-    if (aiProvider !== 'gemini') compressed.a = aiProvider === 'openrouter' ? 1 : aiProvider;
+    if (aiProvider !== 'gemini') {
+      const validatedProvider = validateUrlComponent(aiProvider, 'AI provider');
+      compressed.a = validatedProvider === 'openrouter' ? 1 : validatedProvider;
+    }
     
-    if (settings.geminiApiKey) compressed.gk = settings.geminiApiKey;
-    if (settings.openRouterApiKey) compressed.ok = settings.openRouterApiKey;
-    if (settings.aiModel) compressed.m = settings.aiModel;
+    if (settings.geminiApiKey) compressed.gk = validateUrlComponent(settings.geminiApiKey, 'Gemini API key');
+    if (settings.openRouterApiKey) compressed.ok = validateUrlComponent(settings.openRouterApiKey, 'OpenRouter API key');
+    if (settings.aiModel) compressed.m = validateUrlComponent(settings.aiModel, 'AI model');
     
-    const encoded = btoa(JSON.stringify(compressed));
+    // Validate final JSON size before encoding
+    const jsonString = JSON.stringify(compressed);
+    if (jsonString.length > 10000) {
+      throw new Error('Configuration too large to encode in URL');
+    }
+    
+    const encoded = btoa(jsonString);
     return `${window.location.origin}${window.location.pathname}?config=${encoded}`;
   } catch (error) {
     logger.error("Error encoding settings to URL", error);
@@ -194,7 +250,23 @@ export const encodeSettingsToUrl = (settings: GitHubSettings): string => {
 
 export const decodeSettingsFromUrl = (configParam: string): GitHubSettings | null => {
   try {
+    // Validate base64 input size to prevent DoS attacks
+    if (configParam.length > 20000) {
+      throw new Error('Configuration parameter too large');
+    }
+    
+    // Validate base64 format
+    if (!/^[A-Za-z0-9+/]*={0,2}$/.test(configParam)) {
+      throw new Error('Invalid base64 configuration format');
+    }
+    
     const decoded = atob(configParam);
+    
+    // Check decoded size limit
+    if (decoded.length > 15000) {
+      throw new Error('Decoded configuration too large');
+    }
+    
     const compressed = JSON.parse(decoded);
     
     // Check format type

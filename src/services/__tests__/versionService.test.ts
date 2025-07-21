@@ -191,7 +191,9 @@ describe('versionService - Targeted Coverage (lines 21-23)', () => {
     const result = await getVersionInfo();
 
     expect(result.nodeEnv).toBe('production');
-    expect(mockFetch).toHaveBeenCalledWith('/api/version');
+    expect(mockFetch).toHaveBeenCalledWith('/api/version', expect.objectContaining({
+      signal: expect.any(AbortSignal)
+    }));
 
     // Restore environment
     process.env = originalEnv;

@@ -7,6 +7,7 @@ import GitLabService from './gitlabService.js';
 import { fileURLToPath } from 'url';
 import logger from './logger.js';
 import rateLimit from 'express-rate-limit';
+import { validateAndSanitizeSearchQuery } from './utils/redosProtection.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -770,6 +771,25 @@ app.post('/api/search', async (req, res) => {
     return res.status(400).json({ error: 'Missing provider (github or gitlab)' });
   }
 
+  // ReDoS protection: Validate and sanitize search query
+  const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
+  const validation = validateAndSanitizeSearchQuery(query.trim(), clientIp);
+  
+  if (!validation.isValid) {
+    logger.warn(`🚨 INVALID SEARCH QUERY from ${clientIp}: ${validation.error}`);
+    return res.status(400).json({ 
+      error: validation.error,
+      remaining_requests: validation.remainingRequests 
+    });
+  }
+
+  const sanitizedQuery = validation.sanitizedQuery;
+  logger.log(`🔍 Search query sanitized from ${clientIp}:`, { 
+    original: query.trim(), 
+    sanitized: sanitizedQuery,
+    remaining_requests: validation.remainingRequests 
+  });
+
   try {
     let results = [];
 
@@ -786,8 +806,8 @@ app.post('/api/search', async (req, res) => {
         return res.status(403).json({ error: 'Invalid owner or repository name' });
       }
 
-      // Build GitHub search query
-      let searchQuery = `${query} in:file repo:${owner}/${repo}`;
+      // Build GitHub search query using sanitized input
+      let searchQuery = `${sanitizedQuery} in:file repo:${owner}/${repo}`;
       
       if (scope === 'folder') {
         searchQuery += ` path:${folder}`;
@@ -836,10 +856,10 @@ app.post('/api/search', async (req, res) => {
         return res.status(400).json({ error: 'Missing GitLab credentials: instanceUrl, projectId, token' });
       }
 
-      // Build GitLab search query
+      // Build GitLab search query using sanitized input
       // Note: GitLab doesn't support GitHub-style path: syntax
       // We'll filter by folder on the backend after getting results
-      let searchQuery = query;
+      let searchQuery = sanitizedQuery;
 
       const gitlabUrl = `${instanceUrl}/api/v4/projects/${projectId}/search?scope=blobs&search=${encodeURIComponent(searchQuery)}`;
       logger.log('GitLab search URL:', gitlabUrl);
@@ -968,7 +988,14 @@ app.post('/api/search', async (req, res) => {
             const frontmatterText = frontmatterMatch[1];
             const priorityMatch = frontmatterText.match(/^priority:\s*(\d+)$/m);
             if (priorityMatch) {
-              priority = parseInt(priorityMatch[1], 10);
+              const parsedPriority = parseInt(priorityMatch[1], 10);
+              // Validate priority range (1-5)
+              if (parsedPriority >= 1 && parsedPriority <= 5) {
+                priority = parsedPriority;
+              } else {
+                console.warn(`Invalid priority ${parsedPriority} in file ${result.path}, using default: 3`);
+                priority = 3;
+              }
             }
           }
         }
@@ -989,7 +1016,7 @@ app.post('/api/search', async (req, res) => {
     }
 
     res.json({
-      query,
+      query: sanitizedQuery,
       scope,
       total_count: enhancedResults.length,
       items: enhancedResults

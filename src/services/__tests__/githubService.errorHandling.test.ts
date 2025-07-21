@@ -89,7 +89,7 @@ describe('githubService - Focused Coverage', () => {
 
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/file-at-commit',
-        {
+        expect.objectContaining({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -100,8 +100,9 @@ describe('githubService - Focused Coverage', () => {
             sha: 'abc123',
             owner: 'testowner',
             repo: 'testrepo'
-          })
-        }
+          }),
+          signal: expect.any(AbortSignal)
+        })
       );
 
       expect(result).toEqual(expectedData);
