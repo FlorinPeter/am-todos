@@ -87,7 +87,8 @@ describe('MarkdownViewer - Enhanced Coverage Tests', () => {
       await userEvent.click(editButton);
       
       await waitFor(() => {
-        expect(screen.getByRole('textbox')).toBeInTheDocument();
+        const editor = document.querySelector('.cm-editor');
+        expect(editor).toBeInTheDocument();
         expect(screen.getByText('Save')).toBeInTheDocument();
         expect(screen.getByText('Cancel')).toBeInTheDocument();
       });
