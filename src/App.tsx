@@ -325,8 +325,12 @@ function App() {
       // 3. Generate Commit Message
       setCreationStep('💬 Generating commit message...');
       logger.log('Generating commit message...');
-      const commitMessage = await generateCommitMessage(`feat: Add new todo for "${goal}"`);
+      const commitResponse = await generateCommitMessage(`feat: Add new todo for "${goal}"`);
+      const commitMessage = commitResponse.message;
       logger.log('Commit message generated:', commitMessage);
+      if (commitResponse.description) {
+        logger.log('Commit generation description:', commitResponse.description);
+      }
 
       // 4. Ensure directory exists and create file with user-friendly name
       setCreationStep(`📂 Setting up ${getProviderName()} repository...`);
@@ -428,8 +432,12 @@ function App() {
       logger.log('App: Full content prepared, generating commit message...');
 
       setSaveStep('🤖 Generating commit message...');
-      const commitMessage = await generateCommitMessage(`fix: Update todo "${todoToUpdate.title}"`);
+      const commitResponse = await generateCommitMessage(`fix: Update todo "${todoToUpdate.title}"`);
+      const commitMessage = commitResponse.message;
       logger.log('App: Commit message generated:', commitMessage);
+      if (commitResponse.description) {
+        logger.log('App: Commit generation description:', commitResponse.description);
+      }
 
       setSaveStep('🔄 Getting latest file version...');
       logger.log('App: Fetching latest SHA for file...');

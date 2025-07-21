@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import AIChat from '../AIChat';
@@ -128,7 +128,10 @@ describe('AIChat Component', () => {
     it('shows loading state during message processing', async () => {
       // Mock slow response
       mockProps.onChatMessage.mockImplementation(() => 
-        new Promise(resolve => setTimeout(() => resolve('Updated'), 100))
+        new Promise(resolve => setTimeout(() => resolve({
+          content: 'Updated content',
+          description: 'Updated successfully'
+        }), 100))
       );
       
       render(<AIChat {...mockProps} />);
@@ -138,15 +141,22 @@ describe('AIChat Component', () => {
       const sendButton = screen.getByRole('button', { name: '' });
       
       await userEvent.type(input, 'Test message');
-      await userEvent.click(sendButton);
+      
+      // Wrap the async action in act() to ensure proper React updates
+      await act(async () => {
+        await userEvent.click(sendButton);
+      });
       
       // Should show loading state
       expect(screen.getByText(/processing/i)).toBeInTheDocument();
       
-      // Wait for the promise to resolve to prevent cleanup issues
+      // Wait for the loading state to complete (loading indicator disappears)
       await waitFor(() => {
-        expect(mockProps.onChatMessage).toHaveBeenCalled();
-      });
+        expect(screen.queryByText(/processing/i)).not.toBeInTheDocument();
+      }, { timeout: 5000 });
+      
+      // Ensure the mock was called
+      expect(mockProps.onChatMessage).toHaveBeenCalled();
     });
 
     it('displays helper text when no chat history', async () => {
@@ -294,6 +304,12 @@ describe('AIChat Component', () => {
     });
 
     it('shows restore button for assistant messages with checkpoints', async () => {
+      // Ensure we use the original mock for this test
+      mockProps.onChatMessage.mockResolvedValueOnce({
+        content: 'Updated content with new task',
+        description: 'Added a new task to the list'
+      });
+      
       render(<AIChat {...mockProps} />);
       const toggleButton = screen.getByText(/AI Chat Assistant/i);
       await userEvent.click(toggleButton);
@@ -305,7 +321,7 @@ describe('AIChat Component', () => {
       await userEvent.click(sendButton);
       
       await waitFor(() => {
-        expect(screen.getByText('Task updated successfully')).toBeInTheDocument();
+        expect(screen.getByText('Added a new task to the list')).toBeInTheDocument();
       });
       
       expect(screen.getByTitle('Restore to this checkpoint')).toBeInTheDocument();

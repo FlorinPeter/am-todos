@@ -652,8 +652,16 @@ Rules:
         prompt = `Create a simple, high-level markdown template for this goal: ${payload.goal}`;
         break;
       case 'generateCommitMessage':
-        systemInstruction = `You are an expert at writing conventional commit messages. Given a description of a change, generate a concise and appropriate conventional commit message (e.g., feat: Add new feature, fix: Fix bug, docs: Update documentation).`;
-        prompt = `Generate a conventional commit message for the following change: ${payload.changeDescription}`;
+        systemInstruction = `You are an expert at writing conventional commit messages. Given a description of a change, return a JSON object with a conventional commit message and description of what was generated.
+
+Rules:
+1. Return ONLY a JSON object with this exact structure: {"message": "conventional commit message", "description": "brief description of what was generated"}
+2. Follow conventional commit format: type(scope): description (e.g., feat: Add new feature, fix: Fix bug, docs: Update documentation)
+3. Keep the message concise and descriptive
+4. The description should explain what type of commit message was generated (e.g., "Generated conventional commit message for new todo creation", "Created commit message for task update")`;
+        prompt = `Generate a conventional commit message for the following change: ${payload.changeDescription}
+
+Please return a JSON object with the commit message and description:`;
         break;
       case 'processChatMessage':
         systemInstruction = `You are an AI assistant helping users modify their task lists. Given a user's natural language request, the current markdown content, and chat history, return a JSON object with the updated content and a description of what you changed.
@@ -686,8 +694,8 @@ Please return a JSON object with the updated markdown content and description of
       const genAI = new GoogleGenerativeAI(apiKey);
       const geminiModel = genAI.getGenerativeModel({ model: model || "gemini-2.5-flash" });
       
-      // Use JSON mode for processChatMessage to get structured output
-      const config = action === 'processChatMessage' ? {
+      // Use JSON mode for processChatMessage and generateCommitMessage to get structured output
+      const config = (action === 'processChatMessage' || action === 'generateCommitMessage') ? {
         generationConfig: { responseMimeType: "application/json" }
       } : {};
       
@@ -715,8 +723,8 @@ Please return a JSON object with the updated markdown content and description of
             { role: 'system', content: systemInstruction },
             { role: 'user', content: prompt }
           ],
-          // Use JSON mode for processChatMessage to get structured output
-          ...(action === 'processChatMessage' ? { response_format: { type: "json_object" } } : {})
+          // Use JSON mode for processChatMessage and generateCommitMessage to get structured output
+          ...((action === 'processChatMessage' || action === 'generateCommitMessage') ? { response_format: { type: "json_object" } } : {})
         })
       });
 

@@ -67,3 +67,21 @@ export interface AIResponseWithFallback {
   content: string;
   description?: string;
 }
+
+/**
+ * Commit message response interface for structured output
+ * Used in: aiService, generateCommitMessage
+ */
+export interface CommitMessageResponse {
+  message: string;
+  description: string;
+}
+
+/**
+ * Commit message response with fallback for backward compatibility
+ * Used in: aiService when parsing potentially unstructured commit message responses
+ */
+export interface CommitMessageResponseWithFallback {
+  message: string;
+  description?: string;
+}
