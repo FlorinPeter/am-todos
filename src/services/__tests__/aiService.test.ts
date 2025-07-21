@@ -36,12 +36,19 @@ describe('AI Service - Basic Feature Coverage', () => {
 
   describe('Feature 8: Conventional Commits with AI', () => {
     it('generateCommitMessage creates conventional commit format', async () => {
-      vi.mocked(generateCommitMessage).mockResolvedValueOnce('feat: Add new todo "Deploy web app"');
+      vi.mocked(generateCommitMessage).mockResolvedValueOnce({
+        message: 'feat: Add new todo "Deploy web app"',
+        description: 'Generated conventional commit message for new todo creation'
+      });
 
-      const result = await generateCommitMessage('create', 'Deploy web app', 'content');
+      const result = await generateCommitMessage('Add new todo "Deploy web app"');
       
-      expect(result).toMatch(/^(feat|fix|docs|chore):/);
-      expect(generateCommitMessage).toHaveBeenCalledWith('create', 'Deploy web app', 'content');
+      expect(result.message).toMatch(/^(feat|fix|docs|chore):/);
+      expect(result).toEqual({
+        message: expect.stringMatching(/^(feat|fix|docs|chore):/),
+        description: expect.any(String)
+      });
+      expect(generateCommitMessage).toHaveBeenCalledWith('Add new todo "Deploy web app"');
     });
   });
 

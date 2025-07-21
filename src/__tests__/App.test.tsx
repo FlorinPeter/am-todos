@@ -404,7 +404,10 @@ describe('App Component', () => {
 
     it('calls save handler when save button is clicked', async () => {
       mockStringifyMarkdownWithFrontmatter.mockReturnValue('updated markdown');
-      mockGenerateCommitMessage.mockResolvedValue('feat: Update todo');
+      mockGenerateCommitMessage.mockResolvedValue({
+        message: 'feat: Update todo',
+        description: 'Generated commit message for todo update'
+      });
       mockCreateOrUpdateTodo.mockResolvedValue({ sha: 'updated-sha' });
       
       render(<App />);

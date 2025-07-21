@@ -185,14 +185,17 @@ describe('AI Service Integration Tests', () => {
   });
 
   describe('generateCommitMessage', () => {
-    it('should generate commit message with Gemini', async () => {
+    it('should generate structured commit message with Gemini', async () => {
       vi.mocked(loadSettings).mockReturnValue({
         aiProvider: 'gemini',
         geminiApiKey: 'test-key'
       });
 
-      const mockCommitMessage = 'feat: Add new todo task for deployment';
-      mockFetch.mockResolvedValueOnce(mockResponse({ text: mockCommitMessage }));
+      const mockStructuredResponse = JSON.stringify({
+        message: 'feat: Add new todo task for deployment',
+        description: 'Generated conventional commit message for new todo creation'
+      });
+      mockFetch.mockResolvedValueOnce(mockResponse({ text: mockStructuredResponse }));
 
       const result = await aiService.generateCommitMessage('Added new todo task');
 
@@ -209,7 +212,27 @@ describe('AI Service Integration Tests', () => {
         signal: expect.any(AbortSignal)
       }));
 
-      expect(result).toBe(mockCommitMessage);
+      expect(result).toEqual({
+        message: 'feat: Add new todo task for deployment',
+        description: 'Generated conventional commit message for new todo creation'
+      });
+    });
+
+    it('should handle backward compatibility with plain text responses', async () => {
+      vi.mocked(loadSettings).mockReturnValue({
+        aiProvider: 'gemini',
+        geminiApiKey: 'test-key'
+      });
+
+      const mockPlainTextResponse = 'feat: Add new todo task for deployment';
+      mockFetch.mockResolvedValueOnce(mockResponse({ text: mockPlainTextResponse }));
+
+      const result = await aiService.generateCommitMessage('Added new todo task');
+
+      expect(result).toEqual({
+        message: 'feat: Add new todo task for deployment',
+        description: undefined
+      });
     });
 
     it('should handle API errors', async () => {

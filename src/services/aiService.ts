@@ -1,5 +1,5 @@
 import { loadSettings } from '../utils/localStorage';
-import { AIResponse, AIResponseWithFallback } from '../types';
+import { AIResponse, AIResponseWithFallback, CommitMessageResponse, CommitMessageResponseWithFallback } from '../types';
 import logger from '../utils/logger';
 import { fetchJsonWithTimeout, TIMEOUT_VALUES } from '../utils/fetchWithTimeout';
 
@@ -77,7 +77,7 @@ export const generateInitialPlan = async (goal: string) => {
   }
 };
 
-export const generateCommitMessage = async (changeDescription: string) => {
+export const generateCommitMessage = async (changeDescription: string): Promise<CommitMessageResponseWithFallback> => {
   try {
     const aiSettings = getAISettings();
     const apiUrl = getApiUrl();
@@ -96,7 +96,20 @@ export const generateCommitMessage = async (changeDescription: string) => {
       timeout: TIMEOUT_VALUES.AI,
     });
 
-    return data.text;
+    // Try to parse structured JSON response first
+    try {
+      const structuredResponse: CommitMessageResponse = JSON.parse(data.text);
+      if (structuredResponse.message && structuredResponse.description) {
+        return structuredResponse;
+      }
+      // If JSON doesn't have expected structure, fall back to text mode
+      logger.log('AI Service: JSON response missing expected fields, falling back to text mode');
+      return { message: data.text, description: undefined };
+    } catch (jsonError) {
+      // If JSON parsing fails, treat as plain text (backward compatibility)
+      logger.log('AI Service: Response is not JSON, treating as plain text');
+      return { message: data.text, description: undefined };
+    }
   } catch (error) {
     logger.error('AI Service: Commit message generation error:', error);
     if (error instanceof TypeError && error.message.includes('fetch')) {
