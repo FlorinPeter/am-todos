@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import AIChat from './AIChat';
 import GitHistory from './GitHistory';
+import CodeMirrorEditor from './CodeMirrorEditor';
 import { processChatMessage } from '../services/aiService';
 import { parseMarkdownWithFrontmatter } from '../utils/markdown';
 import { saveDraft, getDraft, clearDraft, TodoDraft } from '../utils/localStorage';
@@ -182,9 +183,9 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
     }
   };
 
-  const handleEditChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setEditContent(e.target.value);
-    setHasUnsavedChanges(e.target.value !== content);
+  const handleEditChange = (value: string) => {
+    setEditContent(value);
+    setHasUnsavedChanges(value !== content);
   };
 
   // Update unsaved changes detection when viewContent changes
@@ -346,11 +347,12 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
       {/* Content Area */}
       <div className="p-6">
         {isEditMode ? (
-          <textarea
+          <CodeMirrorEditor
             value={editContent}
             onChange={handleEditChange}
-            className="w-full h-96 bg-gray-900 text-white p-4 rounded border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm resize-vertical"
             placeholder="Edit your markdown content here..."
+            height="24rem"
+            className="w-full"
           />
         ) : (
           <div className="markdown-content">

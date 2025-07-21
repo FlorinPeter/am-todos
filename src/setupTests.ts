@@ -34,6 +34,46 @@ Object.defineProperty(window, 'confirm', {
   writable: true,
 });
 
+// Mock JSDOM DOM Range methods that CodeMirror needs but JSDOM doesn't fully support
+if (typeof Range !== 'undefined' && Range.prototype) {
+  Range.prototype.getClientRects = vi.fn(() => ({
+    length: 1,
+    0: { top: 0, left: 0, bottom: 20, right: 100, width: 100, height: 20 },
+    item: () => ({ top: 0, left: 0, bottom: 20, right: 100, width: 100, height: 20 })
+  }));
+  
+  Range.prototype.getBoundingClientRect = vi.fn(() => ({
+    top: 0, left: 0, bottom: 20, right: 100, width: 100, height: 20,
+    x: 0, y: 0
+  }));
+}
+
+// Mock document.createRange if needed
+if (global.document && !global.document.createRange) {
+  global.document.createRange = () => {
+    return {
+      setStart: vi.fn(),
+      setEnd: vi.fn(),
+      getClientRects: vi.fn(() => ({
+        length: 1,
+        0: { top: 0, left: 0, bottom: 20, right: 100, width: 100, height: 20 }
+      })),
+      getBoundingClientRect: vi.fn(() => ({
+        top: 0, left: 0, bottom: 20, right: 100, width: 100, height: 20,
+        x: 0, y: 0
+      }))
+    } as unknown as Range;
+  };
+}
+
+// Mock requestAnimationFrame for CodeMirror animations
+if (!global.requestAnimationFrame) {
+  global.requestAnimationFrame = vi.fn((cb) => setTimeout(cb, 16));
+}
+if (!global.cancelAnimationFrame) {
+  global.cancelAnimationFrame = vi.fn(clearTimeout);
+}
+
 // Reset mocks before each test
 beforeEach(() => {
   vi.clearAllMocks();

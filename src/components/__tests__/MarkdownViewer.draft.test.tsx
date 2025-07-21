@@ -1,5 +1,6 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import MarkdownViewer from '../MarkdownViewer';
 import * as localStorage from '../../utils/localStorage';
 
@@ -183,8 +184,18 @@ describe('MarkdownViewer Draft Integration', () => {
 
       // Switch to edit mode and make changes
       fireEvent.click(screen.getByText('Edit'));
-      const textarea = screen.getByRole('textbox');
-      fireEvent.change(textarea, { target: { value: '# Modified content' } });
+      
+      await waitFor(() => {
+        const editor = document.querySelector('.cm-editor');
+        expect(editor).toBeInTheDocument();
+      });
+      
+      // Simulate typing in CodeMirror editor
+      const contentArea = document.querySelector('.cm-content');
+      if (contentArea) {
+        contentArea.focus();
+        await userEvent.type(contentArea, ' Modified content');
+      }
 
       await waitFor(() => {
         expect(screen.getByText('• Unsaved')).toBeInTheDocument();

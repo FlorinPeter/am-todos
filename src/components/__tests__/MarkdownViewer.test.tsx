@@ -37,10 +37,10 @@ describe('MarkdownViewer - Basic Feature Coverage', () => {
       const editButton = screen.getByText('Edit');
       await userEvent.click(editButton);
       
-      // Should show textarea in edit mode
+      // Should show CodeMirror editor in edit mode
       await waitFor(() => {
-        const textarea = screen.getByRole('textbox');
-        expect(textarea).toBeInTheDocument();
+        const editor = document.querySelector('.cm-editor');
+        expect(editor).toBeInTheDocument();
       });
     });
 
@@ -51,9 +51,16 @@ describe('MarkdownViewer - Basic Feature Coverage', () => {
       await userEvent.click(editButton);
       
       await waitFor(() => {
-        const textarea = screen.getByRole('textbox');
-        fireEvent.change(textarea, { target: { value: 'Modified content' } });
+        const editor = document.querySelector('.cm-editor');
+        expect(editor).toBeInTheDocument();
       });
+      
+      // Simulate typing in CodeMirror editor
+      const contentArea = document.querySelector('.cm-content');
+      if (contentArea) {
+        contentArea.focus();
+        await userEvent.type(contentArea, ' Modified');
+      }
       
       await waitFor(() => {
         expect(screen.getByText('• Unsaved')).toBeInTheDocument();
@@ -143,9 +150,16 @@ describe('MarkdownViewer - Basic Feature Coverage', () => {
       await userEvent.click(editButton);
       
       await waitFor(() => {
-        const textarea = screen.getByRole('textbox');
-        fireEvent.change(textarea, { target: { value: 'Modified' } });
+        const editor = document.querySelector('.cm-editor');
+        expect(editor).toBeInTheDocument();
       });
+      
+      // Simulate typing in CodeMirror to trigger unsaved state
+      const contentArea = document.querySelector('.cm-content');
+      if (contentArea) {
+        contentArea.focus();
+        await userEvent.type(contentArea, ' Modified');
+      }
       
       await waitFor(() => {
         const warning = screen.getByText(/AI changes will be applied to your draft/i);
@@ -181,8 +195,8 @@ describe('MarkdownViewer - Basic Feature Coverage', () => {
       await userEvent.click(editButton);
       
       await waitFor(() => {
-        const textarea = screen.getByRole('textbox');
-        expect(textarea).toBeInTheDocument();
+        const editor = document.querySelector('.cm-editor');
+        expect(editor).toBeInTheDocument();
       });
       
       // The checkpoint restore should work in edit mode too
@@ -209,9 +223,16 @@ describe('MarkdownViewer - Basic Feature Coverage', () => {
       await userEvent.click(editButton);
       
       await waitFor(() => {
-        const textarea = screen.getByRole('textbox');
-        fireEvent.change(textarea, { target: { value: 'Modified content' } });
+        const editor = document.querySelector('.cm-editor');
+        expect(editor).toBeInTheDocument();
       });
+      
+      // Simulate typing in CodeMirror
+      const contentArea = document.querySelector('.cm-content');
+      if (contentArea) {
+        contentArea.focus();
+        await userEvent.type(contentArea, ' Modified content');
+      }
       
       // Should show unsaved changes indicator
       await waitFor(() => {
@@ -234,7 +255,8 @@ describe('MarkdownViewer - Basic Feature Coverage', () => {
       await userEvent.click(editButton);
       
       await waitFor(() => {
-        expect(screen.getByRole('textbox')).toBeInTheDocument();
+        const editor = document.querySelector('.cm-editor');
+        expect(editor).toBeInTheDocument();
       });
       
       // AIChat should still be available in edit mode
