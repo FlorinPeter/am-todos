@@ -1138,7 +1138,9 @@ app.use((req, res) => {
 export default app;
 
 // Only start the server if this file is run directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Use path.resolve to handle both relative and absolute paths correctly
+import { pathToFileURL } from 'url';
+if (import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   app.listen(port, '0.0.0.0', () => {
     logger.startup(`✅ Server successfully listening at http://0.0.0.0:${port}`);
     logger.startup(`🌐 Health check available at http://0.0.0.0:${port}/health`);
