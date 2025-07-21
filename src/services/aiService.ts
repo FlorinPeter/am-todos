@@ -77,6 +77,101 @@ export const generateInitialPlan = async (goal: string) => {
   }
 };
 
+/**
+ * Parse AI response for commit message with multiple fallback strategies
+ */
+const parseCommitResponse = (rawResponse: string, provider: string, model: string): CommitMessageResponseWithFallback => {
+  logger.log('AI Service: Raw response from', provider, model, ':', rawResponse.substring(0, 200) + (rawResponse.length > 200 ? '...' : ''));
+  
+  // 1. Try direct JSON parsing
+  try {
+    const json = JSON.parse(rawResponse);
+    if (json.message && json.description) {
+      logger.log('AI Service: Successfully parsed direct JSON response');
+      return json;
+    }
+    if (json.message) {
+      logger.log('AI Service: Parsed JSON with message only, generating description');
+      return { 
+        message: json.message, 
+        description: 'Generated conventional commit message' 
+      };
+    }
+  } catch (jsonError) {
+    // Continue to next parsing strategy
+  }
+  
+  // 2. Try extracting JSON from markdown code blocks
+  const jsonMatch = rawResponse.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+  if (jsonMatch) {
+    try {
+      const json = JSON.parse(jsonMatch[1]);
+      if (json.message && json.description) {
+        logger.log('AI Service: Successfully extracted JSON from markdown code block');
+        return json;
+      }
+      if (json.message) {
+        logger.log('AI Service: Extracted JSON from markdown with message only');
+        return {
+          message: json.message,
+          description: 'Extracted commit message from AI response'
+        };
+      }
+    } catch (parseError) {
+      logger.log('AI Service: Failed to parse JSON from markdown code block');
+    }
+  }
+  
+  // 3. Extract commit message from markdown code blocks (any language)
+  const commitMatch = rawResponse.match(/```[^`]*?\n?\s*([^\n]*(?:feat|fix|docs|chore|style|refactor|perf|test|build|ci)[^\n]*)\s*```/i);
+  if (commitMatch) {
+    const message = commitMatch[1].trim();
+    logger.log('AI Service: Extracted commit message from markdown code block:', message);
+    return {
+      message: message,
+      description: 'Extracted commit message from markdown response'
+    };
+  }
+  
+  // 4. Look for conventional commit patterns in text
+  const conventionalMatch = rawResponse.match(/((?:feat|fix|docs|chore|style|refactor|perf|test|build|ci)(?:\([^)]*\))?\s*:\s*[^\n]+)/i);
+  if (conventionalMatch) {
+    const message = conventionalMatch[1].trim();
+    logger.log('AI Service: Found conventional commit pattern in text:', message);
+    return {
+      message: message,
+      description: 'Extracted commit message from plain text response'
+    };
+  }
+  
+  // 5. Look for any commit-like pattern (starts with common types)
+  const generalCommitMatch = rawResponse.match(/^[^`]*?((?:feat|fix|docs|chore|style|refactor|perf|test|build|ci)[^`\n]*)/im);
+  if (generalCommitMatch) {
+    const message = generalCommitMatch[1].trim();
+    logger.log('AI Service: Found general commit pattern:', message);
+    return {
+      message: message,
+      description: 'Extracted commit message pattern from AI response'
+    };
+  }
+  
+  // 6. Final fallback - clean up the raw response and use as message
+  const cleanedResponse = rawResponse
+    .replace(/```[^`]*```/g, '') // Remove code blocks
+    .replace(/Sure,?\s*here'?s?\s*[^:]*:\s*/i, '') // Remove common AI prefixes
+    .replace(/Here'?s?\s*[^:]*:\s*/i, '') // Remove "Here's..." prefixes
+    .replace(/^\s*[-*]\s*/, '') // Remove leading bullet points
+    .trim();
+    
+  const finalMessage = cleanedResponse || 'fix: Update task';
+  logger.log('AI Service: Using fallback parsing, cleaned message:', finalMessage);
+  
+  return {
+    message: finalMessage,
+    description: 'Used cleaned AI response as commit message'
+  };
+};
+
 export const generateCommitMessage = async (changeDescription: string): Promise<CommitMessageResponseWithFallback> => {
   try {
     const aiSettings = getAISettings();
@@ -96,20 +191,7 @@ export const generateCommitMessage = async (changeDescription: string): Promise<
       timeout: TIMEOUT_VALUES.AI,
     });
 
-    // Try to parse structured JSON response first
-    try {
-      const structuredResponse: CommitMessageResponse = JSON.parse(data.text);
-      if (structuredResponse.message && structuredResponse.description) {
-        return structuredResponse;
-      }
-      // If JSON doesn't have expected structure, fall back to text mode
-      logger.log('AI Service: JSON response missing expected fields, falling back to text mode');
-      return { message: data.text, description: undefined };
-    } catch (jsonError) {
-      // If JSON parsing fails, treat as plain text (backward compatibility)
-      logger.log('AI Service: Response is not JSON, treating as plain text');
-      return { message: data.text, description: undefined };
-    }
+    return parseCommitResponse(data.text, aiSettings.provider, aiSettings.model || 'default');
   } catch (error) {
     logger.error('AI Service: Commit message generation error:', error);
     if (error instanceof TypeError && error.message.includes('fetch')) {

@@ -231,7 +231,84 @@ describe('AI Service Integration Tests', () => {
 
       expect(result).toEqual({
         message: 'feat: Add new todo task for deployment',
-        description: undefined
+        description: 'Extracted commit message from plain text response'
+      });
+    });
+
+    it('should extract commit message from markdown code blocks', async () => {
+      vi.mocked(loadSettings).mockReturnValue({
+        aiProvider: 'gemini',
+        geminiApiKey: 'test-key'
+      });
+
+      const mockMarkdownResponse = `Sure, here's a conventional commit message for the change you described:
+\`\`\`
+fix: Update "Claude Code Setup" todo list item
+\`\`\``;
+      mockFetch.mockResolvedValueOnce(mockResponse({ text: mockMarkdownResponse }));
+
+      const result = await aiService.generateCommitMessage('Update todo item');
+
+      expect(result).toEqual({
+        message: 'fix: Update "Claude Code Setup" todo list item',
+        description: 'Extracted commit message from markdown response'
+      });
+    });
+
+    it('should extract JSON from markdown code blocks', async () => {
+      vi.mocked(loadSettings).mockReturnValue({
+        aiProvider: 'gemini', 
+        geminiApiKey: 'test-key'
+      });
+
+      const mockMarkdownWithJson = `Here's the commit message in JSON format:
+\`\`\`json
+{
+  "message": "feat: Add user authentication system",
+  "description": "Generated conventional commit for auth feature"
+}
+\`\`\``;
+      mockFetch.mockResolvedValueOnce(mockResponse({ text: mockMarkdownWithJson }));
+
+      const result = await aiService.generateCommitMessage('Add authentication');
+
+      expect(result).toEqual({
+        message: 'feat: Add user authentication system',
+        description: 'Generated conventional commit for auth feature'
+      });
+    });
+
+    it('should handle responses with AI prefixes and clean them up', async () => {
+      vi.mocked(loadSettings).mockReturnValue({
+        aiProvider: 'gemini',
+        geminiApiKey: 'test-key'
+      });
+
+      const mockResponseWithPrefix = 'Sure, here\'s a conventional commit message: feat: Implement new feature';
+      mockFetch.mockResolvedValueOnce(mockResponse({ text: mockResponseWithPrefix }));
+
+      const result = await aiService.generateCommitMessage('Add new feature');
+
+      expect(result).toEqual({
+        message: 'feat: Implement new feature',
+        description: 'Extracted commit message from plain text response'
+      });
+    });
+
+    it('should use fallback for unrecognized response formats', async () => {
+      vi.mocked(loadSettings).mockReturnValue({
+        aiProvider: 'gemini',
+        geminiApiKey: 'test-key'
+      });
+
+      const mockWeirdResponse = 'This is some random AI response without a clear commit message pattern';
+      mockFetch.mockResolvedValueOnce(mockResponse({ text: mockWeirdResponse }));
+
+      const result = await aiService.generateCommitMessage('Random change');
+
+      expect(result).toEqual({
+        message: 'This is some random AI response without a clear commit message pattern',
+        description: 'Used cleaned AI response as commit message'
       });
     });
 
