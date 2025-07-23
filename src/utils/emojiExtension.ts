@@ -48,7 +48,7 @@ const popularEmojis = [
 ];
 
 // Create a completion source function
-function emojiCompletions(context: CompletionContext): CompletionResult | null {
+export function emojiCompletions(context: CompletionContext): CompletionResult | null {
   const word = context.matchBefore(/:[a-zA-Z0-9_+-]*$/);
   if (!word) return null;
   if (word.from === word.to && !context.explicit) return null;
