@@ -74,22 +74,17 @@ function App() {
         setInitializationStep('Ready for todo loading...');
         logger.log('Step 3: Initialization sequence completed, ready for todo fetching');
         
-        // Brief delay to show initialization status
-        setTimeout(() => {
-          setIsInitializing(false);
-          setInitializationStep('');
-          logger.log('=== APP INITIALIZATION COMPLETED ===');
-        }, 500);
+        setIsInitializing(false);
+        setInitializationStep('');
+        logger.log('=== APP INITIALIZATION COMPLETED ===');
       } catch (initError) {
         logger.error('Critical error during app initialization:', initError);
         setInitializationStep('Initialization failed, please refresh the page');
         
         // Still complete initialization to prevent infinite loading
-        setTimeout(() => {
-          setIsInitializing(false);
-          setSettings(null); // Show setup screen as fallback
-          logger.log('=== APP INITIALIZATION COMPLETED (WITH ERRORS) ===');
-        }, 2000);
+        setIsInitializing(false);
+        setSettings(null); // Show setup screen as fallback
+        logger.log('=== APP INITIALIZATION COMPLETED (WITH ERRORS) ===');
       }
     };
     

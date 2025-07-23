@@ -534,6 +534,12 @@ export const getDraft = (todoId: string, path: string): TodoDraft | null => {
     
     const draft = JSON.parse(draftString) as TodoDraft;
     
+    // Check todoId first - if it doesn't match, return null
+    if (draft.todoId !== todoId) {
+      logger.log(`Draft found but doesn't match current todoId. Draft: "${draft.todoId}", Current: "${todoId}"`);
+      return null;
+    }
+    
     // Use stable draft key for matching instead of volatile SHA-based todoId
     const stableDraftKey = generateStableDraftKey(path);
     const draftStableKey = draft.stableDraftKey || generateStableDraftKey(draft.path || '');
