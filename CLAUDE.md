@@ -352,6 +352,29 @@ npm run test:coverage # Full coverage report (same as CI)
 npm run test:all-fast # Fast test execution without coverage (24% faster)
 ```
 
+**Coverage Analysis Timeout Requirement:**
+When running coverage analysis for accurate results, both the Bash tool timeout and test timeout need to be configured properly:
+
+```bash
+# Use 5-minute timeout for accurate coverage measurement
+npm run test:coverage -- --testTimeout=300000
+```
+
+**IMPORTANT for Claude Code users:** When using the Bash tool to run coverage commands, set the `timeout` parameter to `300000` (5 minutes):
+```typescript
+// Example Bash tool usage for coverage
+Bash({
+  command: "npm run test:coverage",
+  timeout: 300000,  // 5 minutes in milliseconds
+  description: "Run coverage analysis with 5-minute timeout"
+})
+```
+
+This dual timeout configuration prevents:
+- Test failures due to longer-running tests (via `--testTimeout=300000`)
+- Bash tool timeouts before tests complete (via `timeout: 300000`)
+- Incomplete coverage analysis in CI/CD pipelines
+
 #### Server Tests (Backend API)
 ```bash
 # Server tests (excluded from main suite)
