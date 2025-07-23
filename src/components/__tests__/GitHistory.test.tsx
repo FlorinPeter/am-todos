@@ -37,6 +37,21 @@ describe('GitHistory Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetFileHistory.mockResolvedValue(mockCommits);
+    
+    // Mock default content for upfront frontmatter loading
+    mockGetFileAtCommit.mockResolvedValue({
+      content: `---
+title: 'Test Todo'
+createdAt: '2023-01-01T00:00:00.000Z'
+priority: 3
+isArchived: false
+chatHistory: []
+---
+# Test Todo
+
+Default content for testing.`,
+      sha: 'abc123'
+    });
   });
 
   it('should render git history modal with commits', async () => {
@@ -301,7 +316,18 @@ This content has malformed frontmatter.`;
     const fileAtCommitPromise = new Promise((resolve) => {
       resolveFileAtCommit = resolve;
     });
-    mockGetFileAtCommit.mockReturnValue(fileAtCommitPromise);
+    
+    // First call (upfront loading) should succeed, second call (click) should be controlled
+    mockGetFileAtCommit
+      .mockResolvedValueOnce({
+        content: `# Test`,
+        sha: 'abc123'
+      })
+      .mockResolvedValueOnce({
+        content: `# Test 2`,
+        sha: 'def456'
+      })
+      .mockReturnValue(fileAtCommitPromise);
 
     render(
       <GitHistory

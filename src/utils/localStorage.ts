@@ -455,8 +455,8 @@ export const clearSelectedTodoId = (): void => {
 export interface TodoDraft {
   todoId: string;          // SHA-based ID for the todo
   path: string;            // File path for validation
-  editContent: string;     // The edited markdown content
-  viewContent: string;     // The view mode content (with checkbox states)
+  editContent: string;     // The edited content (now includes frontmatter + markdown)
+  viewContent: string;     // The view mode content (now includes frontmatter + markdown with checkbox states)
   hasUnsavedChanges: boolean;
   timestamp: number;       // Unix timestamp of last save
 }

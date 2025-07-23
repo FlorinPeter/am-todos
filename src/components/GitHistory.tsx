@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getFileHistory, getFileAtCommit } from '../services/gitService';
 import { parseMarkdownWithFrontmatter } from '../utils/markdown';
+import { TodoFrontmatter } from '../types';
 
 interface GitCommit {
   sha: string;
@@ -8,6 +9,8 @@ interface GitCommit {
   author: string;
   date: string;
   url: string;
+  frontmatter?: TodoFrontmatter | null; // Enhanced: Optional parsed frontmatter
+  contentLoaded?: boolean; // Track if we've tried to load content for this commit
 }
 
 interface GitHistoryProps {
@@ -15,6 +18,10 @@ interface GitHistoryProps {
   onRestore: (content: string, commitSha: string) => void;
   onClose: () => void;
 }
+
+// Enhanced: Performance optimization - frontmatter cache
+const frontmatterCache = new Map<string, { frontmatter: TodoFrontmatter | null; timestamp: number }>();
+const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
 
 const GitHistory: React.FC<GitHistoryProps> = ({
   filePath,
@@ -30,12 +37,45 @@ const GitHistory: React.FC<GitHistoryProps> = ({
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [mobileView, setMobileView] = useState<'commits' | 'preview'>('commits');
 
+  // Enhanced: Performance optimization - cached frontmatter parsing
+  const getCachedFrontmatter = useCallback((content: string, commitSha: string): TodoFrontmatter | null => {
+    const cacheKey = `${commitSha}-${content.length}`;
+    const cached = frontmatterCache.get(cacheKey);
+    
+    // Check if cached result is still valid
+    if (cached && Date.now() - cached.timestamp < CACHE_EXPIRY) {
+      return cached.frontmatter;
+    }
+    
+    // Parse and cache the result
+    const { frontmatter } = parseMarkdownWithFrontmatter(content);
+    frontmatterCache.set(cacheKey, {
+      frontmatter,
+      timestamp: Date.now()
+    });
+    
+    // Clean up old cache entries periodically
+    if (frontmatterCache.size > 100) {
+      const now = Date.now();
+      for (const [key, value] of frontmatterCache.entries()) {
+        if (now - value.timestamp > CACHE_EXPIRY) {
+          frontmatterCache.delete(key);
+        }
+      }
+    }
+    
+    return frontmatter;
+  }, []);
+
   useEffect(() => {
     const fetchHistory = async () => {
       try {
         setLoading(true);
         const history = await getFileHistory(filePath);
         setCommits(history);
+        
+        // Load frontmatter for first 5 commits upfront for better UX
+        await loadFrontmatterForCommits(history.slice(0, 5));
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch git history');
       } finally {
@@ -46,10 +86,56 @@ const GitHistory: React.FC<GitHistoryProps> = ({
     fetchHistory();
   }, [filePath]);
 
+  // Enhanced: Load and parse frontmatter for specific commits
+  const loadFrontmatterForCommits = async (commitsToLoad: GitCommit[]) => {
+    const promises = commitsToLoad.map(async (commit) => {
+      if (commit.contentLoaded) return commit; // Already loaded
+      
+      try {
+        const fileData = await getFileAtCommit(filePath, commit.sha);
+        const frontmatter = getCachedFrontmatter(fileData.content, commit.sha);
+        
+        return {
+          ...commit,
+          frontmatter,
+          contentLoaded: true
+        };
+      } catch (error) {
+        // If we can't load content, mark as loaded but with null frontmatter
+        return {
+          ...commit,
+          frontmatter: null,
+          contentLoaded: true
+        };
+      }
+    });
+
+    const updatedCommits = await Promise.all(promises);
+    
+    setCommits(prevCommits => 
+      prevCommits.map(commit => {
+        const updated = updatedCommits.find(u => u.sha === commit.sha);
+        return updated || commit;
+      })
+    );
+  };
+
+  // Enhanced: Load frontmatter for a single commit on-demand
+  const loadFrontmatterForCommit = async (commitSha: string) => {
+    const commit = commits.find(c => c.sha === commitSha);
+    if (!commit || commit.contentLoaded) return;
+
+    await loadFrontmatterForCommits([commit]);
+  };
+
   const handlePreview = async (commitSha: string) => {
     try {
       setLoadingPreview(true);
       setSelectedCommit(commitSha);
+      
+      // Enhanced: Ensure frontmatter is loaded for this commit
+      await loadFrontmatterForCommit(commitSha);
+      
       const fileData = await getFileAtCommit(filePath, commitSha);
       
       // Store the raw content for restoration
@@ -79,6 +165,70 @@ const GitHistory: React.FC<GitHistoryProps> = ({
     const date = new Date(dateString);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   };
+
+  // Enhanced: Helper functions for metadata display (memoized for performance)
+  const getPriorityBadge = useCallback((priority: number) => {
+    const priorityColors = {
+      1: 'bg-red-600 text-white',
+      2: 'bg-orange-600 text-white', 
+      3: 'bg-yellow-600 text-white',
+      4: 'bg-blue-600 text-white',
+      5: 'bg-gray-600 text-white'
+    };
+    
+    const color = priorityColors[priority as keyof typeof priorityColors] || 'bg-gray-600 text-white';
+    return (
+      <span className={`px-2 py-1 text-xs rounded font-medium ${color}`}>
+        P{priority}
+      </span>
+    );
+  }, []);
+
+  const getArchiveBadge = useCallback(() => (
+    <span className="px-2 py-1 text-xs rounded bg-gray-700 text-gray-300 border border-gray-600">
+      📁 ARCHIVED
+    </span>
+  ), []);
+
+  const formatCreatedDate = useCallback((createdAt: string, commitDate: string) => {
+    const created = new Date(createdAt);
+    const commit = new Date(commitDate);
+    const diffDays = Math.abs(commit.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
+    
+    // Only show createdAt if it differs significantly from commit date
+    if (diffDays > 1) {
+      return (
+        <span className="text-xs text-gray-400">
+          Created: {created.toLocaleDateString()}
+        </span>
+      );
+    }
+    return null;
+  }, []);
+
+  const renderCommitMetadata = useCallback((commit: GitCommit) => {
+    if (!commit.frontmatter) {
+      // Show loading indicator if we haven't tried to load content yet
+      if (!commit.contentLoaded) {
+        return (
+          <div className="flex items-center gap-1 mt-1">
+            <div className="animate-pulse bg-gray-600 h-4 w-8 rounded"></div>
+          </div>
+        );
+      }
+      return null; // No frontmatter available
+    }
+
+    const { priority, isArchived, createdAt } = commit.frontmatter;
+    
+    return (
+      <div className="flex flex-wrap items-center gap-2 mt-2">
+        {getPriorityBadge(priority)}
+        {isArchived && getArchiveBadge()}
+        {formatCreatedDate(createdAt, commit.date)}
+      </div>
+    );
+  }, [getPriorityBadge, getArchiveBadge, formatCreatedDate]);
 
   if (loading) {
     return (
@@ -185,6 +335,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
                       <div className="text-xs text-gray-400 mt-1">
                         {commit.sha.substring(0, 7)}
                       </div>
+                      {renderCommitMetadata(commit)}
                     </div>
                   ))}
                 </div>
@@ -205,6 +356,25 @@ const GitHistory: React.FC<GitHistoryProps> = ({
                       Restore This Version
                     </button>
                   </div>
+                  {/* Enhanced: Metadata section for selected commit */}
+                  {selectedCommit && (() => {
+                    const commit = commits.find(c => c.sha === selectedCommit);
+                    return commit?.frontmatter ? (
+                      <div className="mb-4 p-3 bg-gray-900 rounded border border-gray-600">
+                        <h4 className="text-sm font-medium text-gray-300 mb-2">Metadata</h4>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {getPriorityBadge(commit.frontmatter.priority)}
+                          {commit.frontmatter.isArchived && getArchiveBadge()}
+                          {formatCreatedDate(commit.frontmatter.createdAt, commit.date)}
+                        </div>
+                        {commit.frontmatter.title && (
+                          <div className="mt-2 text-sm text-gray-300">
+                            <span className="text-gray-400">Title:</span> {commit.frontmatter.title}
+                          </div>
+                        )}
+                      </div>
+                    ) : null;
+                  })()}
                   {loadingPreview ? (
                     <div className="flex justify-center items-center h-32">
                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
@@ -253,6 +423,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
                         <div className="text-xs text-gray-400">
                           {commit.sha.substring(0, 7)}
                         </div>
+                        {renderCommitMetadata(commit)}
                       </div>
                     ))}
                   </div>
@@ -277,6 +448,25 @@ const GitHistory: React.FC<GitHistoryProps> = ({
                         Restore
                       </button>
                     </div>
+                    {/* Enhanced: Metadata section for selected commit (mobile) */}
+                    {selectedCommit && (() => {
+                      const commit = commits.find(c => c.sha === selectedCommit);
+                      return commit?.frontmatter ? (
+                        <div className="mb-4 p-3 bg-gray-900 rounded border border-gray-600">
+                          <h4 className="text-sm font-medium text-gray-300 mb-2">Metadata</h4>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {getPriorityBadge(commit.frontmatter.priority)}
+                            {commit.frontmatter.isArchived && getArchiveBadge()}
+                            {formatCreatedDate(commit.frontmatter.createdAt, commit.date)}
+                          </div>
+                          {commit.frontmatter.title && (
+                            <div className="mt-2 text-sm text-gray-300">
+                              <span className="text-gray-400">Title:</span> {commit.frontmatter.title}
+                            </div>
+                          )}
+                        </div>
+                      ) : null;
+                    })()}
                     {loadingPreview ? (
                       <div className="flex justify-center items-center h-32">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
