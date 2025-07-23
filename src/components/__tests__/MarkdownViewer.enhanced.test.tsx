@@ -439,7 +439,10 @@ Inline \`code\` text
       render(<MarkdownViewer {...defaultProps} content={codeContent} />);
       
       expect(screen.getByText('code')).toBeInTheDocument();
-      expect(screen.getByText('console.log("hello");')).toBeInTheDocument();
+      // Code blocks are now tokenized, so we need to check for individual tokens
+      expect(screen.getByText('console')).toBeInTheDocument();
+      expect(screen.getByText('log')).toBeInTheDocument();
+      expect(screen.getByText('"hello"')).toBeInTheDocument();
     });
 
     it('renders lists with proper styling', () => {

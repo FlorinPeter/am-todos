@@ -68,6 +68,9 @@ describe('MarkdownViewer - Strategic Coverage', () => {
     // Should render formatted content
     expect(screen.getByText('Test')).toBeInTheDocument();
     expect(screen.getByText('inline code')).toBeInTheDocument();
-    expect(screen.getByText(/const test = "hello"/)).toBeInTheDocument();
+    // Code blocks are now tokenized, so we need to check for individual tokens
+    expect(screen.getByText('const')).toBeInTheDocument();
+    expect(screen.getAllByText('test')).toHaveLength(2); // One in code block, one in paragraph
+    expect(screen.getByText('"hello"')).toBeInTheDocument();
   });
 });

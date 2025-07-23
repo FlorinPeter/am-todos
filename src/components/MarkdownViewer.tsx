@@ -372,6 +372,31 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                   }}
                   className="github-markdown-dark"
                   components={{
+                    h1: ({ node, ...props }: any) => {
+                      return <h1 {...props} className="text-3xl font-bold mb-4 text-white border-b border-gray-600 pb-2" />;
+                    },
+                    h2: ({ node, ...props }: any) => {
+                      return <h2 {...props} className="text-2xl font-semibold mb-3 text-white" />;
+                    },
+                    h3: ({ node, ...props }: any) => {
+                      return <h3 {...props} className="text-xl font-medium mb-2 text-white" />;
+                    },
+                    h4: ({ node, ...props }: any) => {
+                      return <h4 {...props} className="text-lg font-medium mb-2 text-white" />;
+                    },
+                    h5: ({ node, ...props }: any) => {
+                      return <h5 {...props} className="text-base font-medium mb-1 text-white" />;
+                    },
+                    h6: ({ node, ...props }: any) => {
+                      return <h6 {...props} className="text-sm font-medium mb-1 text-white" />;
+                    },
+                    a: ({ node, ...props }: any) => {
+                      // Open external links in new tab
+                      if (props.href && (props.href.startsWith('http://') || props.href.startsWith('https://'))) {
+                        return <a {...props} target="_blank" rel="noopener noreferrer" />;
+                      }
+                      return <a {...props} />;
+                    },
                     input: ({ node, ...props }: any) => {
                       // Handle task list checkboxes with custom interaction
                       if (props.type === 'checkbox') {
@@ -404,6 +429,13 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                                     e.preventDefault();
                                     e.stopPropagation();
                                     memoizedHandleCheckboxToggle(lineIndex, charPos);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === ' ' || e.key === 'Enter') {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      memoizedHandleCheckboxToggle(lineIndex, charPos);
+                                    }
                                   }}
                                   className="w-4 h-4 mr-2 rounded border-gray-400 bg-gray-700 text-blue-500 cursor-pointer hover:bg-gray-600 transition-colors"
                                   style={{ accentColor: '#3b82f6' }}
