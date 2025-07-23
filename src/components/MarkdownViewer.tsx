@@ -138,7 +138,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
         onMarkdownChange(newContent);
       }
     }
-  }, [isEditMode, editContent, viewContent, onMarkdownChange]); // RESTORED original dependencies
+  }, [isEditMode, editContent, viewContent, onMarkdownChange]);
 
 
   // Memoized chat message handler for performance
@@ -360,7 +360,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
         ) : (
           <div className="markdown-content">
             {(() => {
-              // Counter for matching checkboxes to their line positions
+              // Counter for matching checkboxes to their line positions - reset on each render
               let checkboxCounter = 0;
               
               return (
@@ -422,13 +422,8 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                                   type="checkbox"
                                   checked={isChecked}
                                   onChange={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    memoizedHandleCheckboxToggle(lineIndex, charPos);
-                                  }}
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
+                                    // Let checkbox change naturally for mobile compatibility
+                                    // Update markdown content to match checkbox state
                                     memoizedHandleCheckboxToggle(lineIndex, charPos);
                                   }}
                                   onKeyDown={(e) => {
@@ -438,7 +433,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                                       memoizedHandleCheckboxToggle(lineIndex, charPos);
                                     }
                                   }}
-                                  className="w-4 h-4 mr-2 rounded border-gray-400 bg-gray-700 text-blue-500 cursor-pointer hover:bg-gray-600 transition-colors"
+                                  className="w-4 h-4 mr-2 rounded border-gray-400 bg-gray-700 text-blue-500 cursor-pointer hover:bg-gray-600 transition-colors touch-manipulation"
                                   style={{ accentColor: '#3b82f6' }}
                                 />
                               );

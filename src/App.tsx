@@ -137,6 +137,8 @@ function App() {
   const activeSaveOperationsRef = useRef<Set<string>>(new Set());
   // Debounce timer for save operations to handle React StrictMode
   const saveDebounceTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  // Guard to prevent view mode useEffect from triggering during save operations
+  const [isPerformingSave, setIsPerformingSave] = useState(false);
 
   const getProviderName = () => {
     const provider = settings?.gitProvider || 'github';
@@ -257,17 +259,6 @@ function App() {
   const fetchTodosWithSettings = useCallback(async (useSettings?: any, useViewMode?: 'active' | 'archived', preserveTodoPath?: string, allowSmartRestore = false) => {
     const currentSettings = useSettings || settings;
     const currentViewMode = useViewMode || viewMode;
-    
-    logger.log('=== FETCH TODOS WITH SETTINGS ===');
-    logger.log('Fetch parameters:', {
-      hasSettings: !!currentSettings,
-      viewMode: currentViewMode,
-      preserveTodoPath: preserveTodoPath || 'none',
-      folder: currentSettings?.folder || 'todos',
-      provider: currentSettings?.gitProvider || 'unknown',
-      allowSmartRestore: allowSmartRestore
-    });
-    logger.log('Call stack context: fetchTodosWithSettings called for view mode change');
     
     if (!currentSettings) {
       logger.log('No settings, skipping fetch');
@@ -503,9 +494,9 @@ function App() {
     }
   }, [settings]); // REMOVED viewMode dependency to prevent automatic re-execution
 
-  const fetchTodos = useCallback(async (preserveTodoPath?: string, allowSmartRestore = false) => {
-    await fetchTodosWithSettings(undefined, undefined, preserveTodoPath, allowSmartRestore);
-  }, [fetchTodosWithSettings]);
+  const fetchTodos = useCallback(async (preserveTodoPath?: string, allowSmartRestore = false, explicitViewMode?: 'active' | 'archived') => {
+    await fetchTodosWithSettings(undefined, explicitViewMode, preserveTodoPath, allowSmartRestore);
+  }, [fetchTodosWithSettings, viewMode]);
 
   useEffect(() => {
     // Enhanced todo fetching with initialization awareness - INITIAL LOAD ONLY
@@ -527,22 +518,18 @@ function App() {
 
   // Dedicated useEffect for view mode changes (user-initiated tab switches)
   useEffect(() => {
+    // CRITICAL: Don't trigger during save operations to prevent race conditions
+    if (isPerformingSave) {
+      return;
+    }
+    
     // Only trigger for user-initiated view mode changes (not during initialization)
     if (settings && !isInitializing) {
-      logger.log('=== VIEW MODE CHANGE DETECTED ===');
-      logger.log('View mode changed to:', viewMode);
-      logger.log('Triggering todo re-fetch with new view mode (no smart restoration)');
-      
-      // Clear current selection when switching views - will be restored based on filtered todos
-      logger.log('Clearing selected todo for view mode switch to allow proper selection logic');
-      
       // Fetch todos with the new view mode, but disable smart restoration 
       // since this is a user-initiated change, not a restoration scenario
       fetchTodosWithSettings(settings, viewMode, undefined, false);
-    } else {
-      logger.log('View mode change during initialization, skipping manual fetch');
     }
-  }, [viewMode, settings, isInitializing, fetchTodosWithSettings]);
+  }, [viewMode, settings, isInitializing, isPerformingSave, fetchTodosWithSettings]);
 
   // Persist selected todo ID to localStorage with error handling
   useEffect(() => {
@@ -743,15 +730,13 @@ function App() {
       // Mark this path as having an active save operation
       activeSaveOperationsRef.current.add(stablePath);
       
+      // CRITICAL: Set save operation guard to prevent useEffect interference
+      setIsPerformingSave(true);
+      
       // Update per-todo save tracking (still use ID for UI state)
       updateTodoSaveState(id, '🔍 Preparing to save...');
       setIsSavingTask(true);
       setSaveStep('🔍 Preparing to save...');
-      logger.log('App: performTodoUpdate starting', { 
-        id, 
-        path: stablePath, 
-        contentLength: newContent.length 
-      });
 
       updateTodoSaveState(id, '📝 Preparing content...');
       setSaveStep('📝 Preparing content...');
@@ -854,10 +839,16 @@ function App() {
       
       updateTodoSaveState(id, '🔄 Refreshing task list...');
       setSaveStep('🔄 Refreshing task list...');
-      await fetchTodos(todoToUpdate.path); // Re-fetch and preserve selection
+      
+      // CRITICAL FIX: Explicitly pass current view mode to prevent race conditions
+      await fetchTodos(todoToUpdate.path, false, viewMode); // Re-fetch, preserve selection, and preserve view mode
       
       updateTodoSaveState(id, '✅ Save completed!');
       setSaveStep('✅ Save completed!');
+      
+      // Clear save operation guard
+      setIsPerformingSave(false);
+      
       setTimeout(() => {
         setIsSavingTask(false);
         setSaveStep('');
@@ -873,6 +864,10 @@ function App() {
       });
       updateTodoSaveState(id, '❌ Save failed!');
       setSaveStep('❌ Save failed!');
+      
+      // Clear save operation guard even on error
+      setIsPerformingSave(false);
+      
       setTimeout(() => {
         setIsSavingTask(false);
         setSaveStep('');
@@ -882,7 +877,6 @@ function App() {
       // Always remove the path from active operations when done (use stable path)
       if (todoToUpdate) {
         activeSaveOperationsRef.current.delete(todoToUpdate.path);
-        logger.log('App: Cleared save guard for path:', todoToUpdate.path);
       }
       // Clear the per-todo save state after a delay to show final status (still use ID for UI)
       setTimeout(() => {
@@ -913,16 +907,6 @@ function App() {
     
     const stablePath = todo.path;
     
-    logger.log('App: handleTodoUpdate called', { 
-      id, 
-      path: stablePath,
-      contentLength: newContent.length, 
-      hasChatHistory: !!newChatHistory,
-      timestamp,
-      activeOperations: [...activeSaveOperationsRef.current],
-      activeTimers: [...saveDebounceTimersRef.current.keys()]
-    });
-    
     // Clear any existing debounce timer for this stable path
     const existingTimer = saveDebounceTimersRef.current.get(stablePath);
     if (existingTimer) {
@@ -932,20 +916,11 @@ function App() {
     
     // Set new debounce timer using stable path (100ms should be enough to prevent React StrictMode double calls)
     const newTimer = setTimeout(() => {
-      const executeTimestamp = Date.now();
-      const debounceDelay = executeTimestamp - timestamp;
-      logger.log('App: Executing debounced save', { 
-        id, 
-        path: stablePath,
-        debounceDelay: `${debounceDelay}ms`,
-        activeOperations: [...activeSaveOperationsRef.current]
-      });
       performTodoUpdate(id, newContent, newChatHistory, stablePath);
       saveDebounceTimersRef.current.delete(stablePath); // Clean up timer reference using stable path
     }, 100);
     
     saveDebounceTimersRef.current.set(stablePath, newTimer);
-    logger.log('App: Set debounce timer for path:', stablePath);
   }, [todos]);
 
   const handlePriorityUpdate = async (id: string, newPriority: number) => {
