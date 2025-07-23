@@ -424,11 +424,27 @@ function App() {
       }
 
       setSaveStep('📝 Preparing content...');
-      const updatedFrontmatter = {
-        ...todoToUpdate.frontmatter,
-        ...(newChatHistory && { chatHistory: newChatHistory })
-      };
-      const fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, newContent);
+      
+      // FIXED: Handle content that may already include frontmatter
+      // Parse the newContent to check if it already contains frontmatter
+      const { frontmatter: parsedFrontmatter, markdownContent } = parseMarkdownWithFrontmatter(newContent);
+      
+      let fullContent: string;
+      if (parsedFrontmatter) {
+        // Content already has frontmatter - use it with potential chat history update
+        const updatedFrontmatter = {
+          ...parsedFrontmatter,
+          ...(newChatHistory && { chatHistory: newChatHistory })
+        };
+        fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, markdownContent);
+      } else {
+        // Content doesn't have frontmatter - add it from existing todo
+        const updatedFrontmatter = {
+          ...todoToUpdate.frontmatter,
+          ...(newChatHistory && { chatHistory: newChatHistory })
+        };
+        fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, newContent);
+      }
       logger.log('App: Full content prepared, generating commit message...');
 
       setSaveStep('🤖 Generating commit message...');

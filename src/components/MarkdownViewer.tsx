@@ -242,31 +242,31 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
       }
     }
     
-    // Parse the restored content to separate frontmatter from markdown for display
-    const { markdownContent } = parseMarkdownWithFrontmatter(restoredContent);
+    // FIXED: Preserve the full content including frontmatter
+    // Previously only used markdownContent, now we preserve the complete restored content
     
-    // Set the restored content for display
-    setEditContent(markdownContent);
-    setViewContent(markdownContent);
+    // Set the restored content for display (keep full content with frontmatter)
+    setEditContent(restoredContent);
+    setViewContent(restoredContent);
     setHasUnsavedChanges(true); // Mark as unsaved since we need to commit the restore
     setIsEditMode(false); // Switch to view mode to show the restored content
     
-    // Optionally auto-save the restored content - pass only the markdown content 
+    // Auto-save the restored content - pass the full content with frontmatter preserved
     if (window.confirm(`Restore content from commit ${commitSha.substring(0, 7)}? This will save the restored version immediately.`)) {
-      onMarkdownChange(markdownContent);
+      onMarkdownChange(restoredContent);
       setHasUnsavedChanges(false);
     }
   };
 
   const handleCheckpointRestore = (restoredContent: string) => {
-    // Parse the restored content to separate frontmatter from markdown for display
-    const { markdownContent } = parseMarkdownWithFrontmatter(restoredContent);
+    // FIXED: Preserve the full content including frontmatter
+    // Previously only used markdownContent, now we preserve the complete restored content
     
     // Set the restored content for display (always mark as unsaved for manual save)
     if (isEditMode) {
-      setEditContent(markdownContent);
+      setEditContent(restoredContent);
     } else {
-      setViewContent(markdownContent);
+      setViewContent(restoredContent);
     }
     setHasUnsavedChanges(true); // Mark as unsaved since user needs to save manually
   };
