@@ -74,6 +74,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
         const draft: TodoDraft = {
           todoId,
           path: filePath,
+          stableDraftKey: filePath.trim().toLowerCase(), // Generate stable key from path
           editContent,
           viewContent,
           hasUnsavedChanges,
@@ -137,7 +138,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
         onMarkdownChange(newContent);
       }
     }
-  }, [isEditMode, editContent, viewContent, onMarkdownChange]);
+  }, [isEditMode, editContent, viewContent, onMarkdownChange]); // RESTORED original dependencies
 
 
   // Memoized chat message handler for performance

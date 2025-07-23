@@ -6,7 +6,7 @@ import { Todo, ChatMessage } from '../types';
 
 interface TodoEditorProps {
   selectedTodo: Todo | null;
-  onTodoUpdate: (id: string, newContent: string, newChatHistory?: ChatMessage[]) => void;
+  onTodoUpdate: (id: string, newContent: string, newChatHistory?: ChatMessage[], filePath?: string) => void;
   onTitleUpdate: (id: string, newTitle: string) => void;
   onPriorityUpdate: (id: string, newPriority: number) => void;
   onArchiveToggle: (id: string) => void;
@@ -174,8 +174,8 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
         <MarkdownViewer
           content={selectedTodo.content}
           chatHistory={selectedTodo.frontmatter?.chatHistory || []}
-          onMarkdownChange={(newContent) => onTodoUpdate(selectedTodo.id, newContent)}
-          onChatHistoryChange={(newChatHistory) => onTodoUpdate(selectedTodo.id, selectedTodo.content, newChatHistory)}
+          onMarkdownChange={(newContent) => onTodoUpdate(selectedTodo.id, newContent, undefined, selectedTodo.path)}
+          onChatHistoryChange={(newChatHistory) => onTodoUpdate(selectedTodo.id, selectedTodo.content, newChatHistory, selectedTodo.path)}
           filePath={selectedTodo.path}
           taskId={selectedTodo.id}
           todoId={selectedTodo.id}
