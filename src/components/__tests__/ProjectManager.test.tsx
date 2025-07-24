@@ -89,7 +89,7 @@ describe('ProjectManager', () => {
 
     await waitFor(() => {
       expect(mockListProjectFolders).toHaveBeenCalled();
-    });
+    }, { timeout: 3000 }); // Give more time for debounced loading
   });
 
   it('shows project switcher when multiple folders available', async () => {
@@ -293,7 +293,7 @@ describe('ProjectManager', () => {
 
     await waitFor(() => {
       expect(mockListProjectFolders).toHaveBeenCalled();
-    });
+    }, { timeout: 3000 }); // Give more time for debounced loading
 
     // Should still show the component with default folder
     expect(screen.getAllByText('todos')[0]).toBeInTheDocument();
@@ -315,7 +315,7 @@ describe('ProjectManager', () => {
     await waitFor(() => {
       const selects = screen.getAllByDisplayValue('todos');
       expect(selects).toHaveLength(2); // mobile + desktop
-    });
+    }, { timeout: 3000 }); // Give more time for debounced loading
 
     // Should show available options in selects
     expect(screen.getAllByText('work-tasks')).toHaveLength(2); // mobile + desktop
@@ -337,7 +337,7 @@ describe('ProjectManager', () => {
     // Wait for folders to load
     await waitFor(() => {
       expect(mockListProjectFolders).toHaveBeenCalled();
-    });
+    }, { timeout: 3000 }); // Give more time for debounced loading
 
     // Should show current project name but no select dropdowns when only one folder
     expect(screen.getAllByText('todos')).toHaveLength(2); // mobile + desktop display

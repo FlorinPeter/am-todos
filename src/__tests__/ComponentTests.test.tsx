@@ -22,7 +22,7 @@ import MarkdownViewer from '../components/MarkdownViewer';
 import TodoEditor from '../components/TodoEditor';
 import TodoSidebar from '../components/TodoSidebar';
 import NewTodoInput from '../components/NewTodoInput';
-import GitHubSettings from '../components/GitHubSettings';
+import GitSettings from '../components/GitSettings';
 import AIChat from '../components/AIChat';
 import GitHistory from '../components/GitHistory';
 
