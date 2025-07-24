@@ -410,8 +410,13 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                     if (Array.isArray(children)) {
                       return children.map(extractTextFromChildren).join('');
                     }
-                    if (children && typeof children === 'object' && children.props) {
-                      return extractTextFromChildren(children.props.children);
+                    if (children && typeof children === 'object') {
+                      if (children.props && children.props.children !== undefined) {
+                        return extractTextFromChildren(children.props.children);
+                      }
+                      if (children.children !== undefined) {
+                        return extractTextFromChildren(children.children);
+                      }
                     }
                     return '';
                   };
@@ -420,25 +425,59 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                     // Custom list item component to handle checkbox tokens
                     li: ({ node, children, ...props }: any) => {
                       const text = extractTextFromChildren(children);
-                      console.log('🔍 LI extracted text:', { text, hasToken: text.includes('XCHECKBOXX') });
+                      const hasToken = text.includes('XCHECKBOXX');
+                      
+                      // Only log when we have tokens to debug
+                      if (hasToken) {
+                        console.log('🔍 TOKEN DETECTED in LI:', text.substring(0, 100));
+                      }
                       
                       const checkboxTokenMatch = text.match(/XCHECKBOXX(\d+)XENDX/);
                       if (checkboxTokenMatch) {
                         const checkboxIndex = parseInt(checkboxTokenMatch[1], 10);
                         const checkboxData = checkboxRegistry[checkboxIndex];
+                        
+                        console.log('🎯 TOKEN FOUND:', {
+                          token: checkboxTokenMatch[0],
+                          index: checkboxIndex,
+                          registrySize: checkboxRegistry.length,
+                          hasRegistryEntry: !!checkboxData,
+                          registryEntry: checkboxData
+                        });
+                        
                         if (checkboxData) {
-                          console.log('✅ Rendering checkbox:', checkboxIndex, checkboxData);
+                          console.log('✅ RENDERING CHECKBOX:', {
+                            index: checkboxIndex,
+                            content: checkboxData.content,
+                            isChecked: checkboxData.isChecked
+                          });
                           
                           // Filter out the checkbox token from children, preserve nested content
                           const preservedChildren = React.Children.toArray(children).filter((child: any) => {
                             if (typeof child === 'string') {
-                              return !child.includes(`XCHECKBOXX${checkboxIndex}XENDX`);
+                              const hasToken = child.includes(`XCHECKBOXX${checkboxIndex}XENDX`);
+                              console.log('🧹 FILTERING STRING CHILD:', {
+                                child: child.substring(0, 100),
+                                hasToken,
+                                shouldKeep: !hasToken
+                              });
+                              return !hasToken;
                             }
-                            return true; // Keep all non-string children (nested lists, etc.)
+                            
+                            // For React elements, check if they contain the token recursively
+                            const childText = extractTextFromChildren(child);
+                            const hasToken = childText.includes(`XCHECKBOXX${checkboxIndex}XENDX`);
+                            console.log('🧹 FILTERING ELEMENT CHILD:', {
+                              childType: typeof child,
+                              childText: childText.substring(0, 100),
+                              hasToken,
+                              shouldKeep: !hasToken
+                            });
+                            return !hasToken;
                           });
                           
                           return (
-                            <div className="checkbox-wrapper mb-2">
+                            <div className="checkbox-wrapper mb-2 relative">
                               <div className="flex items-start">
                                 <MarkdownCheckbox
                                   key={`checkbox-${checkboxIndex}`}
@@ -449,13 +488,44 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                                 />
                               </div>
                               {preservedChildren.length > 0 && (
-                                <div className="ml-2 mt-1">
+                                <div style={{ marginLeft: '-12px' }} className="mt-1">
                                   {preservedChildren}
                                 </div>
                               )}
                             </div>
                           );
+                        } else {
+                          console.error('❌ REGISTRY MISMATCH:', {
+                            tokenIndex: checkboxIndex,
+                            registrySize: checkboxRegistry.length,
+                            availableIndexes: checkboxRegistry.map((_, i) => i),
+                            token: checkboxTokenMatch[0]
+                          });
+                          
+                          // Fallback: render as text for debugging
+                          return (
+                            <li {...props} style={{ color: 'red', fontFamily: 'monospace' }}>
+                              DEBUG: Token {checkboxTokenMatch[0]} not found in registry (size: {checkboxRegistry.length})
+                              <br />Original children: {JSON.stringify(children)}
+                            </li>
+                          );
                         }
+                      } else if (hasToken) {
+                        console.warn('⚠️ TOKEN DETECTION FAILED:', {
+                          text: text.substring(0, 200),
+                          hasXCHECKBOX: text.includes('XCHECKBOXX'),
+                          regexMatch: text.match(/XCHECKBOXX\d+XENDX/g),
+                          children: children
+                        });
+                        
+                        // Fallback: render as text for debugging
+                        return (
+                          <li {...props} style={{ color: 'orange', fontFamily: 'monospace' }}>
+                            DEBUG: Token detected but regex failed
+                            <br />Text: {text.substring(0, 100)}
+                            <br />Children: {JSON.stringify(children)}
+                          </li>
+                        );
                       }
                       
                       return <li {...props}>{children}</li>;

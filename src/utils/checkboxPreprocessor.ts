@@ -54,7 +54,9 @@ export function preprocessMarkdownCheckboxes(content: string): PreprocessResult 
   const processedContent = processedLines.join('\n');
   
   console.log(`🏗️ PREPROCESS COMPLETE: Found ${checkboxRegistry.length} checkboxes`);
-  console.log('📊 Registry:', checkboxRegistry.map(r => `"${r.content}" -> ${r.isChecked ? 'checked' : 'unchecked'}`));
+  console.log('📊 REGISTRY SUMMARY:', checkboxRegistry.map((r, i) => `[${i}] "${r.content}" -> ${r.isChecked ? 'checked' : 'unchecked'}`));
+  console.log('📝 PROCESSED CONTENT PREVIEW:', processedContent.substring(0, 300));
+  console.log('🔍 TOKENS IN CONTENT:', processedContent.match(/XCHECKBOXX\d+XENDX/g) || 'None found');
   
   return {
     processedContent,
