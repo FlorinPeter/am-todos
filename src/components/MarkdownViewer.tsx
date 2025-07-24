@@ -3,9 +3,11 @@ import MarkdownPreview from '@uiw/react-markdown-preview';
 import AIChat from './AIChat';
 import GitHistory from './GitHistory';
 import CodeMirrorEditor from './CodeMirrorEditor';
+import MarkdownCheckbox from './MarkdownCheckbox';
 import { processChatMessage } from '../services/aiService';
 import { parseMarkdownWithFrontmatter } from '../utils/markdown';
 import { saveDraft, getDraft, clearDraft, TodoDraft } from '../utils/localStorage';
+import { preprocessMarkdownCheckboxes, updateContentWithCheckboxStates, CheckboxData } from '../utils/checkboxPreprocessor';
 import { ChatMessage } from '../types';
 import logger from '../utils/logger';
 
@@ -96,161 +98,52 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
     }
   }, [hasUnsavedChanges, saveDraftIfNeeded]);
 
-  // Content-based checkbox registry - memoized for performance with enhanced logging
-  const checkboxRegistry = React.useMemo(() => {
-    const registryTimestamp = new Date().toISOString().split('T')[1];
+  // Pure React checkbox processing - preprocesses content and creates registry
+  const { processedContent, checkboxRegistry } = React.useMemo(() => {
     const currentContent = isEditMode ? editContent : viewContent;
-    const lines = currentContent.split('\n');
-    const registry: Array<{
-      line: number; 
-      char: number; 
-      content: string;
-      isChecked: boolean;
-      cleanContent: string; // For reliable matching
-    }> = [];
-    
-    console.log(`🏗️ REGISTRY BUILD START: ${registryTimestamp} | Mode: ${isEditMode ? 'edit' : 'view'} | Content Length: ${currentContent.length} | Lines: ${lines.length}`);
-    
-    // Create registry based on original content
-    lines.forEach((line, lineIndex) => {
-      const checkboxMatch = line.match(/^(\s*-\s*)\[([x ])\](.*)$/i);
-      if (checkboxMatch) {
-        const charIndex = line.indexOf('[');
-        const content = checkboxMatch[3].trim();
-        const isChecked = checkboxMatch[2].toLowerCase() === 'x';
-        const cleanContent = content.replace(/[^\w\s]/g, '').toLowerCase().trim(); // Clean for matching
-        
-        registry.push({ 
-          line: lineIndex, 
-          char: charIndex, 
-          content,
-          isChecked,
-          cleanContent
-        });
-        
-        console.log(`  📝 CHECKBOX ${registry.length - 1}: Line ${lineIndex} | Content: "${content}" | Checked: ${isChecked} | Char: ${charIndex}`);
-      }
-    });
-    
-    console.log(`📊 REGISTRY COMPLETE: ${registryTimestamp} | Found ${registry.length} checkboxes | Summary:`, registry.map(r => `"${r.content}" -> ${r.isChecked ? 'checked' : 'unchecked'}`));
-    
-    return registry;
+    return preprocessMarkdownCheckboxes(currentContent);
   }, [isEditMode, editContent, viewContent]);
 
-  // Reference to the markdown container for post-processing
-  const markdownContainerRef = React.useRef<HTMLDivElement>(null);
+  // Mutable checkbox registry for state updates
+  const mutableCheckboxRegistry = React.useRef<CheckboxData[]>(checkboxRegistry);
   
-  // Index-based checkbox toggle handler
+  // Update mutable registry when checkbox registry changes
+  React.useEffect(() => {
+    mutableCheckboxRegistry.current = [...checkboxRegistry];
+  }, [checkboxRegistry]);
+  
+  // Pure React checkbox toggle handler
   const handleCheckboxToggle = React.useCallback((checkboxIndex: number) => {
     console.log(`🔄 TOGGLE: Checkbox ${checkboxIndex} clicked`);
     
-    const checkboxEntry = checkboxRegistry[checkboxIndex];
+    const registry = mutableCheckboxRegistry.current;
+    const checkboxEntry = registry[checkboxIndex];
+    
     if (!checkboxEntry) {
       console.error(`❌ TOGGLE ERROR: No registry entry for index ${checkboxIndex}`);
       return;
     }
     
-    const contentToUpdate = isEditMode ? editContent : viewContent;
+    // Update checkbox state in mutable registry
+    checkboxEntry.isChecked = !checkboxEntry.isChecked;
     
-    // Toggle the checkbox state in the original markdown format
-    const lines = contentToUpdate.split('\n');
-    const currentLine = lines[checkboxEntry.line];
+    // Update content with new checkbox states
+    const originalContent = isEditMode ? editContent : viewContent;
+    const newContent = updateContentWithCheckboxStates(originalContent, registry);
     
-    if (currentLine && checkboxEntry.char >= 0 && checkboxEntry.char + 1 < currentLine.length) {
-      const currentChar = currentLine[checkboxEntry.char + 1]; // The character inside the brackets
-      const newChar = currentChar === ' ' ? 'x' : ' ';
-      
-      // Direct character replacement at exact position
-      const newLine = currentLine.substring(0, checkboxEntry.char + 1) + newChar + currentLine.substring(checkboxEntry.char + 2);
-      lines[checkboxEntry.line] = newLine;
-      const newContent = lines.join('\n');
-      
-      console.log(`✅ TOGGLE SUCCESS: Checkbox ${checkboxIndex} ("${checkboxEntry.content}") -> ${newChar === 'x' ? 'checked' : 'unchecked'}`);
-      
-      if (isEditMode) {
-        setEditContent(newContent);
-        setHasUnsavedChanges(true);
-      } else {
-        setViewContent(newContent);
-        setHasUnsavedChanges(true);
-        // Auto-save in view mode for immediate GitHub sync
-        onMarkdownChange(newContent);
-      }
+    console.log(`✅ TOGGLE SUCCESS: Checkbox ${checkboxIndex} ("${checkboxEntry.content}") -> ${checkboxEntry.isChecked ? 'checked' : 'unchecked'}`);
+    
+    if (isEditMode) {
+      setEditContent(newContent);
+      setHasUnsavedChanges(true);
+    } else {
+      setViewContent(newContent);
+      setHasUnsavedChanges(true);
+      // Auto-save in view mode for immediate GitHub sync
+      onMarkdownChange(newContent);
     }
-  }, [isEditMode, editContent, viewContent, checkboxRegistry, onMarkdownChange]);
+  }, [isEditMode, editContent, viewContent, onMarkdownChange]);
 
-  // Post-processing effect to synchronize rendered checkboxes with registry
-  React.useEffect(() => {
-    const container = markdownContainerRef.current;
-    if (!container || checkboxRegistry.length === 0) return;
-
-    // Use setTimeout to ensure React has finished DOM updates
-    const timeoutId = setTimeout(() => {
-      try {
-        const timestamp = new Date().toISOString().split('T')[1];
-        console.log(`🔧 POST-PROCESSING START: ${timestamp} | Registry: ${checkboxRegistry.length} checkboxes`);
-
-        // Find all rendered checkboxes in the DOM
-        const renderedCheckboxes = container.querySelectorAll('input[type="checkbox"]');
-        console.log(`🔍 FOUND CHECKBOXES: ${renderedCheckboxes.length} in DOM`);
-
-        // Synchronize each checkbox with registry state
-        renderedCheckboxes.forEach((checkbox, domIndex) => {
-          if (domIndex < checkboxRegistry.length) {
-            const registryEntry = checkboxRegistry[domIndex];
-            const htmlCheckbox = checkbox as HTMLInputElement;
-            
-            try {
-              // Update checkbox state to match registry
-              if (htmlCheckbox.checked !== registryEntry.isChecked) {
-                htmlCheckbox.checked = registryEntry.isChecked;
-              }
-              
-              // Add data attributes for debugging (safe to set)
-              htmlCheckbox.setAttribute('data-checkbox-index', domIndex.toString());
-              htmlCheckbox.setAttribute('data-checkbox-content', registryEntry.content);
-              htmlCheckbox.setAttribute('data-checkbox-state', registryEntry.isChecked ? 'checked' : 'unchecked');
-              
-              // Remove existing event listeners to avoid duplicates
-              const newCheckbox = htmlCheckbox.cloneNode(true) as HTMLInputElement;
-              
-              // Add click handler
-              newCheckbox.addEventListener('change', (e) => {
-                e.preventDefault();
-                handleCheckboxToggle(domIndex);
-              });
-
-              // Add keyboard handler
-              newCheckbox.addEventListener('keydown', (e) => {
-                if (e.key === ' ' || e.key === 'Enter') {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleCheckboxToggle(domIndex);
-                }
-              });
-              
-              // Replace only if parent exists and is still in DOM
-              if (htmlCheckbox.parentNode && container.contains(htmlCheckbox)) {
-                htmlCheckbox.parentNode.replaceChild(newCheckbox, htmlCheckbox);
-                console.log(`✅ SYNCHRONIZED CHECKBOX ${domIndex}: "${registryEntry.content}" -> ${registryEntry.isChecked ? 'checked' : 'unchecked'}`);
-              }
-            } catch (error) {
-              console.warn(`⚠️ CHECKBOX SYNC ERROR ${domIndex}:`, error);
-              // Continue with other checkboxes even if one fails
-            }
-          } else {
-            console.warn(`⚠️ EXTRA CHECKBOX: DOM index ${domIndex} exceeds registry size ${checkboxRegistry.length}`);
-          }
-        });
-
-        console.log(`🏁 POST-PROCESSING COMPLETE: ${timestamp} | Processed ${Math.min(renderedCheckboxes.length, checkboxRegistry.length)} checkboxes`);
-      } catch (error) {
-        console.error('🚫 POST-PROCESSING ERROR:', error);
-      }
-    }, 50); // Small delay to let React finish DOM updates
-
-    return () => clearTimeout(timeoutId);
-  }, [checkboxRegistry, handleCheckboxToggle, isEditMode, editContent, viewContent]);
 
 
   // Memoized chat message handler for performance
@@ -470,9 +363,9 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
             className="w-full"
           />
         ) : (
-          <div className="markdown-content" ref={markdownContainerRef}>
+          <div className="markdown-content">
             <MarkdownPreview
-              source={isEditMode ? editContent : viewContent}
+              source={processedContent}
               data-color-mode="dark"
               style={{
                 backgroundColor: 'transparent',
@@ -505,10 +398,91 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                   }
                   return <a {...props} />;
                 },
-                // Let react-markdown render checkboxes normally - post-processing handles synchronization
-                input: ({ node, ...props }: any) => {
-                  return <input {...props} />;
-                },
+                // Helper function to extract text from React elements recursively
+                ...((() => {
+                  const extractTextFromChildren = (children: any): string => {
+                    if (typeof children === 'string') {
+                      return children;
+                    }
+                    if (typeof children === 'number') {
+                      return String(children);
+                    }
+                    if (Array.isArray(children)) {
+                      return children.map(extractTextFromChildren).join('');
+                    }
+                    if (children && typeof children === 'object' && children.props) {
+                      return extractTextFromChildren(children.props.children);
+                    }
+                    return '';
+                  };
+
+                  return {
+                    // Custom list item component to handle checkbox tokens
+                    li: ({ node, children, ...props }: any) => {
+                      const text = extractTextFromChildren(children);
+                      console.log('🔍 LI extracted text:', { text, hasToken: text.includes('XCHECKBOXX') });
+                      
+                      const checkboxTokenMatch = text.match(/XCHECKBOXX(\d+)XENDX/);
+                      if (checkboxTokenMatch) {
+                        const checkboxIndex = parseInt(checkboxTokenMatch[1], 10);
+                        const checkboxData = checkboxRegistry[checkboxIndex];
+                        if (checkboxData) {
+                          console.log('✅ Rendering checkbox:', checkboxIndex, checkboxData);
+                          
+                          // Filter out the checkbox token from children, preserve nested content
+                          const preservedChildren = React.Children.toArray(children).filter((child: any) => {
+                            if (typeof child === 'string') {
+                              return !child.includes(`XCHECKBOXX${checkboxIndex}XENDX`);
+                            }
+                            return true; // Keep all non-string children (nested lists, etc.)
+                          });
+                          
+                          return (
+                            <div className="checkbox-wrapper mb-2">
+                              <div className="flex items-start">
+                                <MarkdownCheckbox
+                                  key={`checkbox-${checkboxIndex}`}
+                                  index={checkboxIndex}
+                                  isChecked={checkboxData.isChecked}
+                                  content={checkboxData.content}
+                                  onToggle={handleCheckboxToggle}
+                                />
+                              </div>
+                              {preservedChildren.length > 0 && (
+                                <div className="ml-2 mt-1">
+                                  {preservedChildren}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+                      }
+                      
+                      return <li {...props}>{children}</li>;
+                    },
+                    // Override ul to detect and handle checkbox-containing lists
+                    ul: ({ node, children, ...props }: any) => {
+                      // Check if this ul contains any checkbox items
+                      const hasCheckboxes = React.Children.toArray(children).some((child: any) => {
+                        if (child?.props?.children) {
+                          const text = extractTextFromChildren(child.props.children);
+                          return text.includes('XCHECKBOXX');
+                        }
+                        return false;
+                      });
+                      
+                      if (hasCheckboxes) {
+                        return (
+                          <ul {...props} className="checkbox-parent-list">
+                            {children}
+                          </ul>
+                        );
+                      }
+                      
+                      return <ul {...props}>{children}</ul>;
+                    }
+                  };
+                })()),
               }}
               wrapperElement={{
                 'data-color-mode': 'dark'

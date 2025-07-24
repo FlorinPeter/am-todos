@@ -105,13 +105,21 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
                 autoFocus
               />
             ) : (
-              <h1 
-                className="text-lg sm:text-xl font-bold text-white cursor-pointer hover:text-blue-400 transition-colors"
-                onClick={handleTitleEdit}
-                title="Click to edit title"
-              >
-                {selectedTodo.title}
-              </h1>
+              <div>
+                <h1 
+                  className="text-lg sm:text-xl font-bold text-white cursor-pointer hover:text-blue-400 transition-colors"
+                  onClick={handleTitleEdit}
+                  title="Click to edit title"
+                >
+                  {selectedTodo.title}
+                </h1>
+                <div className="text-xs text-gray-500 mt-1">
+                  {selectedTodo.path ? selectedTodo.path.split('/').pop() : 'Unknown'} • Created: {selectedTodo.createdAt ? 
+                    formatDate(selectedTodo.createdAt) : 
+                    'Unknown'
+                  }
+                </div>
+              </div>
             )}
           </div>
 
@@ -153,16 +161,6 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
               </svg>
             </button>
           </div>
-        </div>
-
-        {/* Metadata */}
-        <div className="flex flex-col sm:flex-row sm:items-center text-xs sm:text-sm text-gray-400 space-y-1 sm:space-y-0 sm:space-x-4">
-          <span>Created: {selectedTodo.createdAt ? 
-            formatDate(selectedTodo.createdAt) : 
-            'Unknown'
-          }</span>
-          <span>File: {selectedTodo.path ? selectedTodo.path.split('/').pop() : 'Unknown'}</span>
-          <span className="hidden sm:inline">Priority: {getPriorityLabel(selectedTodo.priority || 3)}</span>
         </div>
       </div>
 

@@ -171,6 +171,16 @@
   margin-top: 0.25rem !important;
 }
 
+/* Remove list styling from checkbox parent lists */
+.github-markdown-dark .checkbox-parent-list {
+  list-style: none !important;
+  list-style-type: none !important;
+}
+
+.github-markdown-dark .checkbox-list-item {
+  list-style: none !important;
+}
+
 /* Alert boxes (GitHub Flavored Markdown) */
 .github-markdown-dark .markdown-alert {
   padding: 0.5rem 1rem !important;

@@ -9,7 +9,7 @@ import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDi
 import { generateInitialPlan, generateCommitMessage } from './services/aiService';
 import { searchTodosDebounced, SearchResult } from './services/searchService';
 import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, stringifyMarkdownWithMetadata } from './utils/markdown';
-import { generateFilename } from './utils/filenameMetadata';
+import { generateFilename, parseFilenameMetadata } from './utils/filenameMetadata';
 import { TodoFrontmatter, Todo, ChatMessage } from './types';
 import logger from './utils/logger';
 
@@ -794,19 +794,17 @@ function App() {
       
       let fullContent: string;
       if (parsedFrontmatter) {
-        // Content already has frontmatter - use it with potential chat history update
-        const updatedFrontmatter = {
-          ...parsedFrontmatter,
-          ...(newChatHistory && { chatHistory: newChatHistory })
+        // Content already has frontmatter - use V2 format (tags only)
+        const v2Frontmatter = {
+          tags: Array.isArray(parsedFrontmatter.tags) ? parsedFrontmatter.tags : []
         };
-        fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, markdownContent);
+        fullContent = stringifyMarkdownWithMetadata(v2Frontmatter, markdownContent);
       } else {
-        // Content doesn't have frontmatter - add it from existing todo
-        const updatedFrontmatter = {
-          ...todoToUpdate.frontmatter,
-          ...(newChatHistory && { chatHistory: newChatHistory })
+        // Content doesn't have frontmatter - add V2 format from existing todo
+        const v2Frontmatter = {
+          tags: Array.isArray(todoToUpdate.frontmatter?.tags) ? todoToUpdate.frontmatter.tags : []
         };
-        fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, newContent);
+        fullContent = stringifyMarkdownWithMetadata(v2Frontmatter, newContent);
       }
       logger.log('App: Full content prepared, generating commit message...');
 
@@ -974,7 +972,7 @@ function App() {
     if (!settings) return;
     try {
       setIsSavingTask(true);
-      setSaveStep('🏷️ Updating priority...');
+      setSaveStep('🔍 Preparing to save...');
       
       const todoToUpdate = todos.find(todo => todo.id === id);
       if (!todoToUpdate) {
@@ -983,7 +981,7 @@ function App() {
         return;
       }
 
-      setSaveStep('🔄 Getting latest file version...');
+      setSaveStep('🔄 Getting latest version...');
       // Get the latest SHA to avoid conflicts (same pattern as handleTodoUpdate)
       let latestSha = todoToUpdate.sha;
       try {
@@ -995,23 +993,81 @@ function App() {
       }
 
       setSaveStep('📝 Preparing content...');
-      const updatedFrontmatter = {
-        ...todoToUpdate.frontmatter,
-        priority: newPriority
+      
+      // Generate new V2 filename with updated priority
+      const currentTitle = todoToUpdate.title;
+      const currentDate = todoToUpdate.createdAt ? todoToUpdate.createdAt.split('T')[0] : new Date().toISOString().split('T')[0];
+      
+      const folder = settings.folder || 'todos';
+      const newFilename = generateFilename(newPriority, currentDate, currentTitle);
+      const newPath = `${folder}/${newFilename}`;
+      
+      logger.log('Priority update: Generated V2 filename:', newFilename);
+      
+      const oldPath = todoToUpdate.path;
+      const needsRename = oldPath !== newPath;
+      
+      // V2 format: Only tags in frontmatter, priority is in filename
+      const v2Frontmatter = {
+        tags: Array.isArray(todoToUpdate.frontmatter?.tags) ? todoToUpdate.frontmatter.tags : []
       };
-      const fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, todoToUpdate.content);
+      const fullContent = stringifyMarkdownWithMetadata(v2Frontmatter, todoToUpdate.content);
       
       // Simple clear commit message without AI generation
       const priorityLabels = { 1: 'P1', 2: 'P2', 3: 'P3', 4: 'P4', 5: 'P5' };
       const commitMessage = `feat: Update priority to ${priorityLabels[newPriority as keyof typeof priorityLabels]} for "${todoToUpdate.title}"`;
 
-      setSaveStep(`💾 Saving to ${getProviderName()}...`);
-      await createOrUpdateTodo(todoToUpdate.path, fullContent, commitMessage, latestSha);
+      setSaveStep('🔍 Resolving filename...');
+      let finalPath = newPath;
       
-      setSaveStep('🔄 Refreshing...');
-      await fetchTodos(todoToUpdate.path); // Re-fetch and preserve selection
+      // Handle file name conflicts if renaming is needed
+      if (needsRename) {
+        let counter = 1;
+        let conflictFreePath = newPath;
+        
+        while (true) {
+          try {
+            await getFileMetadata(conflictFreePath);
+            // File exists, try next number
+            const pathParts = newPath.split('.');
+            const extension = pathParts.pop();
+            const basePath = pathParts.join('.');
+            conflictFreePath = `${basePath}-${counter}.${extension}`;
+            counter++;
+          } catch (error) {
+            // File doesn't exist, we can use this path
+            finalPath = conflictFreePath;
+            break;
+          }
+        }
+      }
+
+      setSaveStep('💾 Saving to repository...');
       
-      setSaveStep('✅ Priority updated!');
+      if (needsRename) {
+        // Create new file with updated filename
+        await createOrUpdateTodo(finalPath, fullContent, commitMessage);
+        
+        setSaveStep('🗑️ Cleaning up old file...');
+        // Delete old file with proper commit message
+        try {
+          const priorityLabels = { 1: 'P1', 2: 'P2', 3: 'P3', 4: 'P4', 5: 'P5' };
+          await deleteFile(oldPath, `feat: Remove old file after priority change to ${priorityLabels[newPriority as keyof typeof priorityLabels]}`);
+          logger.log('Priority update: Old file deleted successfully:', oldPath);
+        } catch (deleteError) {
+          logger.error('Priority update: Failed to delete old file:', deleteError);
+          // This is critical - if we can't delete old file, we have duplicates
+          throw new Error(`Failed to rename file: Could not delete old file ${oldPath}. ${deleteError instanceof Error ? deleteError.message : 'Unknown error'}`);
+        }
+      } else {
+        // No rename needed, just update the content
+        await createOrUpdateTodo(finalPath, fullContent, commitMessage, latestSha);
+      }
+      
+      setSaveStep('🔄 Refreshing task list...');
+      await fetchTodos(finalPath); // Re-fetch and preserve selection with potentially new path
+      
+      setSaveStep('✅ Priority updated successfully!');
       setTimeout(() => {
         setIsSavingTask(false);
         setSaveStep('');
@@ -1019,7 +1075,7 @@ function App() {
       
     } catch (error) {
       logger.error("Error updating priority:", error);
-      setSaveStep('❌ Priority update failed!');
+      setSaveStep('❌ Update failed!');
       setTimeout(() => {
         setIsSavingTask(false);
         setSaveStep('');
@@ -1032,7 +1088,7 @@ function App() {
     if (!settings) return;
     try {
       setIsSavingTask(true);
-      setSaveStep('📝 Analyzing changes... (1/6)');
+      setSaveStep('🔍 Preparing to save...');
       
       const todoToUpdate = todos.find(todo => todo.id === id);
       if (!todoToUpdate) {
@@ -1048,7 +1104,7 @@ function App() {
         return;
       }
 
-      setSaveStep('🔄 Getting latest version... (2/6)');
+      setSaveStep('🔄 Getting latest version...');
       // Get the latest SHA to avoid conflicts (same pattern as handleTodoUpdate)
       let latestSha = todoToUpdate.sha;
       try {
@@ -1059,34 +1115,29 @@ function App() {
         logger.log('Title update: Could not fetch latest SHA, using existing:', latestSha);
       }
 
-      setSaveStep('📝 Preparing content... (3/6)');
-      const updatedFrontmatter = {
-        ...todoToUpdate.frontmatter,
-        title: newTitle
+      setSaveStep('📝 Preparing content...');
+      // V2 format: Only tags in frontmatter, title is in filename
+      const v2Frontmatter = {
+        tags: Array.isArray(todoToUpdate.frontmatter?.tags) ? todoToUpdate.frontmatter.tags : []
       };
-      const fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, todoToUpdate.content);
+      const fullContent = stringifyMarkdownWithMetadata(v2Frontmatter, todoToUpdate.content);
       
-      // Generate new filename based on new title
-      const createSlug = (title: string) => {
-        return title
-          .toLowerCase()
-          .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-          .replace(/\s+/g, '-') // Replace spaces with hyphens
-          .replace(/-+/g, '-') // Replace multiple hyphens with single
-          .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
-          .trim()
-          .substring(0, 50); // Limit length
-      };
+      // Generate new V2 filename based on updated title
+      // Extract current metadata from todo (priority and creation date)
+      const currentPriority = todoToUpdate.priority || 3; // Default to P3 if not set
+      const currentDate = todoToUpdate.createdAt ? todoToUpdate.createdAt.split('T')[0] : new Date().toISOString().split('T')[0];
       
-      const newSlug = createSlug(newTitle);
-      const timestamp = todoToUpdate.path.match(/\d{4}-\d{2}-\d{2}/)?.[0] || new Date().toISOString().split('T')[0];
+      // Generate new V2 format filename
       const folder = settings.folder || 'todos';
-      const newPath = `${folder}/${timestamp}-${newSlug}.md`;
+      const newFilename = generateFilename(currentPriority, currentDate, newTitle);
+      const newPath = `${folder}/${newFilename}`;
+      
+      logger.log('Title update: Generated V2 filename:', newFilename);
       
       const oldPath = todoToUpdate.path;
       const needsRename = oldPath !== newPath;
       
-      setSaveStep('🔍 Resolving filename... (4/6)');
+      setSaveStep('🔍 Resolving filename...');
       let finalPath = newPath;
       
       // Handle file name conflicts if renaming is needed
@@ -1112,24 +1163,31 @@ function App() {
       }
       
       if (needsRename) {
-        setSaveStep('📁 Updating files... (5/6)');
+        setSaveStep('💾 Saving to repository...');
         
         // Create new file with new name
         const commitMessage = `docs: Rename task to "${newTitle}"`;
         await createOrUpdateTodo(finalPath, fullContent, commitMessage);
         
-        // Delete old file (combine these steps visually)
-        await deleteFile(oldPath, `docs: Remove old file after renaming to "${newTitle}"`);
+        // Delete old file with proper commit message
+        try {
+          await deleteFile(oldPath, `docs: Remove old file after renaming to "${newTitle}"`);
+          logger.log('Title update: Old file deleted successfully:', oldPath);
+        } catch (deleteError) {
+          logger.error('Title update: Failed to delete old file:', deleteError);
+          // This is critical - if we can't delete old file, we have duplicates  
+          throw new Error(`Failed to rename file: Could not delete old file ${oldPath}. ${deleteError instanceof Error ? deleteError.message : 'Unknown error'}`);
+        }
         
-        setSaveStep('🔄 Refreshing list... (6/6)');
+        setSaveStep('🔄 Refreshing task list...');
         await fetchTodos(finalPath); // Re-fetch and select the new file
       } else {
         // Just update the existing file
         const commitMessage = `docs: Update title to "${newTitle}"`;
-        setSaveStep('💾 Saving changes... (5/6)');
+        setSaveStep('💾 Saving to repository...');
         await createOrUpdateTodo(todoToUpdate.path, fullContent, commitMessage, latestSha);
         
-        setSaveStep('🔄 Refreshing list... (6/6)');
+        setSaveStep('🔄 Refreshing task list...');
         await fetchTodos(todoToUpdate.path); // Re-fetch and preserve selection
       }
       
@@ -1141,7 +1199,7 @@ function App() {
       
     } catch (error) {
       logger.error("Error updating title:", error);
-      setSaveStep('❌ Title update failed!');
+      setSaveStep('❌ Update failed!');
       setTimeout(() => {
         setIsSavingTask(false);
         setSaveStep('');
@@ -1321,31 +1379,24 @@ function App() {
   const getSaveProgressWidth = () => {
     if (!saveStep) return '0%';
     
-    // New unified title update steps (with proper percentage progression)
-    if (saveStep.includes('Analyzing changes') || saveStep.includes('(1/6)')) return '17%';
-    if (saveStep.includes('Getting latest version') || saveStep.includes('(2/6)')) return '33%';
-    if (saveStep.includes('Preparing content') && saveStep.includes('(3/6)')) return '50%';
-    if (saveStep.includes('Resolving filename') || saveStep.includes('(4/6)')) return '67%';
-    if (saveStep.includes('Updating files') || saveStep.includes('Saving changes') || saveStep.includes('(5/6)')) return '83%';
-    if (saveStep.includes('Refreshing list') || saveStep.includes('(6/6)')) return '90%';
-    if (saveStep.includes('Title updated successfully') || saveStep.includes('✅')) return '100%';
-    if (saveStep.includes('Title update failed') || saveStep.includes('❌')) return '100%';
+    // Map specific step patterns to percentages in execution order
+    if (saveStep.includes('Preparing to save')) return '15%';
+    if (saveStep.includes('Getting latest version')) return '25%';  // Title/Priority flows
+    if (saveStep.includes('Preparing content')) return '35%';
+    if (saveStep.includes('Generating commit message')) return '45%';  // Regular save flow
+    if (saveStep.includes('Getting latest file version')) return '55%';  // Regular save flow  
+    if (saveStep.includes('Resolving filename')) return '65%';  // Title/Priority flows
+    if (saveStep.includes('Saving to repository') || saveStep.includes('Saving to GitHub') || saveStep.includes('Saving to GitLab')) return '75%';
+    if (saveStep.includes('Cleaning up old file')) return '85%';  // Priority flow only
+    if (saveStep.includes('Refreshing task list') || saveStep.includes('Refreshing')) return '90%';
     
-    // Priority update steps - in chronological order
-    if (saveStep.includes('Updating priority')) return '20%';
-    if (saveStep.includes('Getting latest file version')) return '40%';
-    if (saveStep.includes('Preparing content') && !saveStep.includes('(3/6)')) return '60%';
-    if (saveStep.includes('Saving to GitHub') || saveStep.includes('Saving to GitLab')) return '80%';
-    if (saveStep.includes('Refreshing') && !saveStep.includes('(6/6)')) return '90%';
-    if (saveStep.includes('Priority updated')) return '100%';
-    if (saveStep.includes('Priority update failed')) return '100%';
+    // Success/Error states
+    if (saveStep.includes('✅') || saveStep.includes('successfully') || saveStep.includes('completed')) return '100%';
+    if (saveStep.includes('❌') || saveStep.includes('failed')) return '100%';
     
-    // Regular save steps
-    if (saveStep.includes('Preparing to save')) return '20%';
-    if (saveStep.includes('Generating commit message')) return '40%';
-    if (saveStep.includes('Refreshing task list')) return '90%';
-    if (saveStep.includes('Save completed')) return '100%';
-    if (saveStep.includes('Save failed')) return '100%';
+    // Archive operations
+    if (saveStep.includes('Processing archive')) return '20%';
+    if (saveStep.includes('ing task')) return '50%'; // Matches "archiving task" or "unarchiving task"
     
     return '0%';
   };
