@@ -481,4 +481,146 @@ describe('ProjectManager', () => {
     
     expect(input).toHaveAttribute('pattern', '^[a-zA-Z][a-zA-Z0-9_-]*$');
   });
+
+  it('handles storage change events for cross-tab updates (lines 75-78)', async () => {
+    mockLoadSettings.mockReturnValue({
+      gitProvider: 'github',
+      pat: 'token',
+      owner: 'user',
+      repo: 'repo',
+      folder: 'todos'
+    });
+    mockListProjectFolders.mockResolvedValue(['todos']);
+
+    render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
+
+    // Wait for initial load
+    await waitFor(() => {
+      expect(mockListProjectFolders).toHaveBeenCalled();
+    });
+
+    // Clear the mock to track new calls
+    mockListProjectFolders.mockClear();
+
+    // Simulate a storage event for settings change
+    const storageEvent = new StorageEvent('storage', {
+      key: 'am-todos-settings',
+      newValue: JSON.stringify({
+        gitProvider: 'github',
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo',
+        folder: 'work-tasks' // Changed folder
+      }),
+      oldValue: JSON.stringify({
+        gitProvider: 'github',
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo',
+        folder: 'todos'
+      })
+    });
+
+    // Dispatch the storage event to trigger the handler
+    window.dispatchEvent(storageEvent);
+
+    // Should trigger checkForSettingsChanges which calls loadFolders
+    await waitFor(() => {
+      expect(mockListProjectFolders).toHaveBeenCalled();
+    });
+  });
+
+  it('ignores storage events for non-settings keys (line 75)', async () => {
+    mockLoadSettings.mockReturnValue({
+      gitProvider: 'github',
+      pat: 'token',
+      owner: 'user',
+      repo: 'repo',
+      folder: 'todos'
+    });
+    mockListProjectFolders.mockResolvedValue(['todos']);
+
+    render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
+
+    // Wait for initial load and clear mock
+    await waitFor(() => {
+      expect(mockListProjectFolders).toHaveBeenCalled();
+    });
+    mockListProjectFolders.mockClear();
+
+    // Simulate a storage event for a different key
+    const storageEvent = new StorageEvent('storage', {
+      key: 'some-other-key',
+      newValue: 'new-value',
+      oldValue: 'old-value'
+    });
+
+    window.dispatchEvent(storageEvent);
+
+    // Should NOT trigger additional loadFolders calls
+    await new Promise(resolve => setTimeout(resolve, 100));
+    expect(mockListProjectFolders).not.toHaveBeenCalled();
+  });
+
+  it('clears existing timeout when new settings change occurs (lines 128-130)', async () => {
+    mockLoadSettings.mockReturnValue({
+      gitProvider: 'github',
+      pat: 'token',
+      owner: 'user',
+      repo: 'repo',
+      folder: 'todos'
+    });
+    mockListProjectFolders.mockResolvedValue(['todos']);
+
+    // Spy on setTimeout and clearTimeout BEFORE rendering
+    const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
+    const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+
+    const { rerender } = render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
+
+    // Wait for initial load to complete and settle any timeouts
+    await waitFor(() => {
+      expect(mockListProjectFolders).toHaveBeenCalled();
+    });
+
+    // Clear call counts from initial render
+    setTimeoutSpy.mockClear();
+    clearTimeoutSpy.mockClear();
+
+    // Simulate rapid settings changes that would trigger debounced loading
+    // Change 1: Update settings to trigger first timeout
+    mockLoadSettings.mockReturnValue({
+      gitProvider: 'github',
+      pat: 'new-token', // Changed PAT to trigger settings effect
+      owner: 'user',
+      repo: 'repo',
+      folder: 'todos'
+    });
+
+    rerender(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
+
+    // Wait for first timeout to be set
+    await waitFor(() => {
+      expect(setTimeoutSpy).toHaveBeenCalled();
+    });
+
+    // Change 2: Quickly change settings again to trigger clearTimeout
+    mockLoadSettings.mockReturnValue({
+      gitProvider: 'github',
+      pat: 'newer-token', // Changed PAT again
+      owner: 'user',
+      repo: 'repo',
+      folder: 'todos'
+    });
+
+    rerender(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
+
+    // Should have called clearTimeout when new timeout is set
+    await waitFor(() => {
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+    });
+
+    setTimeoutSpy.mockRestore();
+    clearTimeoutSpy.mockRestore();
+  });
 });

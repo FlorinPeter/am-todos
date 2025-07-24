@@ -970,4 +970,102 @@ describe('GitSettings - Focused Coverage Tests', () => {
       expect(screen.getByDisplayValue('legacy-folder')).toBeInTheDocument();
     });
   });
+
+  describe('Branch Coverage for Early Returns (lines 81-82, 110, 114)', () => {
+    it('should not load folders when GitHub credentials are missing (line 81-82)', async () => {
+      // Test the early return in loadFolders for incomplete GitHub credentials
+      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+
+      // Fill in only PAT and owner, but missing repo (triggers line 81-82)
+      fireEvent.change(screen.getByLabelText('GitHub Personal Access Token (PAT)'), {
+        target: { value: 'github-token' }
+      });
+      fireEvent.change(screen.getByLabelText('Repository Owner (Username or Organization)'), {
+        target: { value: 'testowner' }
+      });
+      // Don't fill in repo - this should trigger the early return at lines 81-82
+
+      // Wait to ensure no folder loading is triggered
+      await new Promise(resolve => setTimeout(resolve, 200));
+      expect(mockListProjectFolders).not.toHaveBeenCalled();
+    });
+
+    it('should not load folders when GitLab credentials are missing (line 82)', async () => {
+      // Test the early return in loadFolders for incomplete GitLab credentials
+      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+
+      // Switch to GitLab
+      fireEvent.change(screen.getByLabelText('Choose Your Git Provider'), {
+        target: { value: 'gitlab' }
+      });
+
+      // Fill in only instanceUrl and projectId, but missing token (triggers line 82)
+      fireEvent.change(screen.getByLabelText('GitLab Instance URL'), {
+        target: { value: 'https://gitlab.com' }
+      });
+      fireEvent.change(screen.getByLabelText('Project ID'), {
+        target: { value: '12345' }
+      });
+      // Don't fill in token - this should trigger the early return at line 82
+
+      // Wait to ensure no folder loading is triggered
+      await new Promise(resolve => setTimeout(resolve, 200));
+      expect(mockListProjectFolders).not.toHaveBeenCalled();
+    });
+
+    it('should not create folder when GitHub credentials are missing (line 114)', async () => {
+      // Test the early return in handleCreateFolder for incomplete GitHub credentials
+      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+
+      // Show create folder form
+      fireEvent.click(screen.getByText('+ New Project'));
+
+      // Enter folder name
+      fireEvent.change(screen.getByPlaceholderText('work-tasks'), {
+        target: { value: 'new-project' }
+      });
+
+      // Fill in only partial GitHub credentials (triggers line 114)
+      fireEvent.change(screen.getByLabelText('GitHub Personal Access Token (PAT)'), {
+        target: { value: 'github-token' }
+      });
+      // Don't fill in owner and repo - this should trigger the early return at line 114
+
+      // Click create
+      fireEvent.click(screen.getByText('Create Project'));
+
+      // Should not call createProjectFolder due to missing credentials
+      expect(mockCreateProjectFolder).not.toHaveBeenCalled();
+    });
+
+    it('should not create folder when GitLab credentials are missing (line 114)', async () => {
+      // Test the early return in handleCreateFolder for incomplete GitLab credentials  
+      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+
+      // Switch to GitLab
+      fireEvent.change(screen.getByLabelText('Choose Your Git Provider'), {
+        target: { value: 'gitlab' }
+      });
+
+      // Show create folder form
+      fireEvent.click(screen.getByText('+ New Project'));
+
+      // Enter folder name
+      fireEvent.change(screen.getByPlaceholderText('work-tasks'), {
+        target: { value: 'new-project' }
+      });
+
+      // Fill in only instanceUrl (triggers line 114)
+      fireEvent.change(screen.getByLabelText('GitLab Instance URL'), {
+        target: { value: 'https://gitlab.com' }
+      });
+      // Don't fill in projectId and token - this should trigger the early return at line 114
+
+      // Click create
+      fireEvent.click(screen.getByText('Create Project'));
+
+      // Should not call createProjectFolder due to missing credentials
+      expect(mockCreateProjectFolder).not.toHaveBeenCalled();
+    });
+  });
 });
