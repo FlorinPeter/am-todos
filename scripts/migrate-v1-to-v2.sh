@@ -235,15 +235,39 @@ create_backup() {
     
     mkdir -p "$BACKUP_DIR"
     
-    # Create full backup of the todo folder
+    # Create backup of markdown files and archive folder if it exists
     if [ -d "$folder" ]; then
-        cp -r "$folder" "$BACKUP_DIR/"
-        log "SUCCESS" "Backup created: $BACKUP_DIR/$(basename "$folder")"
+        # Handle current directory specially to avoid recursive copy
+        if [ "$folder" = "." ]; then
+            # Create a subfolder in backup to match expected structure
+            mkdir -p "$BACKUP_DIR/current"
+            
+            # Copy all .md files from current directory
+            find . -maxdepth 1 -name "*.md" -exec cp {} "$BACKUP_DIR/current/" \; 2>/dev/null || true
+            
+            # Copy archive folder if it exists
+            if [ -d "./archive" ]; then
+                cp -r "./archive" "$BACKUP_DIR/current/"
+            fi
+            
+            log "SUCCESS" "Backup created: $BACKUP_DIR/current ($(find "$BACKUP_DIR/current" -name "*.md" | wc -l) files)"
+        else
+            # For named folders, use original logic
+            cp -r "$folder" "$BACKUP_DIR/"
+            log "SUCCESS" "Backup created: $BACKUP_DIR/$(basename "$folder")"
+        fi
     else
         log "WARN" "Todo folder '$folder' does not exist, skipping backup"
     fi
     
     # Create metadata file with migration info
+    local restore_source
+    if [ "$folder" = "." ]; then
+        restore_source="$BACKUP_DIR/current"
+    else
+        restore_source="$BACKUP_DIR/$(basename "$folder")"
+    fi
+    
     cat > "$BACKUP_DIR/migration-info.txt" <<EOF
 AM-Todos V1 to V2 Migration Backup
 Created: $(date)
@@ -252,9 +276,9 @@ Script version: $SCRIPT_NAME
 Git commit before migration: $(git rev-parse HEAD 2>/dev/null || echo "N/A")
 
 To restore from this backup:
-1. Remove the current todo folder: rm -rf $folder
-2. Restore from backup: cp -r $BACKUP_DIR/$(basename "$folder") ./
-3. Reset git changes: git checkout -- $folder/ (if using git)
+1. Remove current markdown files: rm -f *.md && rm -rf archive/
+2. Restore from backup: cp -r $restore_source/* ./
+3. Reset git changes: git checkout -- ./ (if using git)
 
 Files in this backup: $(find "$BACKUP_DIR" -name "*.md" | wc -l) markdown files
 EOF
@@ -351,11 +375,16 @@ migrate_file() {
     
     # Handle archived files
     if [ "$is_archived" = "true" ]; then
-        local archive_dir="$dirname/archive"
-        new_path="$archive_dir/$new_filename"
-        
-        if [ "$is_dry_run" = false ]; then
-            mkdir -p "$archive_dir"
+        # If file is already in archive directory, keep it there
+        if [[ "$dirname" == *"/archive" ]] || [[ "$dirname" == "./archive" ]]; then
+            new_path="$dirname/$new_filename"
+        else
+            local archive_dir="$dirname/archive"
+            new_path="$archive_dir/$new_filename"
+            
+            if [ "$is_dry_run" = false ]; then
+                mkdir -p "$archive_dir"
+            fi
         fi
         ARCHIVED_FILES=$((ARCHIVED_FILES + 1))
     fi

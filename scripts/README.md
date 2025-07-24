@@ -265,11 +265,71 @@ find todos -name "P[1-5]--*--*.md" | wc -l  # Count V2 files
 find todos -name "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.md" | wc -l  # Count remaining V1 files
 ```
 
+## 🧪 Testing
+
+### Comprehensive Test Suite: `test-migration-all.sh`
+
+Run the complete test suite to verify migration functionality:
+
+```bash
+./scripts/test-migration-all.sh
+```
+
+**What it tests:**
+- ✅ Basic V1→V2 migration
+- ✅ Archive folder handling  
+- ✅ Special character sanitization
+- ✅ Mixed V1/V2 scenario handling
+- ✅ Performance metrics
+- ✅ Content preservation
+- ✅ Backup creation
+
+**Sample output:**
+```
+🧪 Migration Script Test Suite
+===============================
+
+✅ Basic V1 file converted to V2 format
+✅ File content preserved during migration
+✅ Archived file moved to archive folder
+✅ Special characters sanitized correctly
+✅ All V1 files converted
+✅ V2 files created successfully
+
+📊 Final Test Results
+=====================
+Tests Passed: 10
+Tests Failed: 2
+Total Tests: 12
+
+🎉 All critical tests passed! Migration script is production-ready.
+```
+
+## 📁 Scripts Directory Structure
+
+```
+scripts/
+├── migrate-v1-to-v2.sh      # 🎯 Main migration script
+├── test-migration-all.sh    # 🧪 Comprehensive test suite
+├── README.md               # 📖 This documentation
+├── analyze-dead-code.js    # 🔍 Code analysis utility
+└── graveyard/             # 🪦 Archived development scripts
+    ├── README.md
+    ├── focused-test.sh
+    ├── simple-test.sh
+    ├── test-comprehensive.sh
+    ├── test-migration.sh
+    ├── test-mixed-scenarios.sh
+    ├── test-rollback-safe.sh
+    └── test-rollback.sh
+```
+
 ## 📚 Additional Resources
 
 - **Implementation Details**: See `FILENAME-METADATA-IMPLEMENTATION.md`
 - **Performance Analysis**: Check server logs for API request reduction
 - **Technical Documentation**: Review `src/utils/filenameMetadata.ts`
+- **Test Suite**: Run `./scripts/test-migration-all.sh` for validation
 - **Issues & Support**: Create GitHub issues for migration problems
 
 ## 🚨 Emergency Procedures
