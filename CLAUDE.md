@@ -394,3 +394,182 @@ The GitHub Actions CI pipeline runs `npm run test:coverage` in Ubuntu with Node.
 ./hack/restart-dev.sh  # Restart both servers (rarely needed due to hot reload)
 ```
 
+## Coverage Improvement Process
+
+### Systematic Coverage Grinding Methodology
+
+When working to improve test coverage systematically, follow this proven workflow to identify and implement high-impact coverage improvements efficiently.
+
+#### 1. Initial Coverage Analysis
+```bash
+# Get comprehensive coverage report with proper timeout
+npm run test:coverage -- --testTimeout=300000
+
+# Extract coverage summary for analysis
+npm run test:coverage -- --testTimeout=300000 | grep -A 50 "% Coverage report"
+```
+
+#### 2. Identify Low-Hanging Fruit Targets
+Focus on files with these characteristics:
+- **85-95% coverage**: Usually just missing error paths or edge cases
+- **Small line gaps**: Files with only 5-20 uncovered lines
+- **Utility functions**: Pure functions with clear inputs/outputs
+- **Error handling paths**: Often untested but easy to mock
+
+**Avoid these targets for efficiency:**
+- **App.tsx**: Complex integration, low ROI
+- **Files <50% coverage**: Often require architectural changes
+- **Complex UI components**: High setup overhead
+
+#### 3. Target Analysis Commands
+```bash
+# Analyze individual file coverage
+npm test src/services/__tests__/[service].test.ts -- --coverage
+
+# Check specific file coverage details
+npm test src/utils/__tests__/[util].test.ts -- --coverage
+
+# Get coverage for component
+npm test src/components/__tests__/[Component].test.tsx -- --coverage
+```
+
+#### 4. Systematic Implementation Process
+
+**Step 1: Test Individual Files First**
+```bash
+# Always test the specific file individually before full coverage
+npm test src/[path]/__tests__/[file].test.[ts|tsx]
+```
+
+**Step 2: Identify Uncovered Lines**
+- Read the source file around uncovered line numbers
+- Categorize: error paths, edge cases, fallbacks, utility functions
+- Prioritize by effort vs. impact ratio
+
+**Step 3: Add Targeted Tests**
+Focus on these common patterns:
+- **Error handling**: Mock dependencies to throw errors
+- **Fallback paths**: Test when primary logic fails
+- **Edge cases**: Boundary conditions, invalid inputs
+- **Utility functions**: All branches of switch/if statements
+
+**Step 4: Verify Individual File Improvement**
+```bash
+# Confirm tests pass and coverage improves
+npm test src/[path]/__tests__/[file].test.[ts|tsx]
+```
+
+**Step 5: Run Full Coverage Analysis**
+```bash
+# Measure overall impact
+npm run test:coverage -- --testTimeout=300000
+```
+
+#### 5. Example Coverage Improvement Session
+
+```bash
+# 1. Initial analysis
+npm run test:coverage -- --testTimeout=300000 | grep -A 50 "% Coverage report"
+
+# 2. Identify targets (example output analysis)
+# aiService.ts     |   88.09 |    85.96 |     100 |   88.09 | ...50-156,238-239 
+# searchService.ts |   92.74 |    78.33 |     100 |   92.74 | ...47-249,260-262
+# localStorage.ts  |   89.91 |    85.78 |     100 |   89.91 | ...09-315,319-325
+
+# 3. Test individual targets
+npm test src/services/__tests__/aiService.integration.test.ts
+npm test src/services/__tests__/searchService.test.ts  
+npm test src/utils/__tests__/localStorage.test.ts
+
+# 4. Implement improvements (add tests for uncovered lines)
+# ... edit test files to cover missing paths ...
+
+# 5. Verify improvements
+npm test src/services/__tests__/aiService.integration.test.ts
+npm test src/services/__tests__/searchService.test.ts
+npm test src/utils/__tests__/localStorage.test.ts
+
+# 6. Final coverage analysis
+npm run test:coverage -- --testTimeout=300000 | grep -A 50 "% Coverage report"
+```
+
+#### 6. Common Coverage Patterns and Solutions
+
+**Error Path Coverage:**
+```typescript
+// Pattern: Cover catch blocks and error handling
+it('should handle API errors gracefully', async () => {
+  mockFetch.mockRejectedValue(new Error('Network error'));
+  const result = await serviceFunction();
+  expect(result).toBeNull();
+});
+```
+
+**Fallback Logic Coverage:**
+```typescript
+// Pattern: Cover fallback when primary logic fails
+it('should use fallback when primary method fails', () => {
+  const spy = vi.spyOn(primaryMethod, 'execute')
+    .mockReturnValue({ isValid: false, error: 'Failed' });
+  const result = mainFunction(input);
+  expect(result).toEqual(fallbackResult);
+});
+```
+
+**Edge Case Coverage:**  
+```typescript
+// Pattern: Cover boundary conditions and invalid inputs
+it('should handle edge case with invalid priority', () => {
+  const result = getPriorityLabel(99); // Invalid priority
+  expect(result).toBe('P3 - Medium'); // Default case
+});
+```
+
+**Utility Function Coverage:**
+```typescript
+// Pattern: Test all branches of utility functions
+const testCases = [
+  { input: 1, expected: 'P1 - Critical' },
+  { input: 2, expected: 'P2 - High' },
+  // ... cover all cases including default
+];
+testCases.forEach(({ input, expected }) => {
+  it(`should return ${expected} for priority ${input}`, () => {
+    expect(getPriorityLabel(input)).toBe(expected);
+  });
+});
+```
+
+#### 7. Coverage Impact Tracking
+
+Track improvements systematically:
+```bash
+# Before improvements
+# aiService.ts: 88.09% → target 95%+
+# searchService.ts: 92.74% → target 98%+  
+# localStorage.ts: 89.91% → target 95%+
+
+# After improvements  
+# aiService.ts: 88.09% → 92.38% (+4.3%)
+# searchService.ts: 92.74% → 95.85% (+3.1%)
+# localStorage.ts: 51.89% → 89.91% (+38%)
+```
+
+#### 8. Commit Strategy
+
+Use structured commit messages documenting coverage improvements:
+```bash
+git commit -m "test: Enhance coverage for [files] - systematic improvements
+
+Coverage Increases:
+• [file1]: X% → Y% (+Z%)
+  - [specific improvements]
+• [file2]: X% → Y% (+Z%) 
+  - [specific improvements]
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+Co-Authored-By: Claude <noreply@anthropic.com>"
+```
+
+This methodology provides a systematic, efficient approach to coverage improvement that maximizes impact while minimizing effort.
+

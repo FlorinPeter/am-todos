@@ -928,4 +928,46 @@ describe('GitSettings - Focused Coverage Tests', () => {
       expect(screen.getByLabelText(/project id/i)).toBeInTheDocument();
     });
   });
+
+  describe('Legacy Settings Migration Coverage (lines 53-56, 65-68)', () => {
+    it('should handle legacy GitHub settings without dual-config structure', () => {
+      // Mock legacy format settings (no .github/.gitlab properties)
+      mockLoadSettings.mockReturnValue({
+        gitProvider: 'github',
+        folder: 'legacy-folder',
+        // Legacy direct fields (lines 53-56)
+        pat: 'legacy-pat',
+        owner: 'legacy-owner', 
+        repo: 'legacy-repo'
+      });
+
+      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+
+      // Verify legacy GitHub fields are loaded (exercises lines 53-56)
+      expect(screen.getByDisplayValue('legacy-pat')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('legacy-owner')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('legacy-repo')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('legacy-folder')).toBeInTheDocument();
+    });
+
+    it('should handle legacy GitLab settings without dual-config structure', () => {
+      // Mock legacy format settings (no .github/.gitlab properties)
+      mockLoadSettings.mockReturnValue({
+        gitProvider: 'gitlab',
+        folder: 'legacy-folder',
+        // Legacy direct fields (lines 65-68)
+        instanceUrl: 'https://legacy.gitlab.com',
+        projectId: 'legacy-project-123',
+        token: 'legacy-gitlab-token'
+      });
+
+      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+
+      // Verify legacy GitLab fields are loaded (exercises lines 65-68)
+      expect(screen.getByDisplayValue('https://legacy.gitlab.com')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('legacy-project-123')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('legacy-gitlab-token')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('legacy-folder')).toBeInTheDocument();
+    });
+  });
 });
