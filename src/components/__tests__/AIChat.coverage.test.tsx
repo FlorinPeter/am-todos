@@ -350,5 +350,6 @@ describe('AIChat Coverage Tests', () => {
         expect(mockProps.onChatMessage).toHaveBeenCalled();
       });
     });
+
   });
 });

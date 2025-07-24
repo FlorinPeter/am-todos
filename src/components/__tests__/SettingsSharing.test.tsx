@@ -1,6 +1,9 @@
+/**
+ * @vitest-environment jsdom
+ */
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { vi, describe, test, expect, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { vi, describe, test, expect, beforeEach, afterEach } from 'vitest';
 import SettingsSharing from '../SettingsSharing';
 import * as localStorage from '../../utils/localStorage';
 
@@ -46,6 +49,10 @@ describe('SettingsSharing', () => {
     mockLoadSettings.mockReturnValue(mockSettings);
     mockEncodeSettingsToUrl.mockReturnValue('https://example.com?config=encoded-settings');
     mockWriteText.mockResolvedValue();
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   test('renders modal when visible', () => {
@@ -257,5 +264,91 @@ describe('SettingsSharing', () => {
     await waitFor(() => {
       expect(screen.queryByText(/link copied to clipboard/i)).not.toBeInTheDocument();
     }, { timeout: 3000 });
+  });
+
+  test('handles error case and triggers fallback clipboard (covers lines 50, 66-85)', async () => {
+    // Mock clipboard writeText to fail to force fallback path
+    mockWriteText.mockRejectedValue(new Error('Clipboard access denied'));
+    
+    mockEncodeSettingsToUrl.mockReturnValue('https://example.com?config=fallback-test');
+    
+    render(<SettingsSharing {...defaultProps} />);
+    
+    // Wait for content to be generated
+    await waitFor(() => {
+      expect(screen.queryByText(/generating configuration/i)).not.toBeInTheDocument();
+    });
+
+    // Click copy button to trigger clipboard failure and fallback
+    const copyButton = screen.getByRole('button', { name: /copy/i });
+    fireEvent.click(copyButton);
+
+    // Should show fallback feedback message (this indicates fallback path was taken)
+    await waitFor(() => {
+      expect(screen.getByText(/use ctrl\+c.*to copy/i)).toBeInTheDocument();
+    });
+  });
+
+  test('triggers haptic feedback on supported devices (lines 99-100)', async () => {
+    // Store original vibrate function
+    const originalVibrate = navigator.vibrate;
+    
+    // Mock navigator.vibrate
+    const mockVibrate = vi.fn();
+    Object.defineProperty(navigator, 'vibrate', {
+      value: mockVibrate,
+      writable: true,
+    });
+    
+    mockEncodeSettingsToUrl.mockReturnValue('https://example.com?config=haptic-test');
+    mockWriteText.mockResolvedValue();
+    
+    render(<SettingsSharing {...defaultProps} />);
+    
+    // Wait for content to be generated
+    await waitFor(() => {
+      expect(screen.queryByText(/generating configuration/i)).not.toBeInTheDocument();
+    });
+
+    // Click copy button to trigger haptic feedback
+    const copyButton = screen.getByRole('button', { name: /copy/i });
+    fireEvent.click(copyButton);
+
+    // Verify haptic feedback was triggered (line 99)
+    await waitFor(() => {
+      expect(mockVibrate).toHaveBeenCalledWith(50);
+    });
+    
+    // Should also show success state
+    await waitFor(() => {
+      expect(screen.getByText('Copied!')).toBeInTheDocument();
+    });
+    
+    // Restore original vibrate function
+    if (originalVibrate) {
+      Object.defineProperty(navigator, 'vibrate', {
+        value: originalVibrate,
+        writable: true,
+      });
+    }
+  });
+
+  test('handles QR code generation error (line 50)', async () => {
+    // Mock logger.error to capture the error
+    const mockLogger = await import('../../utils/logger');
+    const loggerErrorSpy = vi.spyOn(mockLogger.default, 'error').mockImplementation(() => {});
+    
+    // Override the QRCode mock to fail
+    const QRCode = await import('qrcode');
+    vi.mocked(QRCode.toDataURL).mockRejectedValueOnce(new Error('QR generation failed'));
+    
+    render(<SettingsSharing {...defaultProps} />);
+    
+    // Wait for the error to be caught and logged (line 50)
+    await waitFor(() => {
+      expect(loggerErrorSpy).toHaveBeenCalledWith('Error generating share URL:', expect.any(Error));
+    }, { timeout: 3000 });
+    
+    loggerErrorSpy.mockRestore();
   });
 });

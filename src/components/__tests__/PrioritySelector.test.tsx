@@ -192,4 +192,32 @@ describe('PrioritySelector', () => {
     // Should have hover classes for non-selected items
     expect(p1Button).toHaveClass('text-gray-300', 'hover:bg-gray-700');
   });
+
+  it('should handle extreme priority values to test fallback logic (line 32)', () => {
+    // Test with very extreme values that might cause the type assertion to behave unexpectedly
+    // Even though validatePriority will normalize these, we want to test the object lookup
+    
+    const extremeValues = [
+      0,    // Will be normalized to 3, should be fine
+      -1,   // Will be normalized to 3, should be fine  
+      6,    // Will be normalized to 3, should be fine
+      999,  // Will be normalized to 3, should be fine
+      NaN,  // Will be normalized to 3, might cause lookup issues
+      Infinity, // Will be normalized to 3, might cause lookup issues
+    ];
+    
+    extremeValues.forEach((priority) => {
+      const { rerender } = render(
+        <PrioritySelector 
+          priority={priority} 
+          onPriorityChange={mockOnPriorityChange} 
+        />
+      );
+
+      // All should fallback to P3 - Medium due to validation
+      expect(screen.getByTitle('P3 - Medium')).toBeInTheDocument();
+      
+      rerender(<div />); // Clean up for next iteration
+    });
+  });
 });

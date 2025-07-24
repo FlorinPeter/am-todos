@@ -124,6 +124,28 @@ describe('fetchWithTimeout', () => {
         signal: expect.any(Object)
       });
     });
+
+    it('should call controller.abort() when timeout callback executes (line 27)', async () => {
+      // Use fake timers to control timeout execution
+      vi.useFakeTimers();
+      
+      try {
+        // Mock fetch to return a promise that never resolves (simulating hanging request)
+        const hangingPromise = new Promise(() => {}); // Never resolves
+        mockFetch.mockReturnValueOnce(hangingPromise);
+        
+        // Start the fetch with a short timeout
+        const fetchPromise = fetchWithTimeout('https://example.com', { timeout: 100 });
+        
+        // Advance timers to trigger the timeout callback (which calls controller.abort() on line 27)
+        vi.advanceTimersByTime(101);
+        
+        // Now the fetch should reject with timeout error
+        await expect(fetchPromise).rejects.toThrow('Request timeout after 100ms');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe('Error Handling', () => {

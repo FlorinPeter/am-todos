@@ -134,4 +134,70 @@ describe('TodoSidebar - Quick Coverage Boost', () => {
     // Component no longer shows progress section - updated expectation to match current behavior
     expect(screen.queryAllByText('Progress')).toHaveLength(0);
   });
+
+  it('should generate fallback ID for search results in non-test environment (line 126)', () => {
+    // Temporarily mock process.env to not be test environment
+    const originalEnv = process.env.NODE_ENV;
+    const originalWindow = global.window;
+    
+    // Make it appear as non-test environment
+    process.env.NODE_ENV = 'production';
+    global.window = {} as any;
+    
+    const searchResults = [{
+      path: 'todos/test-file.md',
+      name: 'test-file.md', 
+      sha: 'abc123',
+      priority: 2
+    }];
+    
+    const propsWithSearch = {
+      ...defaultProps,
+      searchQuery: 'test query',
+      searchResults,
+      onSearchQueryChange: vi.fn(),
+      onSearchScopeChange: vi.fn()
+    };
+    
+    render(<TodoSidebar {...propsWithSearch} />);
+    
+    // Should render the search result (which uses the fallback ID generation)
+    expect(screen.getByText('test-file')).toBeInTheDocument();
+    
+    // Restore original environment
+    process.env.NODE_ENV = originalEnv;
+    global.window = originalWindow;
+  });
+
+  it('should show inactive folder button styling when scope is repo (line 234)', () => {
+    const propsWithSearch = {
+      ...defaultProps,
+      searchQuery: 'test query',
+      searchScope: 'repo' as const, // Set scope to 'repo' so 'folder' button is inactive
+      onSearchQueryChange: vi.fn(),
+      onSearchScopeChange: vi.fn()
+    };
+    
+    render(<TodoSidebar {...propsWithSearch} />);
+    
+    // Find the "This Folder" button (should be inactive when scope is 'repo')
+    const folderButton = screen.getByText('This Folder');
+    expect(folderButton).toHaveClass('bg-gray-600', 'text-gray-300', 'hover:bg-gray-500');
+  });
+
+  it('should show inactive repo button styling when scope is folder (line 244)', () => {
+    const propsWithFolderScope = {
+      ...defaultProps,
+      searchQuery: 'test query',
+      searchScope: 'folder' as const, // Set scope to 'folder' so 'repo' button is inactive
+      onSearchQueryChange: vi.fn(),
+      onSearchScopeChange: vi.fn()
+    };
+    
+    render(<TodoSidebar {...propsWithFolderScope} />);
+    
+    // Find the "Entire Repo" button (should be inactive when scope is 'folder')  
+    const repoButton = screen.getByText('Entire Repo');
+    expect(repoButton).toHaveClass('bg-gray-600', 'text-gray-300', 'hover:bg-gray-500');
+  });
 });
