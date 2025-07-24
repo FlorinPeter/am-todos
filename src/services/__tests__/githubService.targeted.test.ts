@@ -244,6 +244,161 @@ describe('GitHub Service - Targeted Coverage', () => {
     });
   });
 
+  describe('ensureArchiveDirectory - error handling', () => {
+    it('should handle archive directory creation failure (covers lines 498-501)', async () => {
+      const { ensureArchiveDirectory } = await import('../githubService');
+      
+      mockFetch
+        // Directory check - 404 (doesn't exist)
+        .mockResolvedValueOnce(createMockResponse({
+          ok: false,
+          status: 404,
+          text: async () => 'Not Found'
+        }))
+        // Directory creation fails - covers lines 498-501
+        .mockResolvedValueOnce(createMockResponse({
+          ok: false,
+          status: 403,
+          statusText: 'Forbidden',
+          text: async () => 'Permission denied'
+        }));
+
+      await expect(
+        ensureArchiveDirectory(mockToken, mockOwner, mockRepo, 'restrictedFolder')
+      ).rejects.toThrow('GitHub API proxy error: Forbidden');
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('moveTaskToArchive - complete function coverage', () => {
+    it('should successfully move task to archive (covers lines 508-537)', async () => {
+      const { moveTaskToArchive } = await import('../githubService');
+      
+      const currentPath = 'todos/active-task.md';
+      const content = '# Active Task\\n\\n- [ ] Complete this task';
+      const commitMessage = 'Archive: Move task to archive';
+      
+      mockFetch
+        // ensureArchiveDirectory - check archive exists
+        .mockResolvedValueOnce(createMockResponse({
+          ok: true,
+          status: 200,
+          json: async () => []
+        }))
+        // getFileMetadata - get current file SHA
+        .mockResolvedValueOnce(createMockResponse({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            sha: 'current-file-sha',
+            content: btoa(content),
+            path: currentPath,
+            name: 'active-task.md'
+          })
+        }))
+        // createOrUpdateTodo - check if archive file exists (404)
+        .mockResolvedValueOnce(createMockResponse({
+          ok: false,
+          status: 404,
+          text: async () => 'Not Found'
+        }))
+        // createOrUpdateTodo - create file in archive
+        .mockResolvedValueOnce(createMockResponse({
+          ok: true,
+          status: 201,
+          json: async () => ({
+            content: { sha: 'archive-file-sha' },
+            commit: { sha: 'archive-commit-sha' }
+          })
+        }))
+        // deleteFile - delete from original location
+        .mockResolvedValueOnce(createMockResponse({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            commit: { sha: 'delete-commit-sha' }
+          })
+        }));
+
+      const result = await moveTaskToArchive(
+        mockToken,
+        mockOwner,
+        mockRepo,
+        currentPath,
+        content,
+        commitMessage
+      );
+
+      expect(result).toBe('todos/archive/active-task.md');
+      expect(mockFetch).toHaveBeenCalledTimes(5);
+    });
+
+    it('should handle custom folder in moveTaskToArchive', async () => {
+      const { moveTaskToArchive } = await import('../githubService');
+      
+      const currentPath = 'work/project-task.md';
+      const content = '# Project Task';
+      const commitMessage = 'Archive work task';
+      const customFolder = 'work';
+      
+      mockFetch
+        // ensureArchiveDirectory for custom folder
+        .mockResolvedValueOnce(createMockResponse({
+          ok: true,
+          status: 200,
+          json: async () => []
+        }))
+        // getFileMetadata
+        .mockResolvedValueOnce(createMockResponse({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            sha: 'work-task-sha',
+            content: btoa(content),
+            path: currentPath,
+            name: 'project-task.md'
+          })
+        }))
+        // createOrUpdateTodo check
+        .mockResolvedValueOnce(createMockResponse({
+          ok: false,
+          status: 404,
+          text: async () => 'Not Found'
+        }))
+        // createOrUpdateTodo create
+        .mockResolvedValueOnce(createMockResponse({
+          ok: true,
+          status: 201,
+          json: async () => ({
+            content: { sha: 'archive-sha' },
+            commit: { sha: 'commit-sha' }
+          })
+        }))
+        // deleteFile
+        .mockResolvedValueOnce(createMockResponse({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            commit: { sha: 'delete-sha' }
+          })
+        }));
+
+      const result = await moveTaskToArchive(
+        mockToken,
+        mockOwner,
+        mockRepo,
+        currentPath,
+        content,
+        commitMessage,
+        customFolder
+      );
+
+      expect(result).toBe('work/archive/project-task.md');
+      expect(mockFetch).toHaveBeenCalledTimes(5);
+    });
+  });
+
   describe('createProjectFolder - archive creation', () => {
     it('should create both main folder and archive folder', async () => {
       mockFetch
