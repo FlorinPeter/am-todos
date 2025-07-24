@@ -13,20 +13,44 @@ vi.mock('../../utils/logger', () => ({
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-// Mock window.location
-const mockLocation = {
-  hostname: 'localhost',
-  port: '3000',
+// Helper function to create proper Response mock objects
+const createMockResponse = (options: {
+  ok: boolean;
+  status?: number;
+  statusText?: string;
+  json?: () => Promise<any>;
+  text?: () => Promise<string>;
+  headers?: Map<string, string> | Headers;
+  url?: string;
+}) => {
+  const mockResponse = {
+    ok: options.ok,
+    status: options.status || (options.ok ? 200 : 500),
+    statusText: options.statusText || (options.ok ? 'OK' : 'Error'),
+    json: options.json || (async () => ({})),
+    text: options.text || (async () => ''),
+    headers: options.headers || new Headers(),
+    url: options.url || 'test-url',
+    clone: () => createMockResponse(options) // Add clone method
+  };
+  return mockResponse;
 };
-Object.defineProperty(window, 'location', {
-  value: mockLocation,
-  writable: true,
-});
 
 describe('githubService - Pattern Matching Coverage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFetch.mockReset();
+    
+    // Mock window.location for environment detection
+    Object.defineProperty(global, 'window', {
+      value: {
+        location: {
+          hostname: 'localhost',
+          port: '3000'
+        }
+      },
+      writable: true
+    });
   });
 
   afterEach(() => {
@@ -47,11 +71,11 @@ describe('githubService - Pattern Matching Coverage', () => {
         { type: 'dir', name: 'node_modules' },           // Should be excluded (system folder)
       ];
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         status: 200,
         json: () => Promise.resolve(mockContents)
-      });
+      }));
 
       const { listProjectFolders } = await import('../githubService');
 
@@ -78,11 +102,11 @@ describe('githubService - Pattern Matching Coverage', () => {
         { type: 'dir', name: 'personal-stuff' },
       ];
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         status: 200,
         json: () => Promise.resolve(mockContents)
-      });
+      }));
 
       const { listProjectFolders } = await import('../githubService');
 
@@ -101,11 +125,11 @@ describe('githubService - Pattern Matching Coverage', () => {
         { type: 'dir', name: 'work-items' },
       ];
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         status: 200,
         json: () => Promise.resolve(mockContents)
-      });
+      }));
 
       const { listProjectFolders } = await import('../githubService');
 
@@ -122,11 +146,11 @@ describe('githubService - Pattern Matching Coverage', () => {
       // Test each pattern matching condition separately to ensure lines 449-453 are covered
 
       // Test 'project' pattern (line 449)
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         status: 200,
         json: () => Promise.resolve([{ type: 'dir', name: 'my-project' }])
-      });
+      }));
 
       const { listProjectFolders: test1 } = await import('../githubService');
       const result1 = await test1('token', 'owner', 'repo');
@@ -136,11 +160,11 @@ describe('githubService - Pattern Matching Coverage', () => {
       vi.clearAllMocks();
 
       // Test 'work' pattern (line 450)
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         status: 200,
         json: () => Promise.resolve([{ type: 'dir', name: 'work-stuff' }])
-      });
+      }));
 
       const { listProjectFolders: test2 } = await import('../githubService');
       const result2 = await test2('token', 'owner', 'repo');
@@ -150,11 +174,11 @@ describe('githubService - Pattern Matching Coverage', () => {
       vi.clearAllMocks();
 
       // Test 'personal' pattern (line 451)
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         status: 200,
         json: () => Promise.resolve([{ type: 'dir', name: 'personal-docs' }])
-      });
+      }));
 
       const { listProjectFolders: test3 } = await import('../githubService');
       const result3 = await test3('token', 'owner', 'repo');
@@ -164,11 +188,11 @@ describe('githubService - Pattern Matching Coverage', () => {
       vi.clearAllMocks();
 
       // Test exact 'todos' match (line 452)
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         status: 200,
         json: () => Promise.resolve([{ type: 'dir', name: 'todos' }])
-      });
+      }));
 
       const { listProjectFolders: test4 } = await import('../githubService');
       const result4 = await test4('token', 'owner', 'repo');
@@ -178,11 +202,11 @@ describe('githubService - Pattern Matching Coverage', () => {
       vi.clearAllMocks();
 
       // Test regex pattern (line 453)
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         status: 200,
         json: () => Promise.resolve([{ type: 'dir', name: 'validName123' }])
-      });
+      }));
 
       const { listProjectFolders: test5 } = await import('../githubService');
       const result5 = await test5('token', 'owner', 'repo');
@@ -199,11 +223,11 @@ describe('githubService - Pattern Matching Coverage', () => {
         { type: 'dir', name: 'validFolder' },        // Should match
       ];
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         status: 200,
         json: () => Promise.resolve(mockContents)
-      });
+      }));
 
       const { listProjectFolders } = await import('../githubService');
 

@@ -9,37 +9,37 @@ const mockTodos = [
     id: 'todo-1',
     filename: 'todo-1.md',
     content: '# High Priority Task',
-    frontmatter: {
-      title: 'High Priority Task',
-      createdAt: '2025-01-01T00:00:00.000Z',
-      priority: 1,
-      isArchived: false,
-      chatHistory: []
-    }
+    // New structure: metadata at top level
+    title: 'High Priority Task',
+    createdAt: '2025-01-01T00:00:00.000Z',
+    priority: 1,
+    isArchived: false,
+    // Simplified frontmatter with only tags
+    frontmatter: { tags: [] }
   },
   {
     id: 'todo-2',
     filename: 'todo-2.md',
     content: '# Medium Priority Task',
-    frontmatter: {
-      title: 'Medium Priority Task',
-      createdAt: '2025-01-02T00:00:00.000Z',
-      priority: 3,
-      isArchived: false,
-      chatHistory: []
-    }
+    // New structure: metadata at top level
+    title: 'Medium Priority Task',
+    createdAt: '2025-01-02T00:00:00.000Z',
+    priority: 3,
+    isArchived: false,
+    // Simplified frontmatter with only tags
+    frontmatter: { tags: [] }
   },
   {
     id: 'todo-3',
     filename: 'todo-3.md',
     content: '# Archived Task',
-    frontmatter: {
-      title: 'Archived Task',
-      createdAt: '2025-01-03T00:00:00.000Z',
-      priority: 2,
-      isArchived: true,
-      chatHistory: []
-    }
+    // New structure: metadata at top level
+    title: 'Archived Task',
+    createdAt: '2025-01-03T00:00:00.000Z',
+    priority: 2,
+    isArchived: true,
+    // Simplified frontmatter with only tags
+    frontmatter: { tags: [] }
   }
 ];
 
@@ -64,7 +64,7 @@ describe('TodoSidebar - Basic Feature Coverage', () => {
     });
 
     it('shows only active todos when filtered by parent', () => {
-      const activeTodos = mockTodos.filter(todo => !todo.frontmatter.isArchived);
+      const activeTodos = mockTodos.filter(todo => !todo.isArchived);
       render(<TodoSidebar {...mockProps} todos={activeTodos} />);
       
       expect(screen.getByText('High Priority Task')).toBeInTheDocument();
@@ -154,7 +154,7 @@ describe('TodoSidebar - Basic Feature Coverage', () => {
 
   describe('Archive System', () => {
     it('displays todos provided by parent component', () => {
-      const activeTodos = mockTodos.filter(todo => !todo.frontmatter.isArchived);
+      const activeTodos = mockTodos.filter(todo => !todo.isArchived);
       render(<TodoSidebar {...mockProps} todos={activeTodos} />);
       
       // Should only show active todos

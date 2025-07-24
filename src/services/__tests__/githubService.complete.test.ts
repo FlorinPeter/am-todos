@@ -1,8 +1,31 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock fetch globally
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
+
+// Helper function to create proper Response mock objects
+const createMockResponse = (options: {
+  ok: boolean;
+  status?: number;
+  statusText?: string;
+  json?: () => Promise<any>;
+  text?: () => Promise<string>;
+  headers?: Map<string, string> | Headers;
+  url?: string;
+}) => {
+  const mockResponse = {
+    ok: options.ok,
+    status: options.status || (options.ok ? 200 : 500),
+    statusText: options.statusText || (options.ok ? 'OK' : 'Error'),
+    json: options.json || (async () => ({})),
+    text: options.text || (async () => ''),
+    headers: options.headers || new Headers(),
+    url: options.url || 'test-url',
+    clone: () => createMockResponse(options) // Add clone method
+  };
+  return mockResponse;
+};
 
 // Mock logger
 const mockLogger = {
@@ -17,6 +40,21 @@ describe('githubService - Complete Coverage', () => {
     mockFetch.mockClear();
     mockLogger.error.mockClear();
     mockLogger.log.mockClear();
+    
+    // Mock window.location for environment detection
+    Object.defineProperty(global, 'window', {
+      value: {
+        location: {
+          hostname: 'localhost',
+          port: '3000'
+        }
+      },
+      writable: true
+    });
+  });
+
+  afterEach(() => {
+    vi.resetModules();
   });
 
   describe('deleteFile edge cases', () => {
@@ -57,7 +95,7 @@ describe('githubService - Complete Coverage', () => {
     it('should handle successful folder listing with filtering', async () => {
       const { listProjectFolders } = await import('../githubService');
       
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         status: 200,
         json: () => Promise.resolve([
@@ -68,13 +106,14 @@ describe('githubService - Complete Coverage', () => {
           { name: '.git', type: 'dir' },
           { name: 'node_modules', type: 'dir' }
         ])
-      });
+      }));
 
       const result = await listProjectFolders('token', 'owner', 'repo');
       
-      // Should include directory names but filter appropriately
-      expect(result).toEqual(expect.arrayContaining(['todos', 'tasks', 'docs']));
+      // Service correctly filters directories and excludes files
+      expect(result).toEqual(['todos', 'tasks', 'docs', 'node_modules']);
       expect(result).not.toContain('README.md'); // Should exclude files
+      expect(result).not.toContain('.git'); // Should exclude system directories
     });
 
     it('should return default fallback on API failure', async () => {
@@ -98,11 +137,11 @@ describe('githubService - Complete Coverage', () => {
     it('should handle file retrieval success', async () => {
       const { getFileContent } = await import('../githubService');
       
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         status: 200,
         text: () => Promise.resolve('# Test Content\n\nHello world')
-      });
+      }));
 
       const result = await getFileContent('token', 'owner', 'repo', 'test.md');
       

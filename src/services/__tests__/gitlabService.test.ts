@@ -1,8 +1,31 @@
-import { vi, describe, it, expect, beforeEach } from 'vitest';
-import * as gitlabService from '../gitlabService';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 // Mock the global fetch function
-global.fetch = vi.fn();
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
+
+// Helper function to create proper Response mock objects
+const createMockResponse = (options: {
+  ok: boolean;
+  status?: number;
+  statusText?: string;
+  json?: () => Promise<any>;
+  text?: () => Promise<string>;
+  headers?: Map<string, string> | Headers;
+  url?: string;
+}) => {
+  const mockResponse = {
+    ok: options.ok,
+    status: options.status || (options.ok ? 200 : 500),
+    statusText: options.statusText || (options.ok ? 'OK' : 'Error'),
+    json: options.json || (async () => ({})),
+    text: options.text || (async () => ''),
+    headers: options.headers || new Headers(),
+    url: options.url || 'test-url',
+    clone: () => createMockResponse(options) // Add clone method
+  };
+  return mockResponse;
+};
 
 describe('GitLab Service', () => {
   const mockSettings = {
@@ -14,16 +37,24 @@ describe('GitLab Service', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFetch.mockReset();
+    
     // Mock window.location for environment detection
-    Object.defineProperty(window, 'location', {
+    Object.defineProperty(global, 'window', {
       value: {
-        hostname: 'localhost',
-        port: '3000',
-        origin: 'http://localhost:3000',
-        pathname: '/'
+        location: {
+          hostname: 'localhost',
+          port: '3000',
+          origin: 'http://localhost:3000',
+          pathname: '/'
+        }
       },
       writable: true
     });
+  });
+
+  afterEach(() => {
+    vi.resetModules();
   });
 
   describe('createOrUpdateTodo', () => {
@@ -33,12 +64,13 @@ describe('GitLab Service', () => {
         content: 'test content'
       };
 
-      (fetch as any).mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         json: () => Promise.resolve(mockResponse)
-      });
+      }));
 
-      const result = await gitlabService.createOrUpdateTodo(
+      const { createOrUpdateTodo } = await import('../gitlabService');
+      const result = await createOrUpdateTodo(
         mockSettings,
         'todos/test-todo.md',
         '# Test Todo\n\n- [ ] Test task',
@@ -69,15 +101,16 @@ describe('GitLab Service', () => {
     });
 
     it('should handle API errors gracefully', async () => {
-      (fetch as any).mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: false,
         status: 404,
         statusText: 'Not Found',
         text: () => Promise.resolve('Project not found')
-      });
+      }));
 
+      const { createOrUpdateTodo } = await import('../gitlabService');
       await expect(
-        gitlabService.createOrUpdateTodo(
+        createOrUpdateTodo(
           mockSettings,
           'todos/test-todo.md',
           '# Test Todo',
@@ -90,17 +123,28 @@ describe('GitLab Service', () => {
   describe('getTodos', () => {
     it('should fetch todos from active folder', async () => {
       const mockFiles = [
-        { name: 'todo1.md', path: 'todos/todo1.md', sha: 'abc123', type: 'file' },
-        { name: 'todo2.md', path: 'todos/todo2.md', sha: 'def456', type: 'file' },
+        { name: '2023-01-01-todo1.md', path: 'todos/2023-01-01-todo1.md', sha: 'abc123', type: 'file' },
+        { name: '2023-01-02-todo2.md', path: 'todos/2023-01-02-todo2.md', sha: 'def456', type: 'file' },
         { name: '.gitkeep', path: 'todos/.gitkeep', sha: 'ghi789', type: 'file' }
       ];
 
-      (fetch as any).mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockFiles)
-      });
+      // Mock all 3 fetch calls that the service makes due to caching system
+      mockFetch
+        .mockResolvedValueOnce(createMockResponse({
+          ok: true,
+          json: () => Promise.resolve(mockFiles)
+        }))
+        .mockResolvedValueOnce(createMockResponse({
+          ok: true,
+          json: () => Promise.resolve(mockFiles)
+        }))
+        .mockResolvedValueOnce(createMockResponse({
+          ok: true,
+          json: () => Promise.resolve(mockFiles)
+        }));
 
-      const result = await gitlabService.getTodos(mockSettings, 'todos', false);
+      const { getTodos } = await import('../gitlabService');
+      const result = await getTodos(mockSettings, 'todos', false);
 
       expect(fetch).toHaveBeenCalledWith(
         '/api/gitlab',
@@ -118,21 +162,32 @@ describe('GitLab Service', () => {
 
       // Should filter out .gitkeep and return only .md files
       expect(result).toHaveLength(2);
-      expect(result[0].name).toBe('todo1.md');
-      expect(result[1].name).toBe('todo2.md');
+      expect(result[0].title).toBe('todo1');
+      expect(result[1].title).toBe('todo2');
     });
 
     it('should fetch todos from archive folder', async () => {
       const mockFiles = [
-        { name: 'archived-todo.md', path: 'todos/archive/archived-todo.md', sha: 'xyz789', type: 'file' }
+        { name: '2023-01-03-archived-todo.md', path: 'todos/archive/2023-01-03-archived-todo.md', sha: 'xyz789', type: 'file' }
       ];
 
-      (fetch as any).mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve(mockFiles)
-      });
+      // Mock all potential fetch calls that the service makes
+      mockFetch
+        .mockResolvedValueOnce(createMockResponse({
+          ok: true,
+          json: () => Promise.resolve(mockFiles)
+        }))
+        .mockResolvedValueOnce(createMockResponse({
+          ok: true,
+          json: () => Promise.resolve(mockFiles)
+        }))
+        .mockResolvedValueOnce(createMockResponse({
+          ok: true,
+          json: () => Promise.resolve(mockFiles)
+        }));
 
-      const result = await gitlabService.getTodos(mockSettings, 'todos', true);
+      const { getTodos } = await import('../gitlabService');
+      const result = await getTodos(mockSettings, 'todos', true);
 
       expect(fetch).toHaveBeenCalledWith(
         '/api/gitlab',
@@ -149,7 +204,7 @@ describe('GitLab Service', () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(result[0].name).toBe('archived-todo.md');
+      expect(result[0].title).toBe('archived todo');
     });
 
     it('should handle network errors with retry', async () => {
@@ -157,12 +212,13 @@ describe('GitLab Service', () => {
       (fetch as any).mockRejectedValueOnce(new TypeError('fetch error'));
       
       // Retry call succeeds
-      (fetch as any).mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         json: () => Promise.resolve([])
-      });
+      }));
 
-      const result = await gitlabService.getTodos(mockSettings, 'todos', false);
+      const { getTodos } = await import('../gitlabService');
+      const result = await getTodos(mockSettings, 'todos', false);
 
       expect(fetch).toHaveBeenCalledTimes(2);
       expect(result).toEqual([]);
@@ -173,12 +229,13 @@ describe('GitLab Service', () => {
     it('should fetch raw file content', async () => {
       const mockContent = '# Test Todo\n\n- [ ] Test task';
 
-      (fetch as any).mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         json: () => Promise.resolve({ content: mockContent })
-      });
+      }));
 
-      const result = await gitlabService.getFileContent(mockSettings, 'todos/test-todo.md');
+      const { getFileContent } = await import('../gitlabService');
+      const result = await getFileContent(mockSettings, 'todos/test-todo.md');
 
       expect(fetch).toHaveBeenCalledWith(
         '/api/gitlab',
@@ -202,12 +259,13 @@ describe('GitLab Service', () => {
     it('should delete a file successfully', async () => {
       const mockResponse = { message: 'File deleted successfully' };
 
-      (fetch as any).mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         json: () => Promise.resolve(mockResponse)
-      });
+      }));
 
-      const result = await gitlabService.deleteFile(
+      const { deleteFile } = await import('../gitlabService');
+      const result = await deleteFile(
         mockSettings,
         'todos/test-todo.md',
         'feat: Delete test todo'
@@ -235,24 +293,25 @@ describe('GitLab Service', () => {
   describe('moveTaskToArchive', () => {
     it('should move a task to archive successfully', async () => {
       // Mock ensureArchiveDirectory (getTodos call)
-      (fetch as any).mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         json: () => Promise.resolve([])
-      });
+      }));
 
       // Mock createOrUpdateTodo call
-      (fetch as any).mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         json: () => Promise.resolve({ file_path: 'todos/archive/test-todo.md' })
-      });
+      }));
 
       // Mock deleteFile call
-      (fetch as any).mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         json: () => Promise.resolve({ message: 'File deleted' })
-      });
+      }));
 
-      const result = await gitlabService.moveTaskToArchive(
+      const { moveTaskToArchive } = await import('../gitlabService');
+      const result = await moveTaskToArchive(
         mockSettings,
         'todos/test-todo.md',
         '# Test Todo\n\n- [x] Completed task',
@@ -267,7 +326,7 @@ describe('GitLab Service', () => {
   describe('listProjectFolders', () => {
     it('should list available project folders', async () => {
       // Mock repository tree response
-      const mockTreeResponse = {
+      const mockTreeResponse = createMockResponse({
         ok: true,
         json: () => Promise.resolve([
           { name: 'todos', type: 'tree', path: 'todos' },
@@ -277,12 +336,13 @@ describe('GitLab Service', () => {
           { name: '.git', type: 'tree', path: '.git' }
         ]),
         text: () => Promise.resolve('[]')
-      };
+      });
 
       // Mock fetch to return the repository tree
-      (fetch as any).mockResolvedValueOnce(mockTreeResponse);
+      mockFetch.mockResolvedValueOnce(mockTreeResponse);
 
-      const result = await gitlabService.listProjectFolders(mockSettings);
+      const { listProjectFolders } = await import('../gitlabService');
+      const result = await listProjectFolders(mockSettings);
 
       // Should call getRepositoryTree action
       expect(fetch).toHaveBeenCalledWith(
@@ -309,9 +369,10 @@ describe('GitLab Service', () => {
     });
 
     it('should return default folder on error', async () => {
-      (fetch as any).mockRejectedValueOnce(new Error('Network error'));
+      mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-      const result = await gitlabService.listProjectFolders(mockSettings);
+      const { listProjectFolders } = await import('../gitlabService');
+      const result = await listProjectFolders(mockSettings);
 
       expect(result).toEqual(['todos']);
     });
@@ -332,7 +393,8 @@ describe('GitLab Service', () => {
           text: () => Promise.resolve('{"file_path":"work-tasks/archive/.gitkeep"}')
         });
 
-      await gitlabService.createProjectFolder(mockSettings, 'work-tasks');
+      const { createProjectFolder } = await import('../gitlabService');
+      await createProjectFolder(mockSettings, 'work-tasks');
 
       expect(fetch).toHaveBeenCalledTimes(2);
       
@@ -354,16 +416,18 @@ describe('GitLab Service', () => {
     });
 
     it('should validate folder name', async () => {
+      const { createProjectFolder } = await import('../gitlabService');
+      
       await expect(
-        gitlabService.createProjectFolder(mockSettings, '')
+        createProjectFolder(mockSettings, '')
       ).rejects.toThrow('Invalid folder name');
 
       await expect(
-        gitlabService.createProjectFolder(mockSettings, '123invalid')
+        createProjectFolder(mockSettings, '123invalid')
       ).rejects.toThrow('Invalid folder name');
 
       await expect(
-        gitlabService.createProjectFolder(mockSettings, 'spaces not allowed')
+        createProjectFolder(mockSettings, 'spaces not allowed')
       ).rejects.toThrow('Invalid folder name');
     });
   });

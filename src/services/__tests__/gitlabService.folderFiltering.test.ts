@@ -13,10 +13,47 @@ vi.mock('../../utils/logger', () => ({
   default: mockLogger,
 }));
 
+// Helper function to create proper Response mock objects
+const createMockResponse = (options: {
+  ok: boolean;
+  status?: number;
+  statusText?: string;
+  json?: () => Promise<any>;
+  text?: () => Promise<string>;
+  headers?: Map<string, string> | Headers;
+  url?: string;
+}) => {
+  const mockResponse = {
+    ok: options.ok,
+    status: options.status || (options.ok ? 200 : 500),
+    statusText: options.statusText || (options.ok ? 'OK' : 'Error'),
+    json: options.json || (async () => ({})),
+    text: options.text || (async () => ''),
+    headers: options.headers || new Headers(),
+    url: options.url || 'test-url',
+    clone: () => createMockResponse(options) // Add clone method
+  };
+  return mockResponse;
+};
+
 describe('gitlabService - Simple Coverage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFetch.mockReset();
+    
+    // Mock window.location for environment detection
+    Object.defineProperty(global, 'window', {
+      value: {
+        location: {
+          hostname: 'localhost',
+          port: '3000'
+        }
+      },
+      writable: true
+    });
+
+    // Clear any cached modules to avoid test interference
+    vi.resetModules();
   });
 
   describe('listProjectFolders filtering logic', () => {
@@ -35,10 +72,10 @@ describe('gitlabService - Simple Coverage', () => {
         { type: 'tree', name: 'todolist', path: 'todolist' },
       ];
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         json: () => Promise.resolve(mockResponse),
-      });
+      }));
 
       const { listProjectFolders } = await import('../gitlabService');
       const result = await listProjectFolders(defaultConfig);
@@ -57,10 +94,10 @@ describe('gitlabService - Simple Coverage', () => {
         { type: 'tree', name: 'tasklist', path: 'tasklist' },
       ];
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         json: () => Promise.resolve(mockResponse),
-      });
+      }));
 
       const { listProjectFolders } = await import('../gitlabService');
       const result = await listProjectFolders(defaultConfig);
@@ -79,10 +116,10 @@ describe('gitlabService - Simple Coverage', () => {
         { type: 'tree', name: 'projects', path: 'projects' },
       ];
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         json: () => Promise.resolve(mockResponse),
-      });
+      }));
 
       const { listProjectFolders } = await import('../gitlabService');
       const result = await listProjectFolders(defaultConfig);
@@ -101,10 +138,10 @@ describe('gitlabService - Simple Coverage', () => {
         { type: 'tree', name: 'work-management', path: 'work-management' },
       ];
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         json: () => Promise.resolve(mockResponse),
-      });
+      }));
 
       const { listProjectFolders } = await import('../gitlabService');
       const result = await listProjectFolders(defaultConfig);
@@ -123,10 +160,10 @@ describe('gitlabService - Simple Coverage', () => {
         { type: 'tree', name: 'personality', path: 'personality' },
       ];
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         json: () => Promise.resolve(mockResponse),
-      });
+      }));
 
       const { listProjectFolders } = await import('../gitlabService');
       const result = await listProjectFolders(defaultConfig);
@@ -143,10 +180,10 @@ describe('gitlabService - Simple Coverage', () => {
         { type: 'tree', name: 'other-folder', path: 'other-folder' },
       ];
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         json: () => Promise.resolve(mockResponse),
-      });
+      }));
 
       const { listProjectFolders } = await import('../gitlabService');
       const result = await listProjectFolders(defaultConfig);
@@ -164,10 +201,10 @@ describe('gitlabService - Simple Coverage', () => {
         { type: 'tree', name: 'Z', path: 'Z' },
       ];
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         json: () => Promise.resolve(mockResponse),
-      });
+      }));
 
       const { listProjectFolders } = await import('../gitlabService');
       const result = await listProjectFolders(defaultConfig);
@@ -190,10 +227,10 @@ describe('gitlabService - Simple Coverage', () => {
         { type: 'tree', name: '_starts-with-underscore', path: '_starts-with-underscore' },
       ];
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         json: () => Promise.resolve(mockResponse),
-      });
+      }));
 
       const { listProjectFolders } = await import('../gitlabService');
       const result = await listProjectFolders(defaultConfig);
@@ -218,10 +255,10 @@ describe('gitlabService - Simple Coverage', () => {
         { type: 'tree', name: 'src', path: 'src' },
       ];
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         json: () => Promise.resolve(mockResponse),
-      });
+      }));
 
       const { listProjectFolders } = await import('../gitlabService');
       const result = await listProjectFolders(defaultConfig);
@@ -230,10 +267,10 @@ describe('gitlabService - Simple Coverage', () => {
     });
 
     it('should handle empty response and return todos', async () => {
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         json: () => Promise.resolve([]),
-      });
+      }));
 
       const { listProjectFolders } = await import('../gitlabService');
       const result = await listProjectFolders(defaultConfig);
@@ -249,10 +286,10 @@ describe('gitlabService - Simple Coverage', () => {
         { type: 'tree', name: 'todos', path: 'another/todos' }, // Different path, same name
       ];
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         json: () => Promise.resolve(mockResponse),
-      });
+      }));
 
       const { listProjectFolders } = await import('../gitlabService');
       const result = await listProjectFolders(defaultConfig);
@@ -278,11 +315,11 @@ describe('gitlabService - Simple Coverage', () => {
     });
 
     it('should handle non-ok response and return fallback', async () => {
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: false,
         status: 404,
         statusText: 'Not Found',
-      });
+      }));
 
       const { listProjectFolders } = await import('../gitlabService');
       const result = await listProjectFolders(defaultConfig);
@@ -297,10 +334,10 @@ describe('gitlabService - Simple Coverage', () => {
         { type: 'tree', name: 'task-list', path: 'task-list' },
       ];
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         json: () => Promise.resolve(mockResponse),
-      });
+      }));
 
       const { listProjectFolders } = await import('../gitlabService');
       const result = await listProjectFolders(defaultConfig);

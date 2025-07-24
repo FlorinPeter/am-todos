@@ -13,22 +13,49 @@ vi.mock('../../utils/logger', () => ({
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-// Mock window.location
-const mockLocation = {
-  hostname: 'localhost',
-  port: '3000',
+// Helper function to create proper Response mock objects
+const createMockResponse = (options: {
+  ok: boolean;
+  status?: number;
+  statusText?: string;
+  json?: () => Promise<any>;
+  text?: () => Promise<string>;
+  headers?: Map<string, string> | Headers;
+  url?: string;
+}) => {
+  const mockResponse = {
+    ok: options.ok,
+    status: options.status || (options.ok ? 200 : 500),
+    statusText: options.statusText || (options.ok ? 'OK' : 'Error'),
+    json: options.json || (async () => ({})),
+    text: options.text || (async () => ''),
+    headers: options.headers || new Headers(),
+    url: options.url || 'test-url',
+    clone: () => createMockResponse(options) // Add clone method
+  };
+  return mockResponse;
 };
-Object.defineProperty(window, 'location', {
-  value: mockLocation,
-  writable: true,
-});
 
 describe('gitlabService - Metadata and Directory Coverage', () => {
+  let mockLocation: { hostname: string; port: string };
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockFetch.mockReset();
-    mockLocation.hostname = 'localhost';
-    mockLocation.port = '3000';
+    
+    // Create mockLocation object
+    mockLocation = {
+      hostname: 'localhost',
+      port: '3000'
+    };
+    
+    // Mock window.location for environment detection
+    Object.defineProperty(global, 'window', {
+      value: {
+        location: mockLocation
+      },
+      writable: true
+    });
   });
 
   afterEach(() => {
@@ -38,11 +65,11 @@ describe('gitlabService - Metadata and Directory Coverage', () => {
   describe('getFileMetadata function - JSON parsing errors', () => {
     it('should handle JSON parsing errors in getFileMetadata', async () => {
       // Mock response with invalid JSON to trigger lines 176-180
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         status: 200,
         text: () => Promise.resolve('invalid json response {')
-      });
+      }));
 
       const { getFileMetadata } = await import('../gitlabService');
 
@@ -74,11 +101,11 @@ describe('gitlabService - Metadata and Directory Coverage', () => {
 
     it('should handle empty response in getFileMetadata', async () => {
       // Mock empty response
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         status: 200,
         text: () => Promise.resolve('')
-      });
+      }));
 
       const { getFileMetadata } = await import('../gitlabService');
 
@@ -109,11 +136,11 @@ describe('gitlabService - Metadata and Directory Coverage', () => {
         vi.resetModules();
         vi.clearAllMocks();
         
-        mockFetch.mockResolvedValueOnce({
+        mockFetch.mockResolvedValueOnce(createMockResponse({
           ok: true,
           status: 200,
           text: () => Promise.resolve(malformedJson)
-        });
+        }));
 
         const { getFileMetadata } = await import('../gitlabService');
 
@@ -141,11 +168,11 @@ describe('gitlabService - Metadata and Directory Coverage', () => {
         extraField: 'ignored'
       };
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         status: 200,
         text: () => Promise.resolve(JSON.stringify(validMetadata))
-      });
+      }));
 
       const { getFileMetadata } = await import('../gitlabService');
 
@@ -179,11 +206,11 @@ describe('gitlabService - Metadata and Directory Coverage', () => {
       // Test with response longer than 200 characters to check substring logic
       const longResponse = 'a'.repeat(300);
       
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         status: 200,
         text: () => Promise.resolve(longResponse)
-      });
+      }));
 
       const { getFileMetadata } = await import('../gitlabService');
 
@@ -206,11 +233,11 @@ describe('gitlabService - Metadata and Directory Coverage', () => {
       mockLocation.hostname = 'myapp.prod.com';
       mockLocation.port = '443';
       
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         status: 200,
         text: () => Promise.resolve('invalid json')
-      });
+      }));
 
       const { getFileMetadata } = await import('../gitlabService');
 

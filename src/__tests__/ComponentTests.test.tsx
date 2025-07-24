@@ -1,7 +1,15 @@
+/**
+ * @vitest-environment jsdom
+ */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+
+// Setup matchers for testing-library
+import { expect as vitestExpect } from 'vitest';
+import * as matchers from '@testing-library/jest-dom/matchers';
+vitestExpect.extend(matchers);
 
 // Mock all external dependencies
 vi.mock('react-markdown');
@@ -19,6 +27,10 @@ import AIChat from '../components/AIChat';
 import GitHistory from '../components/GitHistory';
 
 describe('Component Rendering Tests', () => {
+  // Clean up after each test to prevent DOM pollution
+  afterEach(() => {
+    cleanup();
+  });
   
   describe('Feature 3: MarkdownViewer Component', () => {
     const mockProps = {
@@ -35,23 +47,23 @@ describe('Component Rendering Tests', () => {
 
     it('displays edit/view toggle button', () => {
       render(<MarkdownViewer {...mockProps} />);
-      expect(screen.getByText('Edit')).toBeInTheDocument();
+      expect(screen.getAllByText('Edit')[0]).toBeInTheDocument();
     });
 
     it('switches to edit mode when Edit button clicked', async () => {
       render(<MarkdownViewer {...mockProps} />);
       
-      const editButton = screen.getByText('Edit');
+      const editButton = screen.getAllByText('Edit')[0];
       await userEvent.click(editButton);
       
-      expect(screen.getByText('View')).toBeInTheDocument();
+      expect(screen.getAllByText('View')[0]).toBeInTheDocument();
     });
 
     it('shows markdown content in view mode', () => {
       render(<MarkdownViewer {...mockProps} />);
       
       // Should render markdown content - check for the edit button instead since markdown is mocked
-      expect(screen.getByText('Edit')).toBeInTheDocument();
+      expect(screen.getAllByText('Edit')[0]).toBeInTheDocument();
     });
 
     it('shows git history button when props provided', () => {
@@ -70,12 +82,12 @@ describe('Component Rendering Tests', () => {
       id: 'test-id',
       filename: 'test.md',
       content: '# Test',
+      title: 'Test Todo',
+      createdAt: '2025-01-01T00:00:00.000Z',
+      priority: 3,
+      isArchived: false,
       frontmatter: {
-        title: 'Test Todo',
-        createdAt: '2025-01-01T00:00:00.000Z',
-        priority: 3,
-        isArchived: false,
-        chatHistory: []
+        tags: []
       }
     };
 
@@ -127,7 +139,7 @@ describe('Component Rendering Tests', () => {
     it('shows unarchive button for archived todos', () => {
       const archivedTodo = {
         ...mockTodo,
-        frontmatter: { ...mockTodo.frontmatter, isArchived: true }
+        isArchived: true
       };
       
       render(<TodoEditor {...mockProps} selectedTodo={archivedTodo} />);
@@ -141,24 +153,24 @@ describe('Component Rendering Tests', () => {
         id: 'todo-1',
         filename: 'todo-1.md',
         content: '# Todo 1',
+        title: 'High Priority Task',
+        createdAt: '2025-01-01T00:00:00.000Z',
+        priority: 1,
+        isArchived: false,
         frontmatter: {
-          title: 'High Priority Task',
-          createdAt: '2025-01-01T00:00:00.000Z',
-          priority: 1,
-          isArchived: false,
-          chatHistory: []
+          tags: []
         }
       },
       {
         id: 'todo-2',
         filename: 'todo-2.md',
         content: '# Todo 2',
+        title: 'Medium Priority Task',
+        createdAt: '2025-01-02T00:00:00.000Z',
+        priority: 3,
+        isArchived: false,
         frontmatter: {
-          title: 'Medium Priority Task',
-          createdAt: '2025-01-02T00:00:00.000Z',
-          priority: 3,
-          isArchived: false,
-          chatHistory: []
+          tags: []
         }
       }
     ];
@@ -186,13 +198,13 @@ describe('Component Rendering Tests', () => {
 
     it('shows new task button', () => {
       render(<TodoSidebar {...mockProps} />);
-      expect(screen.getByText(/new task/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/new task/i)[0]).toBeInTheDocument();
     });
 
     it('calls onNewTodo when new task button clicked', async () => {
       render(<TodoSidebar {...mockProps} />);
       
-      const newTaskButton = screen.getByText(/new task/i);
+      const newTaskButton = screen.getAllByText(/new task/i)[0];
       await userEvent.click(newTaskButton);
       
       expect(mockProps.onNewTodo).toHaveBeenCalled();
@@ -200,8 +212,8 @@ describe('Component Rendering Tests', () => {
 
     it('displays priority badges', () => {
       render(<TodoSidebar {...mockProps} />);
-      expect(screen.getByText('P1')).toBeInTheDocument();
-      expect(screen.getByText('P3')).toBeInTheDocument();
+      expect(screen.getAllByText('P1')[0]).toBeInTheDocument();
+      expect(screen.getAllByText('P3')[0]).toBeInTheDocument();
     });
   });
 
@@ -219,12 +231,12 @@ describe('Component Rendering Tests', () => {
         id: 'test',
         filename: 'test.md',
         content: '# Test',
+        title: 'Test',
+        createdAt: '2025-01-01T00:00:00.000Z',
+        priority: 3,
+        isArchived: false,
         frontmatter: {
-          title: 'Test',
-          createdAt: '2025-01-01T00:00:00.000Z',
-          priority: 3,
-          isArchived: false,
-          chatHistory: []
+          tags: []
         }
       }];
 

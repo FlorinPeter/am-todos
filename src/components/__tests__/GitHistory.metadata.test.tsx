@@ -1,13 +1,55 @@
+/**
+ * @vitest-environment jsdom
+ */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import GitHistory from '../GitHistory';
 import * as gitService from '../../services/gitService';
 
+// Setup matchers for testing-library
+import { expect as vitestExpect } from 'vitest';
+import * as matchers from '@testing-library/jest-dom/matchers';
+vitestExpect.extend(matchers);
+
 // Mock git service
 vi.mock('../../services/gitService', () => ({
   getFileHistory: vi.fn(),
   getFileAtCommit: vi.fn()
+}));
+
+// Mock markdown parser to return old structure for GitHistory component
+vi.mock('../../utils/markdown', () => ({
+  parseMarkdownWithFrontmatter: vi.fn((content: string) => {
+    // Parse the YAML frontmatter from the mock content
+    if (content.includes('priority: 1')) {
+      return {
+        frontmatter: {
+          title: 'High Priority Task',
+          createdAt: '2023-10-27T10:00:00.000Z',
+          priority: 1,
+          isArchived: false,
+          chatHistory: []
+        },
+        markdownContent: '# High Priority Task\n\n- [ ] Critical implementation'
+      };
+    } else if (content.includes('priority: 3')) {
+      return {
+        frontmatter: {
+          title: 'Archived Task', 
+          createdAt: '2023-10-26T09:00:00.000Z',
+          priority: 3,
+          isArchived: true,
+          chatHistory: []
+        },
+        markdownContent: '# Archived Task\n\n- [x] Completed task'
+      };
+    }
+    return {
+      frontmatter: null,
+      markdownContent: content
+    };
+  })
 }));
 
 const mockCommits = [

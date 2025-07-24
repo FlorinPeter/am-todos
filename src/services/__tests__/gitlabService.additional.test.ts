@@ -13,15 +13,34 @@ vi.mock('../../utils/logger', () => ({
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-// Mock window.location for BACKEND_URL
+// Helper function to create proper Response mock objects
+const createMockResponse = (options: {
+  ok: boolean;
+  status?: number;
+  statusText?: string;
+  json?: () => Promise<any>;
+  text?: () => Promise<string>;
+  headers?: Map<string, string> | Headers;
+  url?: string;
+}) => {
+  const mockResponse = {
+    ok: options.ok,
+    status: options.status || (options.ok ? 200 : 500),
+    statusText: options.statusText || (options.ok ? 'OK' : 'Error'),
+    json: options.json || (async () => ({})),
+    text: options.text || (async () => ''),
+    headers: options.headers || new Headers(),
+    url: options.url || 'test-url',
+    clone: () => createMockResponse(options) // Add clone method
+  };
+  return mockResponse;
+};
+
+// Mock location for BACKEND_URL (will be set in beforeEach)
 const mockLocation = {
   hostname: 'localhost',
   port: '3000',
 };
-Object.defineProperty(window, 'location', {
-  value: mockLocation,
-  writable: true,
-});
 
 describe('gitlabService - Additional Functions Coverage', () => {
   beforeEach(() => {
@@ -29,6 +48,14 @@ describe('gitlabService - Additional Functions Coverage', () => {
     mockFetch.mockReset();
     mockLocation.hostname = 'localhost';
     mockLocation.port = '3000';
+    
+    // Mock window.location for environment detection - PROVEN PATTERN
+    Object.defineProperty(global, 'window', {
+      value: {
+        location: mockLocation
+      },
+      writable: true
+    });
   });
 
   afterEach(() => {
@@ -43,11 +70,11 @@ describe('gitlabService - Additional Functions Coverage', () => {
         { sha: 'def456', message: 'Update file', date: '2023-01-02' }
       ];
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         status: 200,
         json: () => Promise.resolve(expectedCommits)
-      });
+      }));
 
       const { getFileHistory } = await import('../gitlabService');
 
@@ -87,12 +114,12 @@ describe('gitlabService - Additional Functions Coverage', () => {
 
     it('should handle API errors in getFileHistory', async () => {
       // Test error handling
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: false,
         status: 404,
         statusText: 'Not Found',
         text: () => Promise.resolve('File not found')
-      });
+      }));
 
       const { getFileHistory } = await import('../gitlabService');
 
@@ -112,16 +139,16 @@ describe('gitlabService - Additional Functions Coverage', () => {
     it('should successfully move task from archive', async () => {
       // Mock successful responses for createOrUpdateTodo and deleteFile - covers lines 236-257
       mockFetch
-        .mockResolvedValueOnce({
+        .mockResolvedValueOnce(createMockResponse({
           ok: true,
           status: 200,
           json: () => Promise.resolve({ message: 'File created' })
-        })
-        .mockResolvedValueOnce({
+        }))
+        .mockResolvedValueOnce(createMockResponse({
           ok: true,
           status: 200,
           json: () => Promise.resolve({ message: 'File deleted' })
-        });
+        }));
 
       const { moveTaskFromArchive } = await import('../gitlabService');
 
@@ -174,12 +201,12 @@ describe('gitlabService - Additional Functions Coverage', () => {
 
     it('should handle createOrUpdateTodo failure in moveTaskFromArchive', async () => {
       // Mock failure for createOrUpdateTodo
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
         text: () => Promise.resolve('Server error')
-      });
+      }));
 
       const { moveTaskFromArchive } = await import('../gitlabService');
 
@@ -202,17 +229,17 @@ describe('gitlabService - Additional Functions Coverage', () => {
     it('should handle deleteFile failure in moveTaskFromArchive', async () => {
       // Mock success for createOrUpdateTodo but failure for deleteFile
       mockFetch
-        .mockResolvedValueOnce({
+        .mockResolvedValueOnce(createMockResponse({
           ok: true,
           status: 200,
           json: () => Promise.resolve({ message: 'File created' })
-        })
-        .mockResolvedValueOnce({
+        }))
+        .mockResolvedValueOnce(createMockResponse({
           ok: false,
           status: 403,
           statusText: 'Forbidden',
           text: () => Promise.resolve('Access denied')
-        });
+        }));
 
       const { moveTaskFromArchive } = await import('../gitlabService');
 
@@ -235,16 +262,16 @@ describe('gitlabService - Additional Functions Coverage', () => {
     it('should handle different folder names in moveTaskFromArchive', async () => {
       // Test with custom folder name
       mockFetch
-        .mockResolvedValueOnce({
+        .mockResolvedValueOnce(createMockResponse({
           ok: true,
           status: 200,
           json: () => Promise.resolve({ message: 'File created' })
-        })
-        .mockResolvedValueOnce({
+        }))
+        .mockResolvedValueOnce(createMockResponse({
           ok: true,
           status: 200,
           json: () => Promise.resolve({ message: 'File deleted' })
-        });
+        }));
 
       const { moveTaskFromArchive } = await import('../gitlabService');
 
@@ -272,16 +299,16 @@ describe('gitlabService - Additional Functions Coverage', () => {
     it('should handle complex file paths in moveTaskFromArchive', async () => {
       // Test path parsing logic (line 245)
       mockFetch
-        .mockResolvedValueOnce({
+        .mockResolvedValueOnce(createMockResponse({
           ok: true,
           status: 200,
           json: () => Promise.resolve({ message: 'File created' })
-        })
-        .mockResolvedValueOnce({
+        }))
+        .mockResolvedValueOnce(createMockResponse({
           ok: true,
           status: 200,
           json: () => Promise.resolve({ message: 'File deleted' })
-        });
+        }));
 
       const { moveTaskFromArchive } = await import('../gitlabService');
 
@@ -308,11 +335,11 @@ describe('gitlabService - Additional Functions Coverage', () => {
       // Test with external IP
       mockLocation.hostname = '192.168.1.100';
       
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockResolvedValueOnce(createMockResponse({
         ok: true,
         status: 200,
         json: () => Promise.resolve([])
-      });
+      }));
 
       const { getFileHistory } = await import('../gitlabService');
 

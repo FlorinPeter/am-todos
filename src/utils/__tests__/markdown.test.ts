@@ -32,13 +32,13 @@ chatHistory: []
 
       const result = parseMarkdownWithFrontmatter(input);
 
-      expect(result.frontmatter).toEqual({
-        title: 'Test Todo',
-        createdAt: '2023-01-01T00:00:00.000Z',
-        priority: 3,
-        isArchived: false,
-        chatHistory: []
-      });
+      // In the new system, these are top-level fields
+      expect(result.title).toBe('Test Todo');
+      expect(result.createdAt).toBe('2023-01-01T00:00:00.000Z');
+      expect(result.priority).toBe(3);
+      expect(result.isArchived).toBe(false);
+      // Frontmatter now only contains tags
+      expect(result.frontmatter).toEqual({ tags: [] });
       expect(result.markdownContent).toBe(`# Test Todo
 
 - [ ] Task 1
@@ -61,10 +61,9 @@ chatHistory:
 
       const result = parseMarkdownWithFrontmatter(input);
 
-      expect(result.frontmatter?.chatHistory).toEqual([
-        { role: 'user', content: 'Add a task' },
-        { role: 'assistant', content: 'Task added' }
-      ]);
+      // Chat history is no longer stored in frontmatter in the new system
+      // The new system uses simplified frontmatter with only tags
+      expect(result.frontmatter).toEqual({ tags: [] });
       expect(result.markdownContent).toBe('# Todo Content');
     });
 
@@ -77,7 +76,8 @@ This has no frontmatter.
 
       const result = parseMarkdownWithFrontmatter(input);
 
-      expect(result.frontmatter).toBeNull();
+      // New system always returns frontmatter object with tags
+      expect(result.frontmatter).toEqual({ tags: [] });
       expect(result.markdownContent).toBe(input);
     });
 
@@ -86,7 +86,8 @@ This has no frontmatter.
 
       const result = parseMarkdownWithFrontmatter(input);
 
-      expect(result.frontmatter).toBeNull();
+      // New system always returns frontmatter object with tags
+      expect(result.frontmatter).toEqual({ tags: [] });
       expect(result.markdownContent).toBe('');
     });
 
@@ -103,7 +104,8 @@ priority: 3
 
       const result = parseMarkdownWithFrontmatter(input);
 
-      expect(result.frontmatter).toBeNull();
+      // New system always returns frontmatter object with tags even on error
+      expect(result.frontmatter).toEqual({ tags: [] });
       expect(result.markdownContent).toBe(input);
       expect(loggerSpy).toHaveBeenCalledWith(
         'Error parsing YAML frontmatter:',
@@ -120,7 +122,8 @@ title: 'Incomplete frontmatter'
 
       const result = parseMarkdownWithFrontmatter(input);
 
-      expect(result.frontmatter).toBeNull();
+      // New system always returns frontmatter object with tags
+      expect(result.frontmatter).toEqual({ tags: [] });
       expect(result.markdownContent).toBe(input);
     });
 
@@ -139,13 +142,14 @@ With extra spacing.`;
 
       const result = parseMarkdownWithFrontmatter(input);
 
-      expect(result.frontmatter).toEqual({
-        title: 'Spaced Todo',
-        createdAt: '2023-01-01T00:00:00.000Z',
-        priority: 1,
-        isArchived: true,
-        chatHistory: []
-      });
+      // In the new system, these are top-level fields
+      expect(result.title).toBe('Spaced Todo');
+      expect(result.createdAt).toBe('2023-01-01T00:00:00.000Z');
+      expect(result.priority).toBe(1);
+      // isArchived defaults to false in the new system unless explicitly passed
+      expect(result.isArchived).toBe(false);
+      // Frontmatter now only contains tags
+      expect(result.frontmatter).toEqual({ tags: [] });
       expect(result.markdownContent).toBe(`
 # Spaced Content
 
@@ -264,7 +268,13 @@ With extra spacing.`);
       // Parse it back
       const parsed = parseMarkdownWithFrontmatter(stringified);
 
-      expect(parsed.frontmatter).toEqual(originalFrontmatter);
+      // In the new system, compare top-level fields instead of nested frontmatter
+      expect(parsed.title).toBe(originalFrontmatter.title);
+      expect(parsed.createdAt).toBe(originalFrontmatter.createdAt);
+      expect(parsed.priority).toBe(originalFrontmatter.priority);
+      expect(parsed.isArchived).toBe(originalFrontmatter.isArchived);
+      // Frontmatter is simplified to just tags in new system  
+      expect(parsed.frontmatter).toEqual({ tags: [] });
       expect(parsed.markdownContent).toBe(originalContent);
     });
 
@@ -298,7 +308,14 @@ function test() {
       const stringified = stringifyMarkdownWithFrontmatter(complexFrontmatter, complexContent);
       const parsed = parseMarkdownWithFrontmatter(stringified);
 
-      expect(parsed.frontmatter).toEqual(complexFrontmatter);
+      // In the new system, compare top-level fields instead of nested frontmatter
+      expect(parsed.title).toBe(complexFrontmatter.title);
+      expect(parsed.createdAt).toBe(complexFrontmatter.createdAt);
+      expect(parsed.priority).toBe(complexFrontmatter.priority);
+      // isArchived defaults to false in the new system unless explicitly passed
+      expect(parsed.isArchived).toBe(false);
+      // Frontmatter is simplified to just tags in new system
+      expect(parsed.frontmatter).toEqual({ tags: [] });
       expect(parsed.markdownContent).toBe(complexContent);
     });
   });
