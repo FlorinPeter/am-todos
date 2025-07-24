@@ -129,6 +129,7 @@ function App() {
   const [searchScope, setSearchScope] = useState<'folder' | 'repo'>('folder');
   const currentSearchIdRef = useRef<string>('');
   
+  
   // Save operation guard to prevent duplicate saves
   const activeSaveOperationsRef = useRef<Set<string>>(new Set());
   // Debounce timer for save operations to handle React StrictMode
@@ -142,6 +143,7 @@ function App() {
   // Global fetch lock to prevent overlapping fetch operations
   const fetchInProgressRef = useRef<boolean>(false);
   const fetchQueueRef = useRef<Array<() => void>>([]);
+  const manualViewModeChangeRef = useRef(false); // Track manual tab clicks to prevent smart restoration
 
   const getProviderName = () => {
     const provider = settings?.gitProvider || 'github';
@@ -488,7 +490,7 @@ function App() {
     const effectId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
     // **DEBUG LOGGING** - Track every useEffect trigger
-    logger.log('🎯 CONSOLIDATED FETCH EFFECT TRIGGERED:', {
+    logger.log('🎯 CONSOLIDATED FETCH EFFECT TRIGGERED (ViewMode Change):', {
       effectId,
       isPerformingSave,
       hasSettings: !!settings,
@@ -568,12 +570,14 @@ function App() {
       fetchParams: fetchParams.substring(0, 100) + '...'
     });
     
-    // Use fetchTodosWithSettings for all scenarios
-    const fetchPromise = fetchTodosWithSettings(settings, viewMode, undefined, true);
+    // Use fetchTodosWithSettings - disable smart restoration for manual tab clicks
+    const allowSmartRestore = !manualViewModeChangeRef.current;
+    const fetchPromise = fetchTodosWithSettings(settings, viewMode, undefined, allowSmartRestore);
     
     // Handle fetch completion and queue processing
     fetchPromise.finally(() => {
       fetchInProgressRef.current = false;
+      manualViewModeChangeRef.current = false; // Reset manual change flag
       
       logger.log('🏁 FETCH COMPLETED, processing queue:', {
         effectId,
@@ -605,7 +609,7 @@ function App() {
   useEffect(() => {
     try {
       saveViewMode(viewMode);
-      logger.log('View mode persisted successfully:', viewMode);
+      logger.log('🔄 View mode changed and persisted successfully:', viewMode);
     } catch (error) {
       logger.error('Failed to persist view mode to localStorage:', error);
       // Continue execution - persistence failure shouldn't break the app
@@ -1585,7 +1589,11 @@ function App() {
         <div className="px-4 pb-3">
           <div className="flex">
             <button
-              onClick={() => setViewMode('active')}
+              onClick={() => {
+                logger.log('🔘 Active tab clicked - current viewMode:', viewMode);
+                manualViewModeChangeRef.current = true; // Prevent smart restoration
+                setViewMode('active');
+              }}
               className={`px-4 py-2 text-sm font-medium transition-colors relative ${
                 viewMode === 'active'
                   ? 'text-blue-400'
@@ -1598,7 +1606,11 @@ function App() {
               )}
             </button>
             <button
-              onClick={() => setViewMode('archived')}
+              onClick={() => {
+                logger.log('📦 Archive tab clicked - current viewMode:', viewMode);
+                manualViewModeChangeRef.current = true; // Prevent smart restoration
+                setViewMode('archived');
+              }}
               className={`px-4 py-2 text-sm font-medium transition-colors relative ${
                 viewMode === 'archived'
                   ? 'text-blue-400'
