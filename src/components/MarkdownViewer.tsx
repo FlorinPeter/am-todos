@@ -179,61 +179,77 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
     }
   }, [isEditMode, editContent, viewContent, checkboxRegistry, onMarkdownChange]);
 
-  // Post-processing effect to replace rendered checkboxes with synchronized components
+  // Post-processing effect to synchronize rendered checkboxes with registry
   React.useEffect(() => {
     const container = markdownContainerRef.current;
     if (!container || checkboxRegistry.length === 0) return;
 
-    const timestamp = new Date().toISOString().split('T')[1];
-    console.log(`🔧 POST-PROCESSING START: ${timestamp} | Registry: ${checkboxRegistry.length} checkboxes`);
+    // Use setTimeout to ensure React has finished DOM updates
+    const timeoutId = setTimeout(() => {
+      try {
+        const timestamp = new Date().toISOString().split('T')[1];
+        console.log(`🔧 POST-PROCESSING START: ${timestamp} | Registry: ${checkboxRegistry.length} checkboxes`);
 
-    // Find all rendered checkboxes in the DOM
-    const renderedCheckboxes = container.querySelectorAll('input[type="checkbox"]');
-    console.log(`🔍 FOUND CHECKBOXES: ${renderedCheckboxes.length} in DOM`);
+        // Find all rendered checkboxes in the DOM
+        const renderedCheckboxes = container.querySelectorAll('input[type="checkbox"]');
+        console.log(`🔍 FOUND CHECKBOXES: ${renderedCheckboxes.length} in DOM`);
 
-    // Replace each checkbox with a properly synchronized version
-    renderedCheckboxes.forEach((checkbox, domIndex) => {
-      if (domIndex < checkboxRegistry.length) {
-        const registryEntry = checkboxRegistry[domIndex];
-        
-        // Create new synchronized checkbox element
-        const newCheckbox = document.createElement('input');
-        newCheckbox.type = 'checkbox';
-        newCheckbox.checked = registryEntry.isChecked;
-        newCheckbox.className = 'w-4 h-4 mr-2 rounded border-gray-400 bg-gray-700 text-blue-500 cursor-pointer hover:bg-gray-600 transition-colors touch-manipulation';
-        newCheckbox.style.accentColor = '#3b82f6';
-        
-        // Add data attributes for debugging
-        newCheckbox.setAttribute('data-checkbox-index', domIndex.toString());
-        newCheckbox.setAttribute('data-checkbox-content', registryEntry.content);
-        newCheckbox.setAttribute('data-checkbox-state', registryEntry.isChecked ? 'checked' : 'unchecked');
-        
-        // Add click handler
-        newCheckbox.addEventListener('change', (e) => {
-          e.preventDefault();
-          handleCheckboxToggle(domIndex);
-        });
+        // Synchronize each checkbox with registry state
+        renderedCheckboxes.forEach((checkbox, domIndex) => {
+          if (domIndex < checkboxRegistry.length) {
+            const registryEntry = checkboxRegistry[domIndex];
+            const htmlCheckbox = checkbox as HTMLInputElement;
+            
+            try {
+              // Update checkbox state to match registry
+              if (htmlCheckbox.checked !== registryEntry.isChecked) {
+                htmlCheckbox.checked = registryEntry.isChecked;
+              }
+              
+              // Add data attributes for debugging (safe to set)
+              htmlCheckbox.setAttribute('data-checkbox-index', domIndex.toString());
+              htmlCheckbox.setAttribute('data-checkbox-content', registryEntry.content);
+              htmlCheckbox.setAttribute('data-checkbox-state', registryEntry.isChecked ? 'checked' : 'unchecked');
+              
+              // Remove existing event listeners to avoid duplicates
+              const newCheckbox = htmlCheckbox.cloneNode(true) as HTMLInputElement;
+              
+              // Add click handler
+              newCheckbox.addEventListener('change', (e) => {
+                e.preventDefault();
+                handleCheckboxToggle(domIndex);
+              });
 
-        // Add keyboard handler
-        newCheckbox.addEventListener('keydown', (e) => {
-          if (e.key === ' ' || e.key === 'Enter') {
-            e.preventDefault();
-            e.stopPropagation();
-            handleCheckboxToggle(domIndex);
+              // Add keyboard handler
+              newCheckbox.addEventListener('keydown', (e) => {
+                if (e.key === ' ' || e.key === 'Enter') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleCheckboxToggle(domIndex);
+                }
+              });
+              
+              // Replace only if parent exists and is still in DOM
+              if (htmlCheckbox.parentNode && container.contains(htmlCheckbox)) {
+                htmlCheckbox.parentNode.replaceChild(newCheckbox, htmlCheckbox);
+                console.log(`✅ SYNCHRONIZED CHECKBOX ${domIndex}: "${registryEntry.content}" -> ${registryEntry.isChecked ? 'checked' : 'unchecked'}`);
+              }
+            } catch (error) {
+              console.warn(`⚠️ CHECKBOX SYNC ERROR ${domIndex}:`, error);
+              // Continue with other checkboxes even if one fails
+            }
+          } else {
+            console.warn(`⚠️ EXTRA CHECKBOX: DOM index ${domIndex} exceeds registry size ${checkboxRegistry.length}`);
           }
         });
-        
-        // Replace the original checkbox
-        checkbox.parentNode?.replaceChild(newCheckbox, checkbox);
-        
-        console.log(`✅ REPLACED CHECKBOX ${domIndex}: "${registryEntry.content}" -> ${registryEntry.isChecked ? 'checked' : 'unchecked'}`);
-      } else {
-        console.warn(`⚠️ EXTRA CHECKBOX: DOM index ${domIndex} exceeds registry size ${checkboxRegistry.length}`);
-      }
-    });
 
-    console.log(`🏁 POST-PROCESSING COMPLETE: ${timestamp} | Processed ${Math.min(renderedCheckboxes.length, checkboxRegistry.length)} checkboxes`);
-    
+        console.log(`🏁 POST-PROCESSING COMPLETE: ${timestamp} | Processed ${Math.min(renderedCheckboxes.length, checkboxRegistry.length)} checkboxes`);
+      } catch (error) {
+        console.error('🚫 POST-PROCESSING ERROR:', error);
+      }
+    }, 50); // Small delay to let React finish DOM updates
+
+    return () => clearTimeout(timeoutId);
   }, [checkboxRegistry, handleCheckboxToggle, isEditMode, editContent, viewContent]);
 
 
