@@ -182,4 +182,43 @@ describe('TodoEditor - Basic Feature Coverage', () => {
       expect(mockProps.onPriorityUpdate).toHaveBeenCalledWith('test-todo-id', 5);
     });
   });
+
+  describe('getPriorityLabel Function Coverage (lines 20-28)', () => {
+    it('should render all priority labels to exercise getPriorityLabel function', () => {
+      render(<TodoEditor {...mockProps} />);
+      
+      // Find the priority select element
+      const prioritySelect = screen.getByRole('combobox');
+      expect(prioritySelect).toBeInTheDocument();
+      
+      // Verify all priority options exist (this exercises getPriorityLabel for each case)
+      // This will trigger lines 20-28 in the getPriorityLabel function
+      expect(screen.getByText('P1')).toBeInTheDocument(); // Case 1: line 21
+      expect(screen.getByText('P2')).toBeInTheDocument(); // Case 2: line 22  
+      expect(screen.getByText('P3')).toBeInTheDocument(); // Case 3: line 23
+      expect(screen.getByText('P4')).toBeInTheDocument(); // Case 4: line 24
+      expect(screen.getByText('P5')).toBeInTheDocument(); // Case 5: line 25
+      
+      // The select options use the getPriorityLabel function internally
+      // Even though we're not seeing the full labels, the function is called
+      expect(prioritySelect.children).toHaveLength(5);
+    });
+
+    it('should use default case when priority is out of range (line 26)', () => {
+      // Create a todo with an invalid priority to test the default case
+      const todoWithInvalidPriority = {
+        ...mockTodo,
+        frontmatter: {
+          ...mockTodo.frontmatter,
+          priority: 99 // Invalid priority to trigger default case
+        }
+      };
+
+      render(<TodoEditor {...mockProps} selectedTodo={todoWithInvalidPriority} />);
+      
+      // Should default to P3 (medium) when priority is invalid
+      const prioritySelect = screen.getByRole('combobox');
+      expect(prioritySelect).toHaveValue('3'); // Should default to '3'
+    });
+  });
 });

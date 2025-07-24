@@ -336,6 +336,41 @@ describe('emojiExtension', () => {
         
         expect(() => emojiCompletions(invalidContext as any)).toThrow('Context error');
       });
+
+      it('should handle main function errors and return null when no fallback matches (lines 144-145)', () => {
+        // Create a scenario with a query that won't match any popular emojis
+        const context = createMockContext(':nonexistentemojiquery', 0, 21);
+        
+        // Mock console.warn to capture the outer catch block warning
+        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        
+        // Mock Array.prototype.filter to throw an error during popular emoji filtering
+        // This will trigger the outer catch block but with no popular matches
+        const originalFilter = Array.prototype.filter;
+        let errorThrown = false;
+        Array.prototype.filter = function() {
+          // Only trigger error for the popularEmojis.filter() call in the main try block
+          if (!errorThrown && this.length > 0 && typeof this[0] === 'object' && this[0].name) {
+            errorThrown = true;
+            throw new Error('Simulated filter error in popular emoji processing');
+          }
+          return originalFilter.apply(this, arguments as any);
+        };
+        
+        const result = emojiCompletions(context);
+        
+        // Restore original method
+        Array.prototype.filter = originalFilter;
+        
+        // Should have caught the error and tried fallback but found no matches
+        expect(consoleSpy).toHaveBeenCalledWith('Emoji search error:', expect.any(Error));
+        
+        // Should return null since no popular matches found (lines 144-145)
+        expect(result).toBeNull();
+        
+        consoleSpy.mockRestore();
+      });
+
     });
 
     describe('Edge Cases', () => {

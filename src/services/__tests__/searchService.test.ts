@@ -608,5 +608,53 @@ describe('Search Service', () => {
       const result = filterTodosLocally(mockTodos, '   ');
       expect(result).toEqual(mockTodos);
     });
+
+    it('should handle invalid queries and return all todos (lines 247-249)', async () => {
+      // Import the redos protection module and spy on it  
+      const redosProtection = await import('../../utils/redosProtection');
+      const validateSpy = vi.spyOn(redosProtection, 'validateAndSanitizeSearchQuery')
+        .mockReturnValue({
+          isValid: false,
+          error: 'Query contains malicious patterns'
+        });
+      
+      const result = filterTodosLocally(mockTodos, 'SELECT * FROM users');
+      
+      // Should return all todos when query is invalid
+      expect(result).toEqual(mockTodos);
+      expect(validateSpy).toHaveBeenCalledWith('SELECT * FROM users');
+      
+      // Restore the spy
+      validateSpy.mockRestore();
+    });
+
+    it('should handle errors during todo filtering (lines 260-262)', () => {
+      // Create a problematic todo that will cause an error during filtering
+      const problematicTodos = [
+        {
+          id: '1',
+          title: 'Normal task',
+          content: 'Normal content'
+        },
+        {
+          id: '2',
+          // Create a getter that throws an error
+          get title() { throw new Error('Title access error'); },
+          content: 'Some content'
+        },
+        {
+          id: '3',
+          title: 'Another task',
+          // Create a getter that throws an error  
+          get content() { throw new Error('Content access error'); }
+        }
+      ];
+
+      const result = filterTodosLocally(problematicTodos, 'task');
+      
+      // Should only return todos that don't throw errors during filtering
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('1');
+    });
   });
 });

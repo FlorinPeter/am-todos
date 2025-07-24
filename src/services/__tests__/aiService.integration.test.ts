@@ -312,6 +312,24 @@ fix: Update "Claude Code Setup" todo list item
       });
     });
 
+    it('should handle general commit pattern fallback (lines 150-156)', async () => {
+      vi.mocked(loadSettings).mockReturnValue({
+        aiProvider: 'gemini',
+        geminiApiKey: 'test-key'
+      });
+
+      // Response that doesn't match strict conventional commit but starts with valid type
+      const mockGeneralResponse = 'feat Update the user interface for better accessibility';
+      mockFetch.mockResolvedValueOnce(mockResponse({ text: mockGeneralResponse }));
+
+      const result = await aiService.generateCommitMessage('Update UI');
+
+      expect(result).toEqual({
+        message: 'feat Update the user interface for better accessibility',
+        description: 'Extracted commit message pattern from AI response'
+      });
+    });
+
     it('should handle API errors', async () => {
       vi.mocked(loadSettings).mockReturnValue({
         aiProvider: 'gemini',
@@ -387,6 +405,31 @@ fix: Update "Claude Code Setup" todo list item
       expect(result).toEqual({
         content: '# Updated Content\n\n- [ ] Original task\n- [ ] New testing task',
         description: 'Added a testing task to the todo list'
+      });
+    });
+
+    it('should handle JSON with missing fields fallback (lines 238-239)', async () => {
+      vi.mocked(loadSettings).mockReturnValue({
+        aiProvider: 'gemini',
+        geminiApiKey: 'test-key'
+      });
+
+      // Mock JSON response that parses successfully but missing expected fields
+      const mockIncompleteJsonResponse = JSON.stringify({ 
+        some_other_field: 'value',
+        not_content: 'something'
+      });
+      mockFetch.mockResolvedValueOnce(mockResponse({ text: mockIncompleteJsonResponse }));
+
+      const result = await aiService.processChatMessage(
+        'Add a testing task',
+        '# Original Content\n\n- [ ] Original task',
+        mockChatHistory
+      );
+
+      expect(result).toEqual({
+        content: mockIncompleteJsonResponse,
+        description: undefined
       });
     });
 
