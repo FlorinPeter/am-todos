@@ -657,4 +657,88 @@ describe('Search Service', () => {
       expect(result[0].id).toBe('1');
     });
   });
+
+  describe('Error Response Handling Coverage (lines 172-175, 178-179)', () => {
+    it('should handle non-JSON error response text (lines 172-175)', async () => {
+      const mockSettings = {
+        gitProvider: 'github',
+        pat: 'test-token',
+        owner: 'test-owner',
+        repo: 'test-repo',
+        folder: 'todos'
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+
+      // Mock a failed response with plain text (not JSON)
+      const mockResponse = {
+        ok: false,
+        status: 422,
+        statusText: 'Unprocessable Entity',
+        text: vi.fn().mockResolvedValue('Validation failed: Invalid query syntax'),
+        json: vi.fn().mockRejectedValue(new Error('Invalid JSON'))
+      };
+
+      vi.mocked(fetch).mockResolvedValue(mockResponse as any);
+
+      // Should use raw text when JSON parsing fails (lines 172-175)
+      await expect(searchTodos('invalid[query')).rejects.toThrow('Validation failed: Invalid query syntax');
+      
+      expect(mockResponse.text).toHaveBeenCalled();
+    });
+
+    it('should handle error when reading response fails (lines 178-179)', async () => {
+      const mockSettings = {
+        gitProvider: 'github',
+        pat: 'test-token',
+        owner: 'test-owner',
+        repo: 'test-repo',
+        folder: 'todos'
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+
+      // Mock a failed response where reading response throws an error
+      const mockResponse = {
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        text: vi.fn().mockRejectedValue(new Error('Network error reading response')),
+        json: vi.fn().mockRejectedValue(new Error('Cannot read response'))
+      };
+
+      vi.mocked(fetch).mockResolvedValue(mockResponse as any);
+
+      // Should use default error message when response reading fails (lines 178-179)
+      await expect(searchTodos('test')).rejects.toThrow('Search API error: Internal Server Error');
+      
+      expect(mockResponse.text).toHaveBeenCalled();
+    });
+
+    it('should handle empty response text with JSON parsing failure (line 174)', async () => {
+      const mockSettings = {
+        gitProvider: 'github',
+        pat: 'test-token',
+        owner: 'test-owner',
+        repo: 'test-repo',
+        folder: 'todos'
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+
+      // Mock a failed response with empty text and JSON parsing failure
+      const mockResponse = {
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        text: vi.fn().mockResolvedValue(''), // Empty response text
+        json: vi.fn().mockRejectedValue(new Error('Invalid JSON'))
+      };
+
+      vi.mocked(fetch).mockResolvedValue(mockResponse as any);
+
+      // Should fall back to default error message when text is empty (line 174 condition)
+      await expect(searchTodos('test')).rejects.toThrow('Search API error: Bad Request');
+    });
+  });
 });
