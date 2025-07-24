@@ -96,37 +96,76 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
     }
   }, [hasUnsavedChanges, saveDraftIfNeeded]);
 
-  // Create checkbox coordinate mapping (line, char position) - memoized for performance
-  const createCheckboxCoordinates = React.useMemo(() => {
+  // Content-based checkbox registry - memoized for performance with enhanced logging
+  const checkboxRegistry = React.useMemo(() => {
+    const registryTimestamp = new Date().toISOString().split('T')[1];
     const currentContent = isEditMode ? editContent : viewContent;
     const lines = currentContent.split('\n');
-    const checkboxCoordinates: { line: number; char: number; content: string }[] = [];
+    const registry: Array<{
+      line: number; 
+      char: number; 
+      content: string;
+      isChecked: boolean;
+      cleanContent: string; // For reliable matching
+    }> = [];
     
-    // Find exact coordinates of each checkbox
+    console.log(`🏗️ REGISTRY BUILD START: ${registryTimestamp} | Mode: ${isEditMode ? 'edit' : 'view'} | Content Length: ${currentContent.length} | Lines: ${lines.length}`);
+    
+    // Create registry based on original content
     lines.forEach((line, lineIndex) => {
-      if (/^\s*-\s*\[[ xX]\]/.test(line)) {
+      const checkboxMatch = line.match(/^(\s*-\s*)\[([x ])\](.*)$/i);
+      if (checkboxMatch) {
         const charIndex = line.indexOf('[');
-        const content = line.replace(/^\s*-\s*\[[ xX]\]\s*/, '').trim();
-        checkboxCoordinates.push({ line: lineIndex, char: charIndex, content });
+        const content = checkboxMatch[3].trim();
+        const isChecked = checkboxMatch[2].toLowerCase() === 'x';
+        const cleanContent = content.replace(/[^\w\s]/g, '').toLowerCase().trim(); // Clean for matching
+        
+        registry.push({ 
+          line: lineIndex, 
+          char: charIndex, 
+          content,
+          isChecked,
+          cleanContent
+        });
+        
+        console.log(`  📝 CHECKBOX ${registry.length - 1}: Line ${lineIndex} | Content: "${content}" | Checked: ${isChecked} | Char: ${charIndex}`);
       }
     });
-    return checkboxCoordinates;
-  }, [isEditMode, editContent, viewContent]);
-  
-  // Memoized checkbox toggle handler for performance
-  const memoizedHandleCheckboxToggle = React.useCallback((line: number, char: number) => {
-    const contentToUpdate = isEditMode ? editContent : viewContent;
-    const lines = contentToUpdate.split('\n');
-    const currentLine = lines[line];
     
-    if (currentLine && char >= 0 && char + 1 < currentLine.length) {
-      const currentChar = currentLine[char + 1]; // The character inside the brackets
+    console.log(`📊 REGISTRY COMPLETE: ${registryTimestamp} | Found ${registry.length} checkboxes | Summary:`, registry.map(r => `"${r.content}" -> ${r.isChecked ? 'checked' : 'unchecked'}`));
+    
+    return registry;
+  }, [isEditMode, editContent, viewContent]);
+
+  // Reference to the markdown container for post-processing
+  const markdownContainerRef = React.useRef<HTMLDivElement>(null);
+  
+  // Index-based checkbox toggle handler
+  const handleCheckboxToggle = React.useCallback((checkboxIndex: number) => {
+    console.log(`🔄 TOGGLE: Checkbox ${checkboxIndex} clicked`);
+    
+    const checkboxEntry = checkboxRegistry[checkboxIndex];
+    if (!checkboxEntry) {
+      console.error(`❌ TOGGLE ERROR: No registry entry for index ${checkboxIndex}`);
+      return;
+    }
+    
+    const contentToUpdate = isEditMode ? editContent : viewContent;
+    
+    // Toggle the checkbox state in the original markdown format
+    const lines = contentToUpdate.split('\n');
+    const currentLine = lines[checkboxEntry.line];
+    
+    if (currentLine && checkboxEntry.char >= 0 && checkboxEntry.char + 1 < currentLine.length) {
+      const currentChar = currentLine[checkboxEntry.char + 1]; // The character inside the brackets
       const newChar = currentChar === ' ' ? 'x' : ' ';
       
       // Direct character replacement at exact position
-      const newLine = currentLine.substring(0, char + 1) + newChar + currentLine.substring(char + 2);
-      lines[line] = newLine;
+      const newLine = currentLine.substring(0, checkboxEntry.char + 1) + newChar + currentLine.substring(checkboxEntry.char + 2);
+      lines[checkboxEntry.line] = newLine;
       const newContent = lines.join('\n');
+      
+      console.log(`✅ TOGGLE SUCCESS: Checkbox ${checkboxIndex} ("${checkboxEntry.content}") -> ${newChar === 'x' ? 'checked' : 'unchecked'}`);
       
       if (isEditMode) {
         setEditContent(newContent);
@@ -138,7 +177,64 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
         onMarkdownChange(newContent);
       }
     }
-  }, [isEditMode, editContent, viewContent, onMarkdownChange]);
+  }, [isEditMode, editContent, viewContent, checkboxRegistry, onMarkdownChange]);
+
+  // Post-processing effect to replace rendered checkboxes with synchronized components
+  React.useEffect(() => {
+    const container = markdownContainerRef.current;
+    if (!container || checkboxRegistry.length === 0) return;
+
+    const timestamp = new Date().toISOString().split('T')[1];
+    console.log(`🔧 POST-PROCESSING START: ${timestamp} | Registry: ${checkboxRegistry.length} checkboxes`);
+
+    // Find all rendered checkboxes in the DOM
+    const renderedCheckboxes = container.querySelectorAll('input[type="checkbox"]');
+    console.log(`🔍 FOUND CHECKBOXES: ${renderedCheckboxes.length} in DOM`);
+
+    // Replace each checkbox with a properly synchronized version
+    renderedCheckboxes.forEach((checkbox, domIndex) => {
+      if (domIndex < checkboxRegistry.length) {
+        const registryEntry = checkboxRegistry[domIndex];
+        
+        // Create new synchronized checkbox element
+        const newCheckbox = document.createElement('input');
+        newCheckbox.type = 'checkbox';
+        newCheckbox.checked = registryEntry.isChecked;
+        newCheckbox.className = 'w-4 h-4 mr-2 rounded border-gray-400 bg-gray-700 text-blue-500 cursor-pointer hover:bg-gray-600 transition-colors touch-manipulation';
+        newCheckbox.style.accentColor = '#3b82f6';
+        
+        // Add data attributes for debugging
+        newCheckbox.setAttribute('data-checkbox-index', domIndex.toString());
+        newCheckbox.setAttribute('data-checkbox-content', registryEntry.content);
+        newCheckbox.setAttribute('data-checkbox-state', registryEntry.isChecked ? 'checked' : 'unchecked');
+        
+        // Add click handler
+        newCheckbox.addEventListener('change', (e) => {
+          e.preventDefault();
+          handleCheckboxToggle(domIndex);
+        });
+
+        // Add keyboard handler
+        newCheckbox.addEventListener('keydown', (e) => {
+          if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            handleCheckboxToggle(domIndex);
+          }
+        });
+        
+        // Replace the original checkbox
+        checkbox.parentNode?.replaceChild(newCheckbox, checkbox);
+        
+        console.log(`✅ REPLACED CHECKBOX ${domIndex}: "${registryEntry.content}" -> ${registryEntry.isChecked ? 'checked' : 'unchecked'}`);
+      } else {
+        console.warn(`⚠️ EXTRA CHECKBOX: DOM index ${domIndex} exceeds registry size ${checkboxRegistry.length}`);
+      }
+    });
+
+    console.log(`🏁 POST-PROCESSING COMPLETE: ${timestamp} | Processed ${Math.min(renderedCheckboxes.length, checkboxRegistry.length)} checkboxes`);
+    
+  }, [checkboxRegistry, handleCheckboxToggle, isEditMode, editContent, viewContent]);
 
 
   // Memoized chat message handler for performance
@@ -358,109 +454,50 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
             className="w-full"
           />
         ) : (
-          <div className="markdown-content">
-            {(() => {
-              // Counter for matching checkboxes to their line positions - reset on each render
-              let checkboxCounter = 0;
-              
-              return (
-                <MarkdownPreview
-                  source={isEditMode ? editContent : viewContent}
-                  data-color-mode="dark"
-                  style={{
-                    backgroundColor: 'transparent',
-                    color: '#d1d5db',
-                  }}
-                  className="github-markdown-dark"
-                  components={{
-                    h1: ({ node, ...props }: any) => {
-                      return <h1 {...props} className="text-3xl font-bold mb-4 text-white border-b border-gray-600 pb-2" />;
-                    },
-                    h2: ({ node, ...props }: any) => {
-                      return <h2 {...props} className="text-2xl font-semibold mb-3 text-white" />;
-                    },
-                    h3: ({ node, ...props }: any) => {
-                      return <h3 {...props} className="text-xl font-medium mb-2 text-white" />;
-                    },
-                    h4: ({ node, ...props }: any) => {
-                      return <h4 {...props} className="text-lg font-medium mb-2 text-white" />;
-                    },
-                    h5: ({ node, ...props }: any) => {
-                      return <h5 {...props} className="text-base font-medium mb-1 text-white" />;
-                    },
-                    h6: ({ node, ...props }: any) => {
-                      return <h6 {...props} className="text-sm font-medium mb-1 text-white" />;
-                    },
-                    a: ({ node, ...props }: any) => {
-                      // Open external links in new tab
-                      if (props.href && (props.href.startsWith('http://') || props.href.startsWith('https://'))) {
-                        return <a {...props} target="_blank" rel="noopener noreferrer" />;
-                      }
-                      return <a {...props} />;
-                    },
-                    input: ({ node, ...props }: any) => {
-                      // Handle task list checkboxes with custom interaction
-                      if (props.type === 'checkbox') {
-                        const currentContent = isEditMode ? editContent : viewContent;
-                        const lines = currentContent.split('\n');
-                        
-                        // Find the nth checkbox (where n is checkboxCounter)
-                        let foundCheckboxes = 0;
-                        for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-                          const line = lines[lineIndex];
-                          const checkboxMatch = line.match(/^(\s*-\s*)\[([x ])\](.*)$/i);
-                          if (checkboxMatch) {
-                            if (foundCheckboxes === checkboxCounter) {
-                              const charPos = line.indexOf('[');
-                              checkboxCounter++;
-                              
-                              // Calculate checked state from the actual character in brackets
-                              const isChecked = checkboxMatch[2].toLowerCase() === 'x';
-                              
-                              return (
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={(e) => {
-                                    // Let checkbox change naturally for mobile compatibility
-                                    // Update markdown content to match checkbox state
-                                    memoizedHandleCheckboxToggle(lineIndex, charPos);
-                                  }}
-                                  onKeyDown={(e) => {
-                                    if (e.key === ' ' || e.key === 'Enter') {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      memoizedHandleCheckboxToggle(lineIndex, charPos);
-                                    }
-                                  }}
-                                  className="w-4 h-4 mr-2 rounded border-gray-400 bg-gray-700 text-blue-500 cursor-pointer hover:bg-gray-600 transition-colors touch-manipulation"
-                                  style={{ accentColor: '#3b82f6' }}
-                                />
-                              );
-                            }
-                            foundCheckboxes++;
-                          }
-                        }
-                        
-                        // Fallback: return a basic checkbox
-                        checkboxCounter++;
-                        return (
-                          <input
-                            {...props}
-                            className="w-4 h-4 mr-2 rounded border-gray-400 bg-gray-700 text-blue-500"
-                            style={{ accentColor: '#3b82f6' }}
-                          />
-                        );
-                      }
-                      return <input {...props} />;
-                    },
-                  }}
-                  wrapperElement={{
-                    'data-color-mode': 'dark'
-                  }}
-                />
-              );
-            })()}
+          <div className="markdown-content" ref={markdownContainerRef}>
+            <MarkdownPreview
+              source={isEditMode ? editContent : viewContent}
+              data-color-mode="dark"
+              style={{
+                backgroundColor: 'transparent',
+                color: '#d1d5db',
+              }}
+              className="github-markdown-dark"
+              components={{
+                h1: ({ node, ...props }: any) => {
+                  return <h1 {...props} className="text-3xl font-bold mb-4 text-white border-b border-gray-600 pb-2" />;
+                },
+                h2: ({ node, ...props }: any) => {
+                  return <h2 {...props} className="text-2xl font-semibold mb-3 text-white" />;
+                },
+                h3: ({ node, ...props }: any) => {
+                  return <h3 {...props} className="text-xl font-medium mb-2 text-white" />;
+                },
+                h4: ({ node, ...props }: any) => {
+                  return <h4 {...props} className="text-lg font-medium mb-2 text-white" />;
+                },
+                h5: ({ node, ...props }: any) => {
+                  return <h5 {...props} className="text-base font-medium mb-1 text-white" />;
+                },
+                h6: ({ node, ...props }: any) => {
+                  return <h6 {...props} className="text-sm font-medium mb-1 text-white" />;
+                },
+                a: ({ node, ...props }: any) => {
+                  // Open external links in new tab
+                  if (props.href && (props.href.startsWith('http://') || props.href.startsWith('https://'))) {
+                    return <a {...props} target="_blank" rel="noopener noreferrer" />;
+                  }
+                  return <a {...props} />;
+                },
+                // Let react-markdown render checkboxes normally - post-processing handles synchronization
+                input: ({ node, ...props }: any) => {
+                  return <input {...props} />;
+                },
+              }}
+              wrapperElement={{
+                'data-color-mode': 'dark'
+              }}
+            />
           </div>
         )}
       </div>
