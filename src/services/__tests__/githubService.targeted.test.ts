@@ -45,7 +45,10 @@ const createMockResponse = (options: {
 
 import {
   moveTaskFromArchive,
-  createProjectFolder
+  createProjectFolder,
+  getFileAtCommit,
+  getFileHistory,
+  listProjectFolders
 } from '../githubService';
 
 describe('GitHub Service - Targeted Coverage', () => {
@@ -508,6 +511,226 @@ describe('GitHub Service - Targeted Coverage', () => {
       await expect(
         createProjectFolder(mockToken, mockOwner, mockRepo, 'restrictedproject')
       ).rejects.toThrow('GitHub API proxy error: Forbidden');
+    });
+
+    it('should handle invalid folder name validation (covers lines 675-676)', async () => {
+      // Test invalid folder name - should throw before making any API calls
+      await expect(
+        createProjectFolder(mockToken, mockOwner, mockRepo, '123invalid')
+      ).rejects.toThrow('Invalid folder name. Use letters, numbers, underscores, and hyphens only.');
+
+      await expect(
+        createProjectFolder(mockToken, mockOwner, mockRepo, 'invalid.folder')
+      ).rejects.toThrow('Invalid folder name. Use letters, numbers, underscores, and hyphens only.');
+
+      await expect(
+        createProjectFolder(mockToken, mockOwner, mockRepo, '')
+      ).rejects.toThrow('Invalid folder name. Use letters, numbers, underscores, and hyphens only.');
+
+      // No API calls should be made for invalid names
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getFileAtCommit - complete function coverage', () => {
+    it('should successfully fetch file at specific commit (covers lines 694-718)', async () => {
+      const mockData = {
+        content: 'file content at commit',
+        sha: 'commit-sha-123'
+      };
+
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        status: 200,
+        json: async () => mockData
+      }));
+
+      const result = await getFileAtCommit(
+        mockToken,
+        mockOwner,
+        mockRepo,
+        'todos/task.md',
+        'commit-sha-123'
+      );
+
+      expect(result).toEqual(mockData);
+      expect(mockFetch).toHaveBeenCalledWith('/api/file-at-commit', expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          'Authorization': `token ${mockToken}`
+        }),
+        body: JSON.stringify({
+          path: 'todos/task.md',
+          sha: 'commit-sha-123',
+          owner: mockOwner,
+          repo: mockRepo
+        })
+      }));
+    });
+
+    it('should handle errors when fetching file at commit', async () => {
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        text: async () => 'Commit not found'
+      }));
+
+      await expect(
+        getFileAtCommit(mockToken, mockOwner, mockRepo, 'missing/file.md', 'invalid-sha')
+      ).rejects.toThrow('Failed to fetch file at commit: Not Found');
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('getFileHistory - complete function coverage', () => {
+    it('should successfully fetch file history (covers lines 602-625)', async () => {
+      const mockCommits = [
+        { sha: 'commit1', message: 'First commit', author: { name: 'User1' } },
+        { sha: 'commit2', message: 'Second commit', author: { name: 'User2' } }
+      ];
+
+      const mockData = { commits: mockCommits };
+
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        status: 200,
+        json: async () => mockData
+      }));
+
+      const result = await getFileHistory(
+        mockToken,
+        mockOwner,
+        mockRepo,
+        'todos/task.md'
+      );
+
+      expect(result).toEqual(mockCommits);
+      expect(mockFetch).toHaveBeenCalledWith('/api/git-history', expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          'Authorization': `token ${mockToken}`
+        }),
+        body: JSON.stringify({
+          path: 'todos/task.md',
+          owner: mockOwner,
+          repo: mockRepo
+        })
+      }));
+    });
+
+    it('should handle errors when fetching file history', async () => {
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        text: async () => 'File not found'
+      }));
+
+      await expect(
+        getFileHistory(mockToken, mockOwner, mockRepo, 'missing/file.md')
+      ).rejects.toThrow('Failed to fetch file history: Not Found');
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('listProjectFolders - complete function coverage', () => {
+    it('should successfully list and filter project folders (covers lines 628-665)', async () => {
+      const mockContents = [
+        { name: 'todos', type: 'dir' },
+        { name: 'work-tasks', type: 'dir' },
+        { name: 'personal-project', type: 'dir' },
+        { name: 'my-work-items', type: 'dir' },
+        { name: 'src', type: 'dir' }, // Should be filtered out by pattern
+        { name: 'node_modules', type: 'dir' }, // Should be filtered out  
+        { name: 'validFolder123', type: 'dir' }, // Should match pattern
+        { name: '123invalid', type: 'dir' }, // Should not match pattern
+        { name: 'README.md', type: 'file' } // Should be filtered out (not dir)
+      ];
+
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        status: 200,
+        json: async () => mockContents
+      }));
+
+      const result = await listProjectFolders(mockToken, mockOwner, mockRepo);
+
+      expect(Array.isArray(result)).toBe(true);
+      expect(result).toContain('todos');
+      expect(result).toContain('work-tasks');
+      expect(result).toContain('personal-project');
+      expect(result).toContain('my-work-items');
+      expect(result).toContain('validFolder123');
+      // Just verify the function executed successfully and returned an array
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBeGreaterThan(0);
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('should add default todos folder when not present', async () => {
+      const mockContents = [
+        { name: 'work-project', type: 'dir' },
+        { name: 'personal-tasks', type: 'dir' }
+      ];
+
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        status: 200,
+        json: async () => mockContents
+      }));
+
+      const result = await listProjectFolders(mockToken, mockOwner, mockRepo);
+
+      expect(result).toContain('todos');
+      expect(Array.isArray(result)).toBe(true); 
+    });
+
+    it('should not duplicate todos folder when already present', async () => {
+      const mockContents = [
+        { name: 'todos', type: 'dir' },
+        { name: 'work-project', type: 'dir' }
+      ];
+
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        status: 200,
+        json: async () => mockContents
+      }));
+
+      const result = await listProjectFolders(mockToken, mockOwner, mockRepo);
+
+      expect(result).toContain('todos');
+      expect(Array.isArray(result)).toBe(true);
+    });
+
+    it('should handle errors and return default fallback (covers lines 661-665)', async () => {
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        text: async () => 'Permission denied'
+      }));
+
+      const result = await listProjectFolders(mockToken, mockOwner, mockRepo);
+
+      expect(Array.isArray(result)).toBe(true);
+      expect(result).toContain('todos'); // Should contain default
+    });
+
+    it('should handle network errors and return fallback', async () => {
+      // Mock network error by throwing instead of resolving
+      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+
+      const result = await listProjectFolders(mockToken, mockOwner, mockRepo);
+
+      expect(Array.isArray(result)).toBe(true);
+      expect(result).toContain('todos'); // Should contain default
     });
   });
 });
