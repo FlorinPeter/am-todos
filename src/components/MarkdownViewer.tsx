@@ -114,7 +114,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   
   // Pure React checkbox toggle handler
   const handleCheckboxToggle = React.useCallback((checkboxIndex: number) => {
-    console.log(`🔄 TOGGLE: Checkbox ${checkboxIndex} clicked`);
+    logger.debug(`🔄 TOGGLE: Checkbox ${checkboxIndex} clicked`);
     
     const registry = mutableCheckboxRegistry.current;
     const checkboxEntry = registry[checkboxIndex];
@@ -131,7 +131,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
     const originalContent = isEditMode ? editContent : viewContent;
     const newContent = updateContentWithCheckboxStates(originalContent, registry);
     
-    console.log(`✅ TOGGLE SUCCESS: Checkbox ${checkboxIndex} ("${checkboxEntry.content}") -> ${checkboxEntry.isChecked ? 'checked' : 'unchecked'}`);
+    logger.debug(`✅ TOGGLE SUCCESS: Checkbox ${checkboxIndex} ("${checkboxEntry.content}") -> ${checkboxEntry.isChecked ? 'checked' : 'unchecked'}`);
     
     if (isEditMode) {
       setEditContent(newContent);
@@ -429,7 +429,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                       
                       // Only log when we have tokens to debug
                       if (hasToken) {
-                        console.log('🔍 TOKEN DETECTED in LI:', text.substring(0, 100));
+                        logger.debug('🔍 TOKEN DETECTED in LI:', text.substring(0, 100));
                       }
                       
                       const checkboxTokenMatch = text.match(/XCHECKBOXX(\d+)XENDX/);
@@ -437,7 +437,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                         const checkboxIndex = parseInt(checkboxTokenMatch[1], 10);
                         const checkboxData = checkboxRegistry[checkboxIndex];
                         
-                        console.log('🎯 TOKEN FOUND:', {
+                        logger.debug('🎯 TOKEN FOUND:', {
                           token: checkboxTokenMatch[0],
                           index: checkboxIndex,
                           registrySize: checkboxRegistry.length,
@@ -446,7 +446,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                         });
                         
                         if (checkboxData) {
-                          console.log('✅ RENDERING CHECKBOX:', {
+                          logger.debug('✅ RENDERING CHECKBOX:', {
                             index: checkboxIndex,
                             content: checkboxData.content,
                             isChecked: checkboxData.isChecked
@@ -456,7 +456,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                           const preservedChildren = React.Children.toArray(children).filter((child: any) => {
                             if (typeof child === 'string') {
                               const hasToken = child.includes(`XCHECKBOXX${checkboxIndex}XENDX`);
-                              console.log('🧹 FILTERING STRING CHILD:', {
+                              logger.debug('🧹 FILTERING STRING CHILD:', {
                                 child: child.substring(0, 100),
                                 hasToken,
                                 shouldKeep: !hasToken
@@ -467,7 +467,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                             // For React elements, check if they contain the token recursively
                             const childText = extractTextFromChildren(child);
                             const hasToken = childText.includes(`XCHECKBOXX${checkboxIndex}XENDX`);
-                            console.log('🧹 FILTERING ELEMENT CHILD:', {
+                            logger.debug('🧹 FILTERING ELEMENT CHILD:', {
                               childType: typeof child,
                               childText: childText.substring(0, 100),
                               hasToken,

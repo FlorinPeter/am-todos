@@ -1,3 +1,5 @@
+import logger from './logger';
+
 export interface CheckboxData {
   line: number;
   char: number;
@@ -44,7 +46,7 @@ export function preprocessMarkdownCheckboxes(content: string): PreprocessResult 
       const processedLine = `${checkboxMatch[1]}${token}`;
       processedLines.push(processedLine);
       
-      console.log(`📝 PREPROCESS: Checkbox ${checkboxIndex} | Line ${lineIndex} | "${content}" -> ${isChecked ? 'checked' : 'unchecked'}`);
+      logger.debug(`📝 PREPROCESS: Checkbox ${checkboxIndex} | Line ${lineIndex} | "${content}" -> ${isChecked ? 'checked' : 'unchecked'}`);
     } else {
       // Keep non-checkbox lines unchanged
       processedLines.push(line);
@@ -53,10 +55,10 @@ export function preprocessMarkdownCheckboxes(content: string): PreprocessResult 
 
   const processedContent = processedLines.join('\n');
   
-  console.log(`🏗️ PREPROCESS COMPLETE: Found ${checkboxRegistry.length} checkboxes`);
-  console.log('📊 REGISTRY SUMMARY:', checkboxRegistry.map((r, i) => `[${i}] "${r.content}" -> ${r.isChecked ? 'checked' : 'unchecked'}`));
-  console.log('📝 PROCESSED CONTENT PREVIEW:', processedContent.substring(0, 300));
-  console.log('🔍 TOKENS IN CONTENT:', processedContent.match(/XCHECKBOXX\d+XENDX/g) || 'None found');
+  logger.debug(`🏗️ PREPROCESS COMPLETE: Found ${checkboxRegistry.length} checkboxes`);
+  logger.debug('📊 REGISTRY SUMMARY:', checkboxRegistry.map((r, i) => `[${i}] "${r.content}" -> ${r.isChecked ? 'checked' : 'unchecked'}`));
+  logger.debug('📝 PROCESSED CONTENT PREVIEW:', processedContent.substring(0, 300));
+  logger.debug('🔍 TOKENS IN CONTENT:', processedContent.match(/XCHECKBOXX\d+XENDX/g) || 'None found');
   
   return {
     processedContent,

@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 import ProjectManager from '../ProjectManager';
 import * as localStorage from '../../utils/localStorage';
@@ -8,6 +9,15 @@ import * as gitService from '../../services/gitService';
 // Mock the dependencies
 vi.mock('../../utils/localStorage');
 vi.mock('../../services/gitService');
+vi.mock('../../utils/logger', () => ({
+  default: {
+    log: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn()
+  }
+}));
 
 const mockLoadSettings = localStorage.loadSettings as vi.MockedFunction<typeof localStorage.loadSettings>;
 const mockSaveSettings = localStorage.saveSettings as vi.MockedFunction<typeof localStorage.saveSettings>;
@@ -94,23 +104,26 @@ describe('ProjectManager', () => {
 
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
 
-    await waitFor(() => {
-      // Should have both mobile and desktop select elements
-      const selects = screen.getAllByDisplayValue('todos');
-      expect(selects).toHaveLength(2); // mobile + desktop
-      
-      // Verify mobile select has the correct title
-      const mobileSelect = selects.find(select => 
-        select.getAttribute('title') === 'Switch Project'
-      );
-      expect(mobileSelect).toBeInTheDocument();
-      
-      // Verify desktop select exists
-      const desktopSelect = selects.find(select => 
-        !select.getAttribute('title') || select.getAttribute('title') !== 'Switch Project'
-      );
-      expect(desktopSelect).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        // Should have both mobile and desktop select elements
+        const selects = screen.getAllByDisplayValue('todos');
+        expect(selects).toHaveLength(2); // mobile + desktop
+        
+        // Verify mobile select has the correct title
+        const mobileSelect = selects.find(select => 
+          select.getAttribute('title') === 'Switch Project'
+        );
+        expect(mobileSelect).toBeInTheDocument();
+        
+        // Verify desktop select exists
+        const desktopSelect = selects.find(select => 
+          !select.getAttribute('title') || select.getAttribute('title') !== 'Switch Project'
+        );
+        expect(desktopSelect).toBeInTheDocument();
+      },
+      { timeout: 3000 } // Give more time for debounced loading
+    );
   });
 
   it('handles project switching', async () => {
@@ -126,14 +139,20 @@ describe('ProjectManager', () => {
 
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
 
-    await waitFor(() => {
-      // Get the first select element (mobile or desktop, both should work)
-      const selects = screen.getAllByDisplayValue('todos');
-      expect(selects.length).toBeGreaterThan(0);
-      
-      // Use the first select to test the switching functionality
-      fireEvent.change(selects[0], { target: { value: 'work-tasks' } });
-    });
+    // Wait for folders to load (component uses debounced loading with 100ms timeout)
+    await waitFor(
+      () => {
+        // Get the first select element (mobile or desktop, both should work)
+        const selects = screen.getAllByDisplayValue('todos');
+        expect(selects.length).toBeGreaterThan(0);
+        return selects[0];
+      },
+      { timeout: 3000 } // Give more time for debounced loading
+    );
+
+    // Now test the switching functionality
+    const selects = screen.getAllByDisplayValue('todos');
+    fireEvent.change(selects[0], { target: { value: 'work-tasks' } });
 
     expect(mockSaveSettings).toHaveBeenCalledWith({
       ...initialSettings,
@@ -352,12 +371,15 @@ describe('ProjectManager', () => {
     resolvePromise!(['todos', 'work-tasks']);
 
     // Wait for selects to appear and be enabled
-    await waitFor(() => {
-      const selects = screen.getAllByDisplayValue('todos');
-      expect(selects).toHaveLength(2); // mobile + desktop
-      expect(selects[0]).not.toBeDisabled();
-      expect(selects[1]).not.toBeDisabled();
-    });
+    await waitFor(
+      () => {
+        const selects = screen.getAllByDisplayValue('todos');
+        expect(selects).toHaveLength(2); // mobile + desktop
+        expect(selects[0]).not.toBeDisabled();
+        expect(selects[1]).not.toBeDisabled();
+      },
+      { timeout: 3000 } // Give more time for debounced loading
+    );
   });
 
   it('closes modal when switching projects in modal switcher', async () => {
@@ -372,11 +394,20 @@ describe('ProjectManager', () => {
 
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
 
+    // Wait for folders to load first
+    await waitFor(
+      () => {
+        const selects = screen.getAllByDisplayValue('todos');
+        expect(selects.length).toBeGreaterThanOrEqual(2); // mobile + desktop
+      },
+      { timeout: 3000 }
+    );
+
     // Open modal
     fireEvent.click(screen.getByText('New Project'));
     expect(screen.getByText('Project Management')).toBeInTheDocument();
 
-    // Wait for modal content to load
+    // Wait for modal content to load - should have project switcher since we have multiple folders
     await waitFor(() => {
       expect(screen.getByText('Switch to:')).toBeInTheDocument();
     });

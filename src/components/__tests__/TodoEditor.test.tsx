@@ -3,7 +3,6 @@
  */
 import React from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 // Setup matchers for testing-library
@@ -13,16 +12,7 @@ vitestExpect.extend(matchers);
 
 import TodoEditor from '../TodoEditor';
 
-// Global clipboard API setup for jsdom environment using vi.stubGlobal
-vi.stubGlobal('navigator', {
-  ...global.navigator,
-  clipboard: {
-    writeText: vi.fn().mockResolvedValue(undefined),
-    readText: vi.fn().mockResolvedValue(''),
-    write: vi.fn().mockResolvedValue(undefined),
-    read: vi.fn().mockResolvedValue([])
-  }
-});
+// Note: Using fireEvent instead of userEvent to avoid clipboard mocking conflicts
 
 const mockTodo = {
   id: 'test-todo-id',
@@ -63,21 +53,6 @@ describe('TodoEditor - Basic Feature Coverage', () => {
       },
       writable: true
     });
-    
-    // Mock navigator.clipboard API to fix testing-library/user-event clipboard errors
-    if (!global.navigator) {
-      global.navigator = {} as Navigator;
-    }
-    Object.defineProperty(global.navigator, 'clipboard', {
-      value: {
-        writeText: vi.fn().mockResolvedValue(undefined),
-        readText: vi.fn().mockResolvedValue(''),
-        write: vi.fn().mockResolvedValue(undefined),
-        read: vi.fn().mockResolvedValue([])
-      },
-      writable: true,
-      configurable: true
-    });
   });
 
   afterEach(() => {
@@ -106,11 +81,11 @@ describe('TodoEditor - Basic Feature Coverage', () => {
       expect(prioritySelect).toBeInTheDocument();
     });
 
-    it('calls onPriorityUpdate when priority changed', async () => {
+    it('calls onPriorityUpdate when priority changed', () => {
       render(<TodoEditor {...mockProps} />);
       
       const prioritySelect = screen.getByDisplayValue('P3');
-      await userEvent.selectOptions(prioritySelect, '1');
+      fireEvent.change(prioritySelect, { target: { value: '1' } });
       
       expect(mockProps.onPriorityUpdate).toHaveBeenCalledWith('test-todo-id', 1);
     });
@@ -122,11 +97,11 @@ describe('TodoEditor - Basic Feature Coverage', () => {
       expect(archiveButton).toBeInTheDocument();
     });
 
-    it('calls onArchiveToggle when archive button clicked', async () => {
+    it('calls onArchiveToggle when archive button clicked', () => {
       render(<TodoEditor {...mockProps} />);
       
       const archiveButton = screen.getByText(/archive/i);
-      await userEvent.click(archiveButton);
+      fireEvent.click(archiveButton);
       
       expect(mockProps.onArchiveToggle).toHaveBeenCalledWith('test-todo-id');
     });
@@ -138,11 +113,11 @@ describe('TodoEditor - Basic Feature Coverage', () => {
       expect(deleteButton).toBeInTheDocument();
     });
 
-    it('calls onDeleteTodo when delete button clicked', async () => {
+    it('calls onDeleteTodo when delete button clicked', () => {
       render(<TodoEditor {...mockProps} />);
       
       const deleteButton = screen.getByTitle('Delete task');
-      await userEvent.click(deleteButton);
+      fireEvent.click(deleteButton);
       
       expect(mockProps.onDeleteTodo).toHaveBeenCalledWith('test-todo-id');
     });
@@ -194,16 +169,16 @@ describe('TodoEditor - Basic Feature Coverage', () => {
       expect(screen.getByText('P5')).toBeInTheDocument();
     });
 
-    it('handles priority selection for all levels', async () => {
+    it('handles priority selection for all levels', () => {
       render(<TodoEditor {...mockProps} />);
       
       const prioritySelect = screen.getByDisplayValue('P3');
       
       // Test each priority level
-      await userEvent.selectOptions(prioritySelect, '1');
+      fireEvent.change(prioritySelect, { target: { value: '1' } });
       expect(mockProps.onPriorityUpdate).toHaveBeenCalledWith('test-todo-id', 1);
       
-      await userEvent.selectOptions(prioritySelect, '5');
+      fireEvent.change(prioritySelect, { target: { value: '5' } });
       expect(mockProps.onPriorityUpdate).toHaveBeenCalledWith('test-todo-id', 5);
     });
   });
