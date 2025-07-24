@@ -48,6 +48,9 @@ import {
   saveSelectedTodoId,
   loadSelectedTodoId,
   clearSelectedTodoId,
+  clearChatSession,
+  clearOtherChatSessions,
+  AIChatSession,
   Checkpoint 
 } from '../localStorage';
 import logger from '../logger';
@@ -951,6 +954,145 @@ describe('localStorage functions', () => {
       clearCheckpoints('workflow-test');
       const afterClear = getCheckpoints('workflow-test');
       expect(afterClear).toHaveLength(0);
+    });
+  });
+
+  describe('AI Chat Session Management', () => {
+    beforeEach(() => {
+      // Ensure mock implementations are reset
+      mockLocalStorage.getItem.mockImplementation((key: string) => store[key] || null);
+      mockLocalStorage.setItem.mockImplementation((key: string, value: string) => {
+        store[key] = value;
+      });
+      mockLocalStorage.removeItem.mockImplementation((key: string) => {
+        delete store[key];
+      });
+    });
+
+    describe('clearChatSession', () => {
+      it('removes chat session from localStorage', () => {
+        // Set up a session first
+        const mockSession: AIChatSession = {
+          todoId: 'todo-123',
+          path: 'tasks/test.md',
+          chatHistory: [],
+          checkpoints: [],
+          isExpanded: false,
+          timestamp: Date.now()
+        };
+        store['aiChatSession'] = JSON.stringify(mockSession);
+        
+        clearChatSession();
+        
+        expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('aiChatSession');
+        expect(store['aiChatSession']).toBeUndefined();
+      });
+
+      it('logs successful chat session clearing', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        
+        clearChatSession();
+        
+        expect(loggerSpy).toHaveBeenCalledWith("Chat session cleared from localStorage");
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('handles localStorage errors gracefully', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        mockLocalStorage.removeItem.mockImplementation(() => {
+          throw new Error('localStorage error');
+        });
+
+        expect(() => clearChatSession()).not.toThrow();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error clearing chat session from localStorage',
+          expect.any(Error)
+        );
+
+        loggerSpy.mockRestore();
+      });
+    });
+
+    describe('clearOtherChatSessions', () => {
+      it('clears session when it belongs to a different todo', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        
+        // Set up a session for a different todo
+        const mockSession: AIChatSession = {
+          todoId: 'different-todo-456',
+          path: 'tasks/different.md',
+          chatHistory: [],
+          checkpoints: [],
+          isExpanded: false,
+          timestamp: Date.now()
+        };
+        store['aiChatSession'] = JSON.stringify(mockSession);
+        
+        clearOtherChatSessions('current-todo-123');
+        
+        expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('aiChatSession');
+        expect(store['aiChatSession']).toBeUndefined();
+        expect(loggerSpy).toHaveBeenCalledWith('Cleared chat session for different todo: tasks/different.md');
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('does not clear session when it belongs to the current todo', () => {
+        // Set up a session for the current todo
+        const mockSession: AIChatSession = {
+          todoId: 'current-todo-123',
+          path: 'tasks/current.md',
+          chatHistory: [],
+          checkpoints: [],
+          isExpanded: false,
+          timestamp: Date.now()
+        };
+        const sessionString = JSON.stringify(mockSession);
+        store['aiChatSession'] = sessionString;
+        
+        clearOtherChatSessions('current-todo-123');
+        
+        // Session should still be there
+        expect(store['aiChatSession']).toBe(sessionString);
+        expect(mockLocalStorage.removeItem).not.toHaveBeenCalledWith('aiChatSession');
+      });
+
+      it('does nothing when no session exists', () => {
+        clearOtherChatSessions('any-todo-id');
+        
+        expect(mockLocalStorage.removeItem).not.toHaveBeenCalled();
+      });
+
+      it('handles invalid session JSON gracefully', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        
+        // Set invalid JSON
+        store['aiChatSession'] = 'invalid-json';
+        
+        expect(() => clearOtherChatSessions('current-todo-123')).not.toThrow();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error clearing other chat sessions',
+          expect.any(Error)
+        );
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('handles localStorage errors gracefully', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        mockLocalStorage.getItem.mockImplementation(() => {
+          throw new Error('localStorage error');
+        });
+
+        expect(() => clearOtherChatSessions('current-todo-123')).not.toThrow();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error clearing other chat sessions',
+          expect.any(Error)
+        );
+
+        loggerSpy.mockRestore();
+      });
     });
   });
 });

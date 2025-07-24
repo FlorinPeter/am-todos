@@ -260,4 +260,72 @@ describe('ReDoS Protection', () => {
       expect(result.error).toContain('malicious patterns');
     });
   });
+
+  describe('Rate Limiting Coverage', () => {
+    it('should reject requests when rate limit is exceeded', () => {
+      const ip = '192.168.1.100';
+      
+      // Make requests up to the limit (10 requests)
+      for (let i = 0; i < 10; i++) {
+        expect(searchRateLimiter.isAllowed(ip)).toBe(true);
+      }
+      
+      // Next request should be rejected
+      expect(searchRateLimiter.isAllowed(ip)).toBe(false);
+      
+      // validateAndSanitizeSearchQuery should return rate limit error
+      const result = validateAndSanitizeSearchQuery('test query', ip);
+      expect(result.isValid).toBe(false);
+      expect(result.error).toBe('Too many search requests. Please try again in a minute.');
+    });
+
+    it('should trigger cleanup of old rate limit entries', () => {
+      const ip = '192.168.1.101';
+      
+      // Make one request to populate the requests map
+      expect(searchRateLimiter.isAllowed(ip)).toBe(true);
+      
+      // Verify the IP is tracked
+      expect(searchRateLimiter.getRemainingRequests(ip)).toBe(9); // 10 - 1 = 9
+      
+      // Mock Date.now to simulate time passing beyond the window (1 minute = 60000ms)
+      const originalDateNow = Date.now;
+      const initialTime = Date.now();
+      
+      // Fast forward past the time window (60000ms + some buffer)
+      Date.now = vi.fn().mockReturnValue(initialTime + 65000);
+      
+      // Make a new request which should trigger cleanup of old entries
+      expect(searchRateLimiter.isAllowed(ip)).toBe(true);
+      
+      // Verify the old entries were cleaned up by checking remaining requests
+      // Should be 9 (10 - 1 new request) since old entries were cleaned
+      expect(searchRateLimiter.getRemainingRequests(ip)).toBe(9);
+      
+      // Restore original Date.now
+      Date.now = originalDateNow;
+    });
+
+    it('should handle cleanup when all requests are old', () => {
+      const ip = '192.168.1.102';
+      
+      // Make a request
+      expect(searchRateLimiter.isAllowed(ip)).toBe(true);
+      
+      // Mock time passing beyond window
+      const originalDateNow = Date.now;
+      const initialTime = Date.now();
+      Date.now = vi.fn().mockReturnValue(initialTime + 65000);
+      
+      // Making another request should clean up the old IP entry completely
+      const anotherIp = '192.168.1.103';
+      expect(searchRateLimiter.isAllowed(anotherIp)).toBe(true);
+      
+      // The old IP should have been removed from tracking (cleaned up)
+      // and making a request should give full limit again
+      expect(searchRateLimiter.getRemainingRequests(ip)).toBe(10); // Full limit since cleaned
+      
+      Date.now = originalDateNow;
+    });
+  });
 });
