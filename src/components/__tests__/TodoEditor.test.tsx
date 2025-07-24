@@ -13,16 +13,27 @@ vitestExpect.extend(matchers);
 
 import TodoEditor from '../TodoEditor';
 
+// Global clipboard API setup for jsdom environment using vi.stubGlobal
+vi.stubGlobal('navigator', {
+  ...global.navigator,
+  clipboard: {
+    writeText: vi.fn().mockResolvedValue(undefined),
+    readText: vi.fn().mockResolvedValue(''),
+    write: vi.fn().mockResolvedValue(undefined),
+    read: vi.fn().mockResolvedValue([])
+  }
+});
+
 const mockTodo = {
   id: 'test-todo-id',
   filename: 'test-todo.md',
   content: '# Test Todo\n\n- [ ] Test task',
+  title: 'Test Todo',
+  createdAt: '2025-01-01T00:00:00.000Z',
+  priority: 3,
+  isArchived: false,
   frontmatter: {
-    title: 'Test Todo',
-    createdAt: '2025-01-01T00:00:00.000Z',
-    priority: 3,
-    isArchived: false,
-    chatHistory: []
+    tags: []
   }
 };
 
@@ -52,6 +63,21 @@ describe('TodoEditor - Basic Feature Coverage', () => {
       },
       writable: true
     });
+    
+    // Mock navigator.clipboard API to fix testing-library/user-event clipboard errors
+    if (!global.navigator) {
+      global.navigator = {} as Navigator;
+    }
+    Object.defineProperty(global.navigator, 'clipboard', {
+      value: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+        readText: vi.fn().mockResolvedValue(''),
+        write: vi.fn().mockResolvedValue(undefined),
+        read: vi.fn().mockResolvedValue([])
+      },
+      writable: true,
+      configurable: true
+    });
   });
 
   afterEach(() => {
@@ -62,8 +88,15 @@ describe('TodoEditor - Basic Feature Coverage', () => {
     it('renders todo title and metadata', () => {
       render(<TodoEditor {...mockProps} />);
       
-      // Title appears once in the component header
-      expect(screen.getByText('Test Todo')).toBeInTheDocument();
+      // Title appears in both header and markdown - get all instances and verify at least one exists
+      const titleElements = screen.getAllByText('Test Todo');
+      expect(titleElements.length).toBeGreaterThanOrEqual(1);
+      
+      // Header title should have the specific class for click-to-edit
+      const headerTitle = titleElements.find(el => 
+        el.classList.contains('cursor-pointer')
+      );
+      expect(headerTitle).toBeInTheDocument();
     });
 
     it('shows priority selector with current priority', () => {
