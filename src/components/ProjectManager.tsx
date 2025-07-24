@@ -14,6 +14,9 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
   const [newProjectName, setNewProjectName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Debouncing for loadFolders to prevent rapid successive calls
+  const [loadFoldersTimeout, setLoadFoldersTimeout] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const loadedSettings = loadSettings();
@@ -33,13 +36,16 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
     
     if (hasGitHubConfig || hasGitLabConfig) {
       logger.log('ProjectManager: Force loading folders for', loadedSettings?.gitProvider || 'github');
-      timeoutId = setTimeout(() => loadFolders(), 100);
+      timeoutId = setTimeout(() => debouncedLoadFolders(), 100);
     }
     
     // Cleanup timeout on unmount
     return () => {
       if (timeoutId) {
         clearTimeout(timeoutId);
+      }
+      if (loadFoldersTimeout) {
+        clearTimeout(loadFoldersTimeout);
       }
     };
   }, []);
@@ -61,13 +67,18 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
       }
     };
 
-    // Check immediately
+    // Only check immediately - no polling
     checkForSettingsChanges();
     
-    // Set up interval to check for external changes
-    const interval = setInterval(checkForSettingsChanges, 500);
+    // Listen for storage events instead of polling (for cross-tab changes)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'am-todos-settings') {
+        checkForSettingsChanges();
+      }
+    };
     
-    return () => clearInterval(interval);
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, [settings?.folder]);
 
   const loadFolders = async () => {
@@ -100,17 +111,59 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
     }
   };
 
+  // Debounced version to prevent rapid successive calls
+  const debouncedLoadFolders = () => {
+    const callId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    logger.log('🔄 ProjectManager: debouncedLoadFolders called', {
+      callId,
+      hasExistingTimeout: !!loadFoldersTimeout,
+      settings: {
+        provider: settings?.gitProvider,
+        folder: settings?.folder
+      }
+    });
+    
+    if (loadFoldersTimeout) {
+      logger.log('⏰ ProjectManager: Clearing existing timeout', { callId });
+      clearTimeout(loadFoldersTimeout);
+    }
+    
+    const newTimeout = setTimeout(() => {
+      logger.log('⚡ ProjectManager: Executing debounced loadFolders', { callId });
+      loadFolders();
+      setLoadFoldersTimeout(null);
+    }, 1000); // 1 second debounce
+    
+    setLoadFoldersTimeout(newTimeout);
+    logger.log('⏲️ ProjectManager: New timeout set', { callId, timeoutId: newTimeout });
+  };
+
   useEffect(() => {
+    const effectId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const hasGitHubSettings = !!(settings?.pat && settings?.owner && settings?.repo);
     const hasGitLabSettings = !!(settings?.instanceUrl && settings?.projectId && settings?.token);
     
-    logger.log('ProjectManager: useEffect triggered', { hasGitHubSettings, hasGitLabSettings, settings });
+    logger.log('📋 ProjectManager: settings useEffect triggered', {
+      effectId,
+      hasGitHubSettings,
+      hasGitLabSettings,
+      dependencies: {
+        pat: !!settings?.pat,
+        owner: !!settings?.owner,
+        repo: !!settings?.repo,
+        instanceUrl: !!settings?.instanceUrl,
+        projectId: !!settings?.projectId,
+        token: !!settings?.token
+      },
+      provider: settings?.gitProvider
+    });
     
     if (hasGitHubSettings || hasGitLabSettings) {
-      logger.log('ProjectManager: Calling loadFolders');
-      loadFolders();
+      logger.log('✅ ProjectManager: Valid settings found, calling debounced loadFolders', { effectId });
+      debouncedLoadFolders();
     } else {
-      logger.log('ProjectManager: Not loading folders - no valid settings');
+      logger.log('❌ ProjectManager: No valid settings, skipping loadFolders', { effectId });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings?.pat, settings?.owner, settings?.repo, settings?.instanceUrl, settings?.projectId, settings?.token]);
@@ -137,7 +190,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
     try {
       await createProjectFolder(newProjectName.trim());
       
-      await loadFolders();
+      await loadFolders(); // Use direct call here since we want immediate loading after creation
       handleProjectSwitch(newProjectName.trim());
       
       setNewProjectName('');

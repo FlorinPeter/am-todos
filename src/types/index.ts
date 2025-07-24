@@ -5,49 +5,39 @@
  * Previously, these were duplicated across multiple components.
  */
 
-/**
- * Chat message interface for AI interactions
- * Used in: TodoSidebar, TodoEditor, AIChat, localStorage
- */
-export interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: string;
-  checkpointId?: string; // Optional link to checkpoint for AI responses
-}
+// ❌ REMOVED: ChatMessage interface - unused throughout codebase
+// This was defined but never actually used for any chat functionality
 
 /**
- * Todo item interface
+ * Todo item interface - Updated for filename-based metadata
  * Used in: TodoSidebar, TodoEditor
  */
 export interface Todo {
   id: string;
-  title: string;
+  title: string;        // ✅ Extracted from filename
   content: string;
   frontmatter: {
-    title: string;
-    createdAt: string;
-    priority: number;
-    isArchived: boolean;
-    chatHistory: ChatMessage[];
+    tags: string[];     // 🆕 Only tags remain in frontmatter
   };
   path: string;
   sha: string;
+  // 🆕 Metadata now from filename instead of frontmatter
+  priority: number;     // Extracted from filename
+  createdAt: string;    // Extracted from filename
+  isArchived: boolean;  // Determined by folder location
   // Optional fields used for search results
   isSearchResult?: boolean;
   projectName?: string;
 }
 
 /**
- * Todo frontmatter interface for markdown parsing
+ * Todo frontmatter interface - Simplified for filename-based metadata
  * Used in: markdown utils
  */
 export interface TodoFrontmatter {
-  title: string;
-  createdAt: string;
-  priority: number;
-  isArchived: boolean;
-  chatHistory: ChatMessage[];
+  tags: string[];  // 🆕 Only tags field remains - provides extensibility
+  // ❌ REMOVED: title, createdAt, priority, isArchived (now in filename)
+  // ❌ REMOVED: chatHistory (unused code)
 }
 
 /**

@@ -133,12 +133,11 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
           title: cleanTitle,
           content: '', // We don't have content in search results
           frontmatter: {
-            title: cleanTitle,
-            createdAt: new Date().toISOString(), // Placeholder - consistent for both providers
-            priority: normalizedResult.priority,
-            isArchived: false,
-            chatHistory: []
+            tags: [] // Only tags remain in frontmatter
           },
+          priority: normalizedResult.priority,
+          createdAt: new Date().toISOString(), // Placeholder - consistent for both providers
+          isArchived: false,
           path: normalizedResult.path,
           sha: normalizedResult.sha,
           isSearchResult: true,
@@ -157,8 +156,8 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
   // Sort todos by priority (1 = highest, 5 = lowest)
   const sortedTodos = [...displayTodos]
     .sort((a, b) => {
-      const priorityA = a.frontmatter?.priority || 3;
-      const priorityB = b.frontmatter?.priority || 3;
+      const priorityA = a.priority || 3;
+      const priorityB = b.priority || 3;
       return priorityA - priorityB;
     });
 
@@ -339,7 +338,7 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
             {sortedTodos.map((todo) => {
               const isSelected = selectedTodoId === todo.id;
               const completion = getCompletionPercentage(todo.content);
-              const priority = todo.frontmatter?.priority || 3;
+              const priority = todo.priority || 3;
               const isSearchResult = todo.isSearchResult || false; // Use consistent flag from todo object
               const shouldShowPath = isSearchResult && todo.path; // Show path for all search results
               
@@ -361,8 +360,8 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
                       </span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center space-x-2">
-                          <h3 className="font-semibold text-sm leading-tight flex-1" title={todo.frontmatter?.title || todo.title}>
-                            {todo.frontmatter?.title || todo.title}
+                          <h3 className="font-semibold text-sm leading-tight flex-1" title={todo.title}>
+                            {todo.title}
                           </h3>
                         </div>
                       </div>
@@ -412,8 +411,8 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
                         <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        <span>Created {todo.frontmatter?.createdAt ? 
-                          formatDate(todo.frontmatter.createdAt) :
+                        <span>Created {todo.createdAt ? 
+                          formatDate(todo.createdAt) :
                           'No date'
                         }</span>
                       </>

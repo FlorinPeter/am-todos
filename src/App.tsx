@@ -8,7 +8,8 @@ import { loadSettings, getUrlConfig, saveSettings, saveSelectedTodoId, loadSelec
 import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDirectory, moveTaskToArchive, moveTaskFromArchive, deleteFile } from './services/gitService';
 import { generateInitialPlan, generateCommitMessage } from './services/aiService';
 import { searchTodosDebounced, SearchResult } from './services/searchService';
-import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter } from './utils/markdown';
+import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, stringifyMarkdownWithMetadata } from './utils/markdown';
+import { generateFilename } from './utils/filenameMetadata';
 import { TodoFrontmatter, Todo, ChatMessage } from './types';
 import logger from './utils/logger';
 
@@ -134,6 +135,13 @@ function App() {
   const saveDebounceTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   // Guard to prevent view mode useEffect from triggering during save operations
   const [isPerformingSave, setIsPerformingSave] = useState(false);
+  
+  // Deduplication for consolidated fetch to prevent rapid successive calls
+  const lastFetchParamsRef = useRef<string>('');
+  
+  // Global fetch lock to prevent overlapping fetch operations
+  const fetchInProgressRef = useRef<boolean>(false);
+  const fetchQueueRef = useRef<Array<() => void>>([]);
 
   const getProviderName = () => {
     const provider = settings?.gitProvider || 'github';
@@ -169,7 +177,7 @@ function App() {
     const newSettings = loadSettings();
     setSettings(newSettings);
     setShowSettings(false); // Close the settings modal
-    fetchTodos(); // Fetch todos after settings are saved
+    // Don't fetch here - let the consolidated useEffect handle it
   };
 
   // Search handlers
@@ -280,10 +288,11 @@ function App() {
       logger.log('Active files retrieved:', activeFiles.length, 'files');
       logger.log('Archived files retrieved:', archivedFiles.length, 'files');
       
-      const allFiles = [...activeFiles, ...archivedFiles];
-      logger.log('Total files:', allFiles.length);
+      // 🚀 PERFORMANCE SUCCESS: Use optimized todos directly (no additional processing needed!)
+      const fetchedTodos = [...activeFiles, ...archivedFiles];
+      logger.log('🎉 OPTIMIZED RESULTS: Total todos with filename metadata:', fetchedTodos.length);
       
-      if (allFiles.length === 0) {
+      if (fetchedTodos.length === 0) {
         logger.log('No todo files found, setting empty arrays');
         setAllTodos([]);
         setTodos([]);
@@ -292,26 +301,7 @@ function App() {
         return;
       }
       
-      const fetchedTodos = await Promise.all(
-        allFiles.map(async (file: any) => {
-          logger.log('Processing file:', file.name, 'path:', file.path);
-          const content = await getFileContent(file.path);
-          logger.log('File content length:', content.length);
-          const { frontmatter, markdownContent } = parseMarkdownWithFrontmatter(content);
-          logger.log('Parsed frontmatter:', frontmatter);
-          const todo = {
-            id: file.sha, // Using SHA as a unique ID for now
-            title: frontmatter?.title || file.name,
-            content: markdownContent,
-            frontmatter: frontmatter,
-            path: file.path,
-            sha: file.sha,
-          };
-          logger.log('Created todo object:', { id: todo.id, title: todo.title, path: todo.path });
-          return todo;
-        })
-      );
-      logger.log('All todos processed:', fetchedTodos.length);
+      logger.log('✅ ZERO ADDITIONAL API CALLS: Using optimized todos directly');
       logger.log('Final todos array:', fetchedTodos.map((t: any) => ({ id: t.id, title: t.title, path: t.path })));
       
       // Store all todos and filter based on current view mode
@@ -493,38 +483,110 @@ function App() {
     await fetchTodosWithSettings(undefined, explicitViewMode, preserveTodoPath, allowSmartRestore);
   }, [fetchTodosWithSettings, viewMode]);
 
+  // Consolidated fetch effect with proper guards to prevent cascading requests
   useEffect(() => {
-    // Enhanced todo fetching with initialization awareness - INITIAL LOAD ONLY
-    if (settings && !isInitializing) {
-      logger.log('=== INITIAL TODO FETCH STARTED ===');
-      logger.log('App initialization completed, beginning initial todo fetch with settings:', {
-        provider: settings.gitProvider,
-        folder: settings.folder,
-        viewMode: viewMode
-      });
-      logger.log('Using smart restoration for initial load to handle cross-view todo restoration');
-      fetchTodos(undefined, true); // Enable smart restoration during initial load
-    } else if (settings && isInitializing) {
-      logger.log('Settings available but initialization still in progress, waiting...');
-    } else if (!isInitializing) {
-      logger.log('Initialization completed but no settings available, showing setup screen');
-    }
-  }, [fetchTodos, settings, isInitializing]); // NOTE: viewMode NOT included - initial load only
-
-  // Dedicated useEffect for view mode changes (user-initiated tab switches)
-  useEffect(() => {
+    const effectId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // **DEBUG LOGGING** - Track every useEffect trigger
+    logger.log('🎯 CONSOLIDATED FETCH EFFECT TRIGGERED:', {
+      effectId,
+      isPerformingSave,
+      hasSettings: !!settings,
+      isInitializing,
+      provider: settings?.gitProvider,
+      folder: settings?.folder,
+      viewMode,
+      dependencies: {
+        settings: !!settings,
+        viewMode,
+        isInitializing,
+        isPerformingSave
+      }
+    });
+    
     // CRITICAL: Don't trigger during save operations to prevent race conditions
     if (isPerformingSave) {
+      logger.log('⏸️ FETCH SKIPPED: Save operation in progress', { effectId });
       return;
     }
     
-    // Only trigger for user-initiated view mode changes (not during initialization)
-    if (settings && !isInitializing) {
-      // Fetch todos with the new view mode, but disable smart restoration 
-      // since this is a user-initiated change, not a restoration scenario
-      fetchTodosWithSettings(settings, viewMode, undefined, false);
+    // Only proceed if we have settings and initialization is complete
+    if (!settings || isInitializing) {
+      if (settings && isInitializing) {
+        logger.log('⏸️ FETCH SKIPPED: Initialization in progress', { effectId });
+      } else if (!isInitializing) {
+        logger.log('⏸️ FETCH SKIPPED: No settings available', { effectId });
+      }
+      return;
     }
-  }, [viewMode, settings, isInitializing, isPerformingSave, fetchTodosWithSettings]);
+    
+    // Create fetch parameters fingerprint for deduplication
+    const fetchParams = JSON.stringify({
+      provider: settings.gitProvider,
+      folder: settings.folder,
+      viewMode: viewMode,
+      instanceUrl: settings.instanceUrl,
+      projectId: settings.projectId,
+      owner: settings.owner,
+      repo: settings.repo
+    });
+    
+    // Skip if we just performed the same fetch
+    if (lastFetchParamsRef.current === fetchParams) {
+      logger.log('⏸️ FETCH SKIPPED: Duplicate parameters detected', {
+        effectId,
+        fetchParams: fetchParams.substring(0, 100) + '...'
+      });
+      return;
+    }
+    
+    // **GLOBAL FETCH LOCK** - Prevent overlapping fetch operations
+    if (fetchInProgressRef.current) {
+      logger.log('⏸️ FETCH SKIPPED: Another fetch already in progress', {
+        effectId,
+        queueLength: fetchQueueRef.current.length
+      });
+      
+      // Queue this fetch for later
+      fetchQueueRef.current.push(() => {
+        logger.log('🔄 QUEUED FETCH EXECUTING:', { effectId });
+        lastFetchParamsRef.current = fetchParams;
+        fetchTodosWithSettings(settings, viewMode, undefined, true);
+      });
+      return;
+    }
+    
+    // Set fetch lock
+    fetchInProgressRef.current = true;
+    lastFetchParamsRef.current = fetchParams;
+    
+    logger.log('🚀 === CONSOLIDATED TODO FETCH STARTED ===', {
+      effectId,
+      provider: settings.gitProvider,
+      folder: settings.folder,
+      viewMode: viewMode,
+      fetchParams: fetchParams.substring(0, 100) + '...'
+    });
+    
+    // Use fetchTodosWithSettings for all scenarios
+    const fetchPromise = fetchTodosWithSettings(settings, viewMode, undefined, true);
+    
+    // Handle fetch completion and queue processing
+    fetchPromise.finally(() => {
+      fetchInProgressRef.current = false;
+      
+      logger.log('🏁 FETCH COMPLETED, processing queue:', {
+        effectId,
+        queueLength: fetchQueueRef.current.length
+      });
+      
+      // Process next queued fetch if any
+      if (fetchQueueRef.current.length > 0) {
+        const nextFetch = fetchQueueRef.current.shift()!;
+        setTimeout(nextFetch, 100); // Small delay to prevent immediate overlaps
+      }
+    });
+  }, [settings, viewMode, isInitializing, isPerformingSave, fetchTodosWithSettings]);
 
   // Persist selected todo ID to localStorage with error handling
   useEffect(() => {
@@ -579,17 +641,16 @@ function App() {
       const markdownContent = await generateInitialPlan(goal);
       logger.log('Initial plan generated:', markdownContent?.substring(0, 100) + '...');
 
-      // 2. Prepare File with Frontmatter
+      // 2. Prepare File with NEW Filename-Based Metadata
       setCreationStep('📝 Preparing task content...');
+      logger.log('🆕 NEW FORMAT: Using filename-based metadata approach');
+      
+      // Create minimal frontmatter (only tags)
       const newTodoFrontmatter: TodoFrontmatter = {
-        title: goal,
-        createdAt: new Date().toISOString(),
-        priority: 3,
-        isArchived: false,
-        chatHistory: [],
+        tags: [], // Only tags remain in frontmatter
       };
-      const fullContent = stringifyMarkdownWithFrontmatter(newTodoFrontmatter, markdownContent);
-      logger.log('Full content prepared, length:', fullContent.length);
+      const fullContent = stringifyMarkdownWithMetadata(newTodoFrontmatter, markdownContent);
+      logger.log('🚀 PERFORMANCE: Content prepared with minimal frontmatter, length:', fullContent.length);
 
       // 3. Generate Commit Message
       setCreationStep('💬 Generating commit message...');
@@ -606,41 +667,32 @@ function App() {
       logger.log('Ensuring directory exists...');
       await ensureDirectory(settings.folder || 'todos');
       
-      const createSlug = (title: string) => {
-        return title
-          .toLowerCase()
-          .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-          .replace(/\s+/g, '-') // Replace spaces with hyphens
-          .replace(/-+/g, '-') // Replace multiple hyphens with single
-          .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
-          .trim()
-          .substring(0, 50); // Limit length
-      };
-      
-      const slug = createSlug(goal);
-      const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      // 🆕 NEW APPROACH: Generate filename with metadata encoding
+      const priority = 3; // Default priority for new todos
+      const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
       const folder = settings.folder || 'todos';
+      
+      logger.log('🚀 FILENAME METADATA: Generating new format filename');
+      const filename = generateFilename(priority, date, goal);
+      const filePath = `${folder}/${filename}`;
       
       // Check for filename conflicts and generate unique filename
       setCreationStep('🔍 Checking for filename conflicts...');
-      let filename = `${folder}/${timestamp}-${slug}.md`;
-      let finalFilename = filename;
+      let finalFilename = filePath;
       
       // Check if file already exists and generate unique name if needed
       let counter = 1;
       while (true) {
         try {
           await getFileMetadata(finalFilename);
-          // File exists, try next number
-          const pathParts = filename.split('.');
-          const extension = pathParts.pop();
-          const basePath = pathParts.join('.');
-          finalFilename = `${basePath}-${counter}.${extension}`;
+          // File exists, try next number - preserve new filename format
+          const conflictFilename = generateFilename(priority, date, `${goal} ${counter}`);
+          finalFilename = `${folder}/${conflictFilename}`;
           counter++;
-          logger.log(`File conflict detected, trying: ${finalFilename}`);
+          logger.log(`🔄 FILENAME CONFLICT: Trying unique filename: ${finalFilename}`);
         } catch (error) {
           // File doesn't exist, we can use this filename
-          logger.log(`Using filename: ${finalFilename}`);
+          logger.log(`✅ NEW FORMAT: Using filename: ${finalFilename}`);
           break;
         }
       }
@@ -1299,6 +1351,50 @@ function App() {
   };
 
   const selectedTodo = todos.find(todo => todo.id === selectedTodoId) || null;
+
+  // On-demand content loading for selected todos
+  useEffect(() => {
+    const loadSelectedTodoContent = async () => {
+      if (!selectedTodo || !settings) {
+        return;
+      }
+
+      // Check if selected todo has empty content (needs on-demand loading)
+      if (selectedTodo.content === '') {
+        logger.log('🔄 ON-DEMAND LOADING: Selected todo has empty content, fetching:', selectedTodo.path);
+        
+        try {
+          // Fetch content on-demand
+          const content = await getFileContent(selectedTodo.path);
+          logger.log('✅ ON-DEMAND SUCCESS: Loaded content for selected todo:', selectedTodo.path);
+          
+          // Parse content to get frontmatter
+          const parsed = parseMarkdownWithFrontmatter(content);
+          
+          // Update the todo in the todos array with the loaded content
+          setTodos(prevTodos => 
+            prevTodos.map(todo => 
+              todo.id === selectedTodo.id 
+                ? {
+                    ...todo,
+                    content: parsed.markdownContent,
+                    frontmatter: parsed.frontmatter
+                  }
+                : todo
+            )
+          );
+        } catch (error) {
+          logger.error('❌ ON-DEMAND ERROR: Failed to load content for selected todo:', selectedTodo.path, error);
+          // Don't show alert to user for this - it's a background operation
+          // The todo will remain with empty content and user can try refreshing
+        }
+      } else {
+        logger.log('✅ ON-DEMAND SKIP: Selected todo already has content:', selectedTodo.path);
+      }
+    };
+
+    loadSelectedTodoContent();
+  }, [selectedTodo?.id, selectedTodo?.content, settings]);
 
   // Show initialization screen while app is starting up
   if (isInitializing) {
