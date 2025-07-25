@@ -9,8 +9,8 @@ import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDi
 import { generateInitialPlan, generateCommitMessage } from './services/aiService';
 import { searchTodosDebounced, SearchResult } from './services/searchService';
 import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, stringifyMarkdownWithMetadata } from './utils/markdown';
-import { generateFilename, parseFilenameMetadata } from './utils/filenameMetadata';
-import { TodoFrontmatter, Todo, ChatMessage } from './types';
+import { generateFilename } from './utils/filenameMetadata';
+import { TodoFrontmatter } from './types';
 import logger from './utils/logger';
 
 function App() {
@@ -105,8 +105,6 @@ function App() {
   const [isSavingTask, setIsSavingTask] = useState(false);
   const [saveStep, setSaveStep] = useState('');
   
-  // Track save operations per todo for better UX during StrictMode double-execution
-  const [savingTodos, setSavingTodos] = useState<Map<string, { step: string; timestamp: number }>>(new Map());
   // Initialize view mode with error handling for corrupted localStorage
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     try {
@@ -145,35 +143,12 @@ function App() {
   const fetchQueueRef = useRef<Array<() => void>>([]);
   const manualViewModeChangeRef = useRef(false); // Track manual tab clicks to prevent smart restoration
 
-  const getProviderName = () => {
+  const getProviderName = useCallback(() => {
     const provider = settings?.gitProvider || 'github';
     return provider === 'github' ? 'GitHub' : 'GitLab';
-  };
+  }, [settings]);
 
-  // Helper functions for per-todo save state tracking
-  const updateTodoSaveState = (todoId: string, step: string) => {
-    setSavingTodos(prev => {
-      const newMap = new Map(prev);
-      newMap.set(todoId, { step, timestamp: Date.now() });
-      return newMap;
-    });
-  };
 
-  const clearTodoSaveState = (todoId: string) => {
-    setSavingTodos(prev => {
-      const newMap = new Map(prev);
-      newMap.delete(todoId);
-      return newMap;
-    });
-  };
-
-  const isTodoSaving = (todoId: string): boolean => {
-    return savingTodos.has(todoId);
-  };
-
-  const getTodoSaveStep = (todoId: string): string => {
-    return savingTodos.get(todoId)?.step || '';
-  };
 
   const handleSettingsSaved = () => {
     const newSettings = loadSettings();
@@ -385,7 +360,7 @@ function App() {
                   // Update view mode state and re-filter todos to match the correct view
                   setViewMode(correctViewMode);
                   const correctFilteredTodos = correctViewMode === 'archived' 
-                    ? fetchedTodos.filter((todo: any) => todo.path && todo.path.includes('/archive/'))
+                    ? fetchedTodos.filter((todo: any) => todo.path?.includes('/archive/'))
                     : fetchedTodos.filter((todo: any) => todo.path && !todo.path.includes('/archive/'));
                   
                   // Validate filtered todos before setting
@@ -479,11 +454,11 @@ function App() {
       setAllTodos([]);
       // Don't clear selectedTodoId here - network issues shouldn't lose user's context
     }
-  }, [settings]); // REMOVED viewMode dependency to prevent automatic re-execution
+  }, [settings, viewMode]);
 
   const fetchTodos = useCallback(async (preserveTodoPath?: string, allowSmartRestore = false, explicitViewMode?: 'active' | 'archived') => {
     await fetchTodosWithSettings(undefined, explicitViewMode, preserveTodoPath, allowSmartRestore);
-  }, [fetchTodosWithSettings, viewMode]);
+  }, [fetchTodosWithSettings]);
 
   // Consolidated fetch effect with proper guards to prevent cascading requests
   useEffect(() => {
@@ -735,7 +710,7 @@ function App() {
   };
 
   // Internal function that performs the actual save operation
-  const performTodoUpdate = async (id: string, newContent: string, newChatHistory?: any[], filePath?: string) => {
+  const performTodoUpdate = useCallback(async (id: string, newContent: string, newChatHistory?: any[], filePath?: string) => {
     if (!settings) return;
     
     // First try to find the todo to get stable identifiers
@@ -785,11 +760,9 @@ function App() {
       setIsPerformingSave(true);
       
       // Update per-todo save tracking (still use ID for UI state)
-      updateTodoSaveState(id, '🔍 Preparing to save...');
       setIsSavingTask(true);
       setSaveStep('🔍 Preparing to save...');
 
-      updateTodoSaveState(id, '📝 Preparing content...');
       setSaveStep('📝 Preparing content...');
       
       // FIXED: Handle content that may already include frontmatter
@@ -812,7 +785,6 @@ function App() {
       }
       logger.log('App: Full content prepared, generating commit message...');
 
-      updateTodoSaveState(id, '🤖 Generating commit message...');
       setSaveStep('🤖 Generating commit message...');
       const commitResponse = await generateCommitMessage(`fix: Update todo "${todoToUpdate.title}"`);
       const commitMessage = commitResponse.message;
@@ -821,7 +793,6 @@ function App() {
         logger.log('App: Commit generation description:', commitResponse.description);
       }
 
-      updateTodoSaveState(id, '🔄 Getting latest file version...');
       setSaveStep('🔄 Getting latest file version...');
       logger.log('App: Fetching latest SHA for file...');
       // Get the latest SHA to avoid conflicts
@@ -834,7 +805,6 @@ function App() {
         logger.log('App: Could not fetch latest SHA, using existing:', latestSha);
       }
 
-      updateTodoSaveState(id, `💾 Saving to ${getProviderName()}...`);
       setSaveStep(`💾 Saving to ${getProviderName()}...`);
       logger.log('App: Calling createOrUpdateTodo with SHA:', latestSha);
       
@@ -861,7 +831,6 @@ function App() {
           if (saveError instanceof Error && saveError.message.includes('does not match')) {
             retryCount++;
             logger.log(`App: SHA conflict detected, retry ${retryCount}/${maxRetries}`);
-            updateTodoSaveState(id, `🔄 SHA conflict, retrying (${retryCount}/${maxRetries})...`);
             setSaveStep(`🔄 SHA conflict, retrying (${retryCount}/${maxRetries})...`);
             
             if (retryCount < maxRetries) {
@@ -886,13 +855,11 @@ function App() {
         throw new Error('Failed to save after multiple SHA conflict retries');
       }
       
-      updateTodoSaveState(id, '🔄 Refreshing task list...');
       setSaveStep('🔄 Refreshing task list...');
       
       // CRITICAL FIX: Explicitly pass current view mode to prevent race conditions
       await fetchTodos(todoToUpdate.path, false, viewMode); // Re-fetch, preserve selection, and preserve view mode
       
-      updateTodoSaveState(id, '✅ Save completed!');
       setSaveStep('✅ Save completed!');
       
       // Clear save operation guard
@@ -911,7 +878,6 @@ function App() {
         activeOperations: [...activeSaveOperationsRef.current],
         timestamp: new Date().toISOString()
       });
-      updateTodoSaveState(id, '❌ Save failed!');
       setSaveStep('❌ Save failed!');
       
       // Clear save operation guard even on error
@@ -929,15 +895,12 @@ function App() {
       }
       // Clear the per-todo save state after a delay to show final status (still use ID for UI)
       setTimeout(() => {
-        clearTodoSaveState(id);
       }, 1500);
     }
-  };
+  }, [settings, todos, fetchTodos, getProviderName, viewMode]);
 
   // Debounced wrapper to handle React StrictMode double execution
-  const handleTodoUpdate = useCallback((id: string, newContent: string, newChatHistory?: any[], filePath?: string) => {
-    const timestamp = Date.now();
-    
+  const handleTodoUpdate = useCallback((id: string, newContent: string, filePath?: string) => {
     // First find the todo to get stable path (same pattern as performTodoUpdate)
     let todo = todos.find(t => t.id === id);
     if (!todo && filePath) {
@@ -965,12 +928,12 @@ function App() {
     
     // Set new debounce timer using stable path (100ms should be enough to prevent React StrictMode double calls)
     const newTimer = setTimeout(() => {
-      performTodoUpdate(id, newContent, newChatHistory, stablePath);
+      performTodoUpdate(id, newContent, undefined, stablePath);
       saveDebounceTimersRef.current.delete(stablePath); // Clean up timer reference using stable path
     }, 100);
     
     saveDebounceTimersRef.current.set(stablePath, newTimer);
-  }, [todos]);
+  }, [todos, performTodoUpdate]);
 
   const handlePriorityUpdate = async (id: string, newPriority: number) => {
     if (!settings) return;
@@ -1449,7 +1412,7 @@ function App() {
     };
 
     loadSelectedTodoContent();
-  }, [selectedTodo?.id, selectedTodo?.content, settings]);
+  }, [selectedTodo, settings]);
 
   // Show initialization screen while app is starting up
   if (isInitializing) {
@@ -1711,7 +1674,7 @@ function App() {
                     // Create a full todo object with correct frontmatter access
                     const fullTodo = {
                       id: metadata.sha,
-                      title: parsedMarkdown.frontmatter?.title || searchResult.name.replace('.md', ''),
+                      title: (parsedMarkdown.frontmatter as any)?.title || searchResult.name.replace('.md', ''),
                       content: parsedMarkdown.markdownContent,
                       frontmatter: parsedMarkdown.frontmatter,
                       path: searchResult.path,
