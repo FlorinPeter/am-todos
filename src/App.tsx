@@ -590,7 +590,7 @@ function App() {
         setTimeout(nextFetch, 100); // Small delay to prevent immediate overlaps
       }
     });
-  }, [settings, viewMode, isInitializing, isPerformingSave, fetchTodosWithSettings]);
+  }, [settings, viewMode, isInitializing, isPerformingSave]);
 
   // Persist selected todo ID to localStorage with error handling
   useEffect(() => {
@@ -1226,20 +1226,22 @@ function App() {
       const fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, todoToUpdate.content);
       const commitMessage = `feat: ${action} "${todoToUpdate.title}"`;
 
+      let newPath: string;
       if (isCurrentlyArchived) {
         // Move from archive to active todos
-        await moveTaskFromArchive(todoToUpdate.path, fullContent, commitMessage, settings.folder || 'todos');
+        newPath = await moveTaskFromArchive(todoToUpdate.path, fullContent, commitMessage, settings.folder || 'todos');
       } else {
         // Move from active todos to archive
-        await moveTaskToArchive(todoToUpdate.path, fullContent, commitMessage, settings.folder || 'todos');
+        newPath = await moveTaskToArchive(todoToUpdate.path, fullContent, commitMessage, settings.folder || 'todos');
       }
 
       setSaveStep('🔄 Refreshing...');
       await fetchTodos();
       
-      // Clear selection if we archived the currently selected task and we're in active view
-      if (!isCurrentlyArchived && viewMode === 'active' && selectedTodoId === id) {
-        setSelectedTodoId(null);
+      // Update selectedTodoId if the moved task is currently selected
+      if (selectedTodoId === id) {
+        setSelectedTodoId(newPath);
+        saveSelectedTodoId(newPath); // Persist the new selection
       }
       
       setSaveStep(`✅ ${action}d successfully!`);

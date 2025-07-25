@@ -118,14 +118,24 @@ const makeGitHubRequest = async (path: string, method = 'GET', headers = {}, bod
   try {
     const response = await requestPromise;
     
-    // Cache successful read operations
+    // Cache successful read operations (only if response is JSON)
     if (isReadOperation && response.ok) {
-      const responseData = await response.clone().json();
-      responseCache.set(cacheKey, {
-        promise: requestPromise,
-        timestamp: Date.now(),
-        data: responseData
-      });
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        try {
+          const responseData = await response.clone().json();
+          responseCache.set(cacheKey, {
+            promise: requestPromise,
+            timestamp: Date.now(),
+            data: responseData
+          });
+        } catch (jsonError) {
+          logger.error('Failed to parse JSON response for caching, skipping cache:', jsonError);
+          // Continue without caching - this is not a critical error
+        }
+      } else {
+        logger.log('Skipping cache for non-JSON response:', contentType);
+      }
     }
     
     return response;
@@ -263,10 +273,17 @@ export const createOrUpdateTodo = async (
   logger.log('GitHub response:', result);
   
   // Invalidate relevant caches after successful write
-  const folder = path.split('/')[0];
+  const pathParts = path.split('/');
+  const folder = pathParts[0];
   invalidateCache(`"path":"/repos/${owner}/${repo}/contents/${folder}"`);
   invalidateCache(`"path":"/repos/${owner}/${repo}/contents/${path}"`);
   invalidateCache(`"path":"/repos/${owner}/${repo}/contents"`);
+  
+  // Also invalidate parent directory cache if file is in a subdirectory
+  if (pathParts.length > 2) {
+    const parentDir = pathParts.slice(0, -1).join('/');
+    invalidateCache(`"path":"/repos/${owner}/${repo}/contents/${parentDir}"`);
+  }
   
   return result;
 };
@@ -590,10 +607,17 @@ export const deleteFile = async (
   logger.log('File deleted successfully:', path);
   
   // Invalidate relevant caches after successful deletion
-  const folder = path.split('/')[0];
+  const pathParts = path.split('/');
+  const folder = pathParts[0];
   invalidateCache(`"path":"/repos/${owner}/${repo}/contents/${folder}"`);
   invalidateCache(`"path":"/repos/${owner}/${repo}/contents/${path}"`);
   invalidateCache(`"path":"/repos/${owner}/${repo}/contents"`);
+  
+  // Also invalidate parent directory cache if file is in a subdirectory
+  if (pathParts.length > 2) {
+    const parentDir = pathParts.slice(0, -1).join('/');
+    invalidateCache(`"path":"/repos/${owner}/${repo}/contents/${parentDir}"`);
+  }
   
   return await response.json();
 };

@@ -77,7 +77,7 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
   }, []);
 
   // Helper function to build dual-configuration settings
-  const buildProviderSpecificSettings = () => {
+  const buildProviderSpecificSettings = useCallback(() => {
     const savedSettings = loadSettings();
     
     return {
@@ -101,7 +101,7 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
         branch: savedSettings?.gitlab?.branch || 'main'
       }
     };
-  };
+  }, [gitProvider, folder, geminiApiKey, aiProvider, openRouterApiKey, aiModel, pat, owner, repo, instanceUrl, projectId, token]);
 
   const loadFolders = useCallback(async () => {
     // Check if we have the required settings for the selected provider
