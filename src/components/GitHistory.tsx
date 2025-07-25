@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getFileHistory, getFileAtCommit } from '../services/gitService';
 import { parseMarkdownWithFrontmatter } from '../utils/markdown';
 import { parseFilenameMetadata, parseLegacyFilenameMetadata, FileMetadata } from '../utils/filenameMetadata';
@@ -110,27 +110,8 @@ const GitHistory: React.FC<GitHistoryProps> = ({
     return metadata;
   }, []);
 
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        setLoading(true);
-        const history = await getFileHistory(filePath);
-        setCommits(history);
-        
-        // Load frontmatter for first 5 commits upfront for better UX
-        await loadFrontmatterForCommits(history.slice(0, 5));
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch git history');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchHistory();
-  }, [filePath]);
-
   // Enhanced: Load and parse frontmatter and metadata for specific commits
-  const loadFrontmatterForCommits = async (commitsToLoad: GitCommit[]) => {
+  const loadFrontmatterForCommits = useCallback(async (commitsToLoad: GitCommit[]) => {
     const promises = commitsToLoad.map(async (commit) => {
       if (commit.contentLoaded) return commit; // Already loaded
       
@@ -166,7 +147,26 @@ const GitHistory: React.FC<GitHistoryProps> = ({
         return updated || commit;
       })
     );
-  };
+  }, [getCachedFrontmatter, getCachedMetadata, filePath]);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        setLoading(true);
+        const history = await getFileHistory(filePath);
+        setCommits(history);
+        
+        // Load frontmatter for first 5 commits upfront for better UX
+        await loadFrontmatterForCommits(history.slice(0, 5));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch git history');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, [filePath, loadFrontmatterForCommits]);
 
   // Enhanced: Load frontmatter for a single commit on-demand
   const loadFrontmatterForCommit = async (commitSha: string) => {

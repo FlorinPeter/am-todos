@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { saveCheckpoint, getCheckpoints, clearCheckpoints, generateCheckpointId, Checkpoint, saveChatSession, getChatSession, clearChatSession, AIChatSession } from '../utils/localStorage';
+import { generateCheckpointId, Checkpoint, saveChatSession, getChatSession, AIChatSession } from '../utils/localStorage';
 import { ChatMessage, AIResponseWithFallback } from '../types';
 import logger from '../utils/logger';
 

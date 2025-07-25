@@ -83,7 +83,7 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
@@ -123,7 +123,7 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
         const isTestEnv = process.env.NODE_ENV === 'test' || typeof window === 'undefined';
         const uniqueId = isTestEnv && normalizedResult.sha !== 'main' && normalizedResult.sha !== 'unknown'
           ? normalizedResult.sha 
-          : `search-${normalizedResult.path.replace(/[\/\s]/g, '-')}-${Date.now()}-${index}`;
+          : `search-${normalizedResult.path.replace(/[/\s]/g, '-')}-${Date.now()}-${index}`;
         
         // Clean filename for display (remove .md extension)
         const cleanTitle = normalizedResult.name.replace(/\.md$/, '');
@@ -339,8 +339,8 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
               const isSelected = selectedTodoId === todo.id;
               const completion = getCompletionPercentage(todo.content);
               const priority = todo.priority || 3;
-              const isSearchResult = todo.isSearchResult || false; // Use consistent flag from todo object
-              const shouldShowPath = isSearchResult && todo.path; // Show path for all search results
+              // const isSearchResult = todo.isSearchResult || false; // Use consistent flag from todo object
+              // const shouldShowPath = isSearchResult && todo.path; // Show path for all search results
               
               return (
                 <div

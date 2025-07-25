@@ -48,7 +48,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
         clearTimeout(loadFoldersTimeout);
       }
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Watch for external settings changes (like project context switching)
   useEffect(() => {

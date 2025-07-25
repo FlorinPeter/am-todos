@@ -5,7 +5,6 @@ import GitHistory from './GitHistory';
 import CodeMirrorEditor from './CodeMirrorEditor';
 import MarkdownCheckbox from './MarkdownCheckbox';
 import { processChatMessage } from '../services/aiService';
-import { parseMarkdownWithFrontmatter } from '../utils/markdown';
 import { saveDraft, getDraft, clearDraft, TodoDraft } from '../utils/localStorage';
 import { preprocessMarkdownCheckboxes, updateContentWithCheckboxStates, CheckboxData } from '../utils/checkboxPreprocessor';
 import { ChatMessage } from '../types';
@@ -373,30 +372,30 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
               }}
               className="github-markdown-dark"
               components={{
-                h1: ({ node, ...props }: any) => {
-                  return <h1 {...props} className="text-3xl font-bold mb-4 text-white border-b border-gray-600 pb-2" />;
+                h1: ({ node, children, ...props }: any) => {
+                  return <h1 {...props} className="text-3xl font-bold mb-4 text-white border-b border-gray-600 pb-2">{children}</h1>;
                 },
-                h2: ({ node, ...props }: any) => {
-                  return <h2 {...props} className="text-2xl font-semibold mb-3 text-white" />;
+                h2: ({ node, children, ...props }: any) => {
+                  return <h2 {...props} className="text-2xl font-semibold mb-3 text-white">{children}</h2>;
                 },
-                h3: ({ node, ...props }: any) => {
-                  return <h3 {...props} className="text-xl font-medium mb-2 text-white" />;
+                h3: ({ node, children, ...props }: any) => {
+                  return <h3 {...props} className="text-xl font-medium mb-2 text-white">{children}</h3>;
                 },
-                h4: ({ node, ...props }: any) => {
-                  return <h4 {...props} className="text-lg font-medium mb-2 text-white" />;
+                h4: ({ node, children, ...props }: any) => {
+                  return <h4 {...props} className="text-lg font-medium mb-2 text-white">{children}</h4>;
                 },
-                h5: ({ node, ...props }: any) => {
-                  return <h5 {...props} className="text-base font-medium mb-1 text-white" />;
+                h5: ({ node, children, ...props }: any) => {
+                  return <h5 {...props} className="text-base font-medium mb-1 text-white">{children}</h5>;
                 },
-                h6: ({ node, ...props }: any) => {
-                  return <h6 {...props} className="text-sm font-medium mb-1 text-white" />;
+                h6: ({ node, children, ...props }: any) => {
+                  return <h6 {...props} className="text-sm font-medium mb-1 text-white">{children}</h6>;
                 },
-                a: ({ node, ...props }: any) => {
+                a: ({ node, children, ...props }: any) => {
                   // Open external links in new tab
                   if (props.href && (props.href.startsWith('http://') || props.href.startsWith('https://'))) {
-                    return <a {...props} target="_blank" rel="noopener noreferrer" />;
+                    return <a {...props} target="_blank" rel="noopener noreferrer">{children}</a>;
                   }
-                  return <a {...props} />;
+                  return <a {...props}>{children}</a>;
                 },
                 // Helper function to extract text from React elements recursively
                 ...((() => {

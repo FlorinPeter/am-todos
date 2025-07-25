@@ -76,6 +76,33 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
     }
   }, []);
 
+  // Helper function to build dual-configuration settings
+  const buildProviderSpecificSettings = () => {
+    const savedSettings = loadSettings();
+    
+    return {
+      gitProvider,
+      folder, 
+      geminiApiKey, 
+      aiProvider, 
+      openRouterApiKey, 
+      aiModel,
+      // Preserve both provider configurations
+      github: {
+        pat,
+        owner,
+        repo,
+        branch: savedSettings?.github?.branch || 'main'
+      },
+      gitlab: {
+        instanceUrl,
+        projectId,
+        token,
+        branch: savedSettings?.gitlab?.branch || 'main'
+      }
+    };
+  };
+
   const loadFolders = useCallback(async () => {
     // Check if we have the required settings for the selected provider
     if (gitProvider === 'github' && (!pat || !owner || !repo)) return;
@@ -95,7 +122,7 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
     } finally {
       setIsLoadingFolders(false);
     }
-  }, [gitProvider, pat, owner, repo, instanceUrl, projectId, token]);
+  }, [gitProvider, pat, owner, repo, instanceUrl, projectId, token, buildProviderSpecificSettings]);
 
   // Load folders when credentials are available
   useEffect(() => {
@@ -132,32 +159,6 @@ const GitSettings: React.FC<GitSettingsProps> = ({ onSettingsSaved }) => {
     }
   };
 
-  // Helper function to build dual-configuration settings
-  const buildProviderSpecificSettings = () => {
-    const savedSettings = loadSettings();
-    
-    return {
-      gitProvider,
-      folder, 
-      geminiApiKey, 
-      aiProvider, 
-      openRouterApiKey, 
-      aiModel,
-      // Preserve both provider configurations
-      github: {
-        pat,
-        owner,
-        repo,
-        branch: savedSettings?.github?.branch || 'main'
-      },
-      gitlab: {
-        instanceUrl,
-        projectId,
-        token,
-        branch: savedSettings?.gitlab?.branch || 'main'
-      }
-    };
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

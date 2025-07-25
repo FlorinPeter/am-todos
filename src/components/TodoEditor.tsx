@@ -16,16 +16,6 @@ interface TodoEditorProps {
   repo?: string;
 }
 
-const getPriorityLabel = (priority: number): string => {
-  switch (priority) {
-    case 1: return 'P1 - Critical';
-    case 2: return 'P2 - High';
-    case 3: return 'P3 - Medium';
-    case 4: return 'P4 - Low';
-    case 5: return 'P5 - Very Low';
-    default: return 'P3 - Medium';
-  }
-};
 
 const TodoEditor: React.FC<TodoEditorProps> = ({ 
   selectedTodo, 
@@ -51,7 +41,7 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
         // Silently handle localStorage errors - cleanup is not critical
       }
     }
-  }, [selectedTodo?.id]);
+  }, [selectedTodo?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!selectedTodo) {
     return (
