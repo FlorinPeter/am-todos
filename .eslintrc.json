@@ -1,0 +1,34 @@
+{
+  "extends": [
+    "react-app",
+    "react-app/jest"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "project": "./tsconfig.json",
+    "ecmaVersion": 2020,
+    "sourceType": "module",
+    "ecmaFeatures": {
+      "jsx": true
+    }
+  },
+  "rules": {
+    "@typescript-eslint/no-inferrable-types": "warn",
+    "@typescript-eslint/no-unnecessary-type-assertion": "warn",
+    "@typescript-eslint/prefer-nullish-coalescing": "warn",
+    "@typescript-eslint/prefer-optional-chain": "warn",
+    "@typescript-eslint/no-unnecessary-condition": "warn",
+    "@typescript-eslint/no-redundant-type-constituents": "warn"
+  },
+  "overrides": [
+    {
+      "files": ["**/*.ts", "**/*.tsx"],
+      "rules": {
+        "@typescript-eslint/no-inferrable-types": ["warn", {
+          "ignoreParameters": false,
+          "ignoreProperties": false
+        }]
+      }
+    }
+  ]
+}
