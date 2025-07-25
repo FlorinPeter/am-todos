@@ -87,7 +87,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
     }
     
     // Extract metadata from filename
-    let metadata: FileMetadata | null = null;
+    let metadata: FileMetadata | null;
     
     // Try new format first
     metadata = parseFilenameMetadata(filePath);
@@ -171,7 +171,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
       }
     };
 
-    fetchHistory();
+    void fetchHistory();
   }, [filePath, loadFrontmatterForCommits]);
 
   // Enhanced: Load frontmatter for a single commit on-demand
@@ -294,7 +294,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
   }, []);
 
   // Simple: Show filename badge when commit has different filename than current file
-  const getFilenameBadge = useCallback((commit: GitCommit, index: number) => {
+  const getFilenameBadge = useCallback((commit: GitCommit) => {
     if (!commit.filePath) return null;
     
     const currentFileName = filePath.split('/').pop();
@@ -317,7 +317,6 @@ const GitHistory: React.FC<GitHistoryProps> = ({
 
   const renderCommitMetadata = useCallback((commit: GitCommit, index: number) => {
     // Enhanced: Use the historical file path for this commit to extract accurate priority
-    const historicalPath = commit.filePath || filePath;
     
     let priority: number | undefined;
     let isArchived: boolean = false;
@@ -356,7 +355,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
     }
     
     // Get filename badge for renamed files
-    const filenameBadge = getFilenameBadge(commit, index);
+    const filenameBadge = getFilenameBadge(commit);
     
     // Create helpful hint badge when we don't have reliable priority data
     const getHintBadge = () => {
@@ -394,7 +393,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
         {createdAt && formatCreatedDate(createdAt, commit.date)}
       </div>
     );
-  }, [getPriorityBadge, getArchiveBadge, formatCreatedDate, getFilenameBadge, getCachedMetadata, filePath, selectedCommit, loadingPreview]);
+  }, [getPriorityBadge, getArchiveBadge, formatCreatedDate, getFilenameBadge, filePath, selectedCommit, loadingPreview, extractPriorityFromPath]);
 
   if (loading) {
     return (
@@ -559,7 +558,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
                     const historicalPath = commit.filePath || filePath;
                     
                     let priority: number | undefined;
-                    let isArchived: boolean = false;
+                    let isArchived = false;
                     let createdAt: string | undefined;
                     let title: string | undefined;
                     
