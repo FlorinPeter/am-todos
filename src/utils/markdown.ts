@@ -98,7 +98,7 @@ export const parseMarkdownWithMetadata = (content: string, filename: string, isA
       return {
         title: legacyTitle || legacyData.title || 'Untitled',
         createdAt: legacyDate ? legacyDate + 'T00:00:00.000Z' : legacyData.createdAt,
-        priority: validatePriority(legacyData.priority),
+        priority: legacyData.priority !== undefined ? validatePriority(legacyData.priority) : undefined,
         isArchived,
         frontmatter: { tags: [] }, // Convert legacy to new frontmatter format
         markdownContent: legacyParsed.markdownContent
