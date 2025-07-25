@@ -812,7 +812,7 @@ export const listProjectFolders = async (settings: GitLabSettings): Promise<stri
     logger.log('GitLab: Raw tree response:', treeItems.length, 'items');
     
     // Filter for directories only (type === 'tree')
-    const directories = treeItems
+    const directories: string[] = treeItems
       .filter((item: any) => item.type === 'tree')
       .map((item: any) => item.name);
     

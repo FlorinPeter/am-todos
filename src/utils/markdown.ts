@@ -16,12 +16,12 @@ export const validatePriority = (priority: unknown): number => {
   }
   
   // Ensure priority is within valid range (1-5)
-  if (priority < 1 || priority > 5 || !Number.isInteger(priority)) {
+  if ((priority as number) < 1 || (priority as number) > 5 || !Number.isInteger(priority as number)) {
     logger.warn(`Priority value ${priority} out of range (1-5), defaulting to 3`);
     return 3;
   }
   
-  return priority;
+  return priority as number;
 };
 
 /**
@@ -92,10 +92,13 @@ export const parseMarkdownWithMetadata = (content: string, filename: string, isA
     const legacyFrontmatter = legacyParsed.frontmatter;
     
     if (legacyFrontmatter) {
+      // Cast to any to access legacy frontmatter properties
+      const legacyData = legacyFrontmatter as any;
+      
       return {
-        title: legacyTitle || legacyFrontmatter.title || 'Untitled',
-        createdAt: legacyDate ? legacyDate + 'T00:00:00.000Z' : legacyFrontmatter.createdAt,
-        priority: legacyFrontmatter.priority,
+        title: legacyTitle || legacyData.title || 'Untitled',
+        createdAt: legacyDate ? legacyDate + 'T00:00:00.000Z' : legacyData.createdAt,
+        priority: validatePriority(legacyData.priority),
         isArchived,
         frontmatter: { tags: [] }, // Convert legacy to new frontmatter format
         markdownContent: legacyParsed.markdownContent
