@@ -44,6 +44,7 @@ echo "🔍 Running TypeScript check on: $FILE_PATH"
 # Force no output with explicit flags
 npx tsc \
     --noEmit \
+    --strict \
     --skipLibCheck \
     --jsx react-jsx \
     --target es2015 \

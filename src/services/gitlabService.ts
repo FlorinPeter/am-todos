@@ -605,7 +605,7 @@ export const getTodos = async (settings: GitLabSettings, folder: string = 'todos
               frontmatter: parsed.frontmatter,
               path: file.path,
               sha: file.sha,
-              priority: parsed.priority,
+              priority: parsed.priority ?? 3,
               createdAt: parsed.createdAt,
               isArchived: includeArchived
             };
@@ -865,7 +865,7 @@ export const createProjectFolder = async (
   folderName: string
 ): Promise<void> => {
   // Validate folder name
-  if (!folderName || !folderName.match(/^[a-zA-Z][a-zA-Z0-9_-]*$/)) {
+  if (!folderName?.match(/^[a-zA-Z][a-zA-Z0-9_-]*$/)) {
     throw new Error('Invalid folder name. Use letters, numbers, underscores, and hyphens only.');
   }
   

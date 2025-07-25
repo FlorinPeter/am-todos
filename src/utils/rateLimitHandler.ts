@@ -81,6 +81,6 @@ export const showRateLimitNotification = (rateLimitInfo: RateLimitInfo) => {
   
   // Show user-friendly alert
   if (typeof window !== 'undefined' && window.alert) {
-    alert(message);
+    window.alert(message);
   }
 };
