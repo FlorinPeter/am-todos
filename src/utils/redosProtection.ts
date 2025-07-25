@@ -101,6 +101,7 @@ export const validateSearchQuery = (
   }
 
   // Check for null bytes and control characters
+  // eslint-disable-next-line no-control-regex
   if (/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(query)) {
     return {
       isValid: false,

@@ -1,7 +1,7 @@
 import yaml from 'js-yaml';
 import logger from './logger';
 import { TodoFrontmatter } from '../types';
-import { parseFilenameMetadata, isNewFormatFilename, isLegacyFormatFilename, extractDateFromLegacyFilename, extractTitleFromLegacyFilename } from './filenameMetadata';
+import { parseFilenameMetadata, isLegacyFormatFilename, extractDateFromLegacyFilename, extractTitleFromLegacyFilename } from './filenameMetadata';
 
 // Priority validation function
 export const validatePriority = (priority: unknown): number => {

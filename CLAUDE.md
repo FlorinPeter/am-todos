@@ -314,6 +314,43 @@ All core functionality is implemented and production-ready:
 
 ## Development Workflow
 
+## ⚠️ IMPORTANT: PostToolUse Hook Requirements
+
+**CRITICAL: This project has an active PostToolUse hook that automatically runs comprehensive code quality checks after every Edit, MultiEdit, or Write operation.**
+
+### Mandatory Hook Response Protocol:
+1. **PostToolUse Hook Execution**: After any file modification, the hook will automatically display:
+   - 📘 **TypeScript Check Results** - Strict type checking with `--strict` flag
+   - 📋 **ESLint Check Results** - Code quality and style validation  
+   - 📊 **Overall Status** - Pass/fail summary with actionable feedback
+
+2. **MANDATORY: Address All Issues**:  
+   - ❌ **TypeScript Errors**: MUST be fixed immediately - these are compilation failures
+   - ⚠️ **ESLint Warnings**: MUST be resolved for code quality standards
+   - ✅ **Success**: Only proceed when all checks show "✅ PASSED"
+
+3. **Zero Tolerance Policy**:
+   - **NO commits** are allowed with failing TypeScript checks
+   - **NO warnings** should remain unaddressed in modified files
+   - If PostToolUse shows issues, **STOP** and fix them before continuing
+
+4. **Hook Configuration**:
+   - Location: `.claude/settings.local.json` PostToolUse configuration
+   - Script: `hack/post-edit-hook.sh` → calls `hack/check.sh`
+   - Scope: Runs comprehensive project-wide TypeScript + file-specific ESLint checks
+
+### Example Hook Output:
+```
+🔍 PostToolUse Hook: Running check on modified file: src/services/example.ts
+==================================================
+📘 TypeScript Check: ✅ PASSED  
+📋 ESLint Check: ✅ PASSED
+🎉 Overall Result: ALL CHECKS PASSED - File is ready for commit!
+==================================================
+```
+
+**If you see warnings or errors in PostToolUse output, you MUST fix them before proceeding with any other work.**
+
 ### Testing
 
 #### Test File Naming Convention (Semantic Clarity)

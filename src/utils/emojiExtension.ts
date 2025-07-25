@@ -1,8 +1,7 @@
 // Working emoji autocompletion extension for CodeMirror 6
 import { Extension } from '@codemirror/state';
-import { ViewPlugin, EditorView } from '@codemirror/view';
-import { autocompletion, completionKeymap, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
-import { get, search } from 'node-emoji';
+import { autocompletion, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
+import { search } from 'node-emoji';
 
 // Define popular emojis as a static list
 const popularEmojis = [

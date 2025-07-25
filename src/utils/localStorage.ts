@@ -340,8 +340,8 @@ export const decodeSettingsFromUrl = (configParam: string): GitHubSettings | nul
       }
       
       // Validate that at least one provider configuration is complete
-      const hasValidGitHub = settings.github && settings.github.pat && settings.github.owner && settings.github.repo;
-      const hasValidGitLab = settings.gitlab && settings.gitlab.instanceUrl && settings.gitlab.projectId && settings.gitlab.token;
+      const hasValidGitHub = settings.github?.pat && settings.github?.owner && settings.github?.repo;
+      const hasValidGitLab = settings.gitlab?.instanceUrl && settings.gitlab?.projectId && settings.gitlab?.token;
       
       if (!hasValidGitHub && !hasValidGitLab) {
         logger.error("Invalid configuration - no complete provider settings found");

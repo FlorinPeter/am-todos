@@ -63,7 +63,7 @@ export const fetchJsonWithTimeout = async (
   }
   
   // Validate content-type before parsing as JSON (only if headers exist)
-  if (response.headers && typeof response.headers.get === 'function') {
+  if (response.headers?.get) {
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
       console.warn(`Expected JSON response but got content-type: ${contentType}`);
