@@ -9,7 +9,9 @@
 # - Runs ESLint with project configuration on individual files
 # - Accepts file path as parameter with validation
 # - Provides clear success/error feedback with emoji indicators
-# - Distinguishes between warnings and errors
+# - Distinguishes between warnings and errors with improved detection
+# - Shows detailed warning messages including TypeScript ESLint rules
+# - Uses stylish formatter for better readability
 # - Includes comprehensive error handling and usage examples
 # - Uses existing ESLint configuration from the project
 #
@@ -50,9 +52,10 @@ if ! command -v npx &> /dev/null; then
     exit 1
 fi
 
-# Run ESLint on the specified file
+# Run ESLint on the specified file with better formatting
 # Capture both stdout and stderr, and the exit code
-ESLINT_OUTPUT=$(npx eslint "$FILE_PATH" 2>&1)
+# Use --format=stylish for better readability and --no-error-on-unmatched-pattern to avoid warnings
+ESLINT_OUTPUT=$(npx eslint "$FILE_PATH" --format=stylish --no-error-on-unmatched-pattern 2>&1)
 ESLINT_EXIT_CODE=$?
 
 # Print the ESLint output
@@ -62,16 +65,30 @@ if [ -n "$ESLINT_OUTPUT" ]; then
 fi
 
 # Handle the results based on exit code
+# Note: ESLint exit codes: 0 = no issues, 1 = linting errors, 2 = fatal errors
 if [ $ESLINT_EXIT_CODE -eq 0 ]; then
     if [ -z "$ESLINT_OUTPUT" ]; then
         echo "✅ ESLint check passed with no issues for: $FILE_PATH"
     else
-        echo "⚠️  ESLint check passed with warnings for: $FILE_PATH"
+        # Check if output contains warnings (but no errors since exit code is 0)
+        if echo "$ESLINT_OUTPUT" | grep -q "warning"; then
+            echo "⚠️  ESLint check passed with warnings for: $FILE_PATH"
+        else
+            echo "✅ ESLint check passed with no issues for: $FILE_PATH"
+        fi
     fi
 elif [ $ESLINT_EXIT_CODE -eq 1 ]; then
-    echo "❌ ESLint check failed with errors for: $FILE_PATH"
+    # Check if we have both errors and warnings or just errors
+    if echo "$ESLINT_OUTPUT" | grep -q "error"; then
+        echo "❌ ESLint check failed with errors for: $FILE_PATH"
+    else
+        echo "❌ ESLint check failed for: $FILE_PATH"
+    fi
+    exit 1
+elif [ $ESLINT_EXIT_CODE -eq 2 ]; then
+    echo "❌ ESLint encountered a fatal error for: $FILE_PATH"
     exit 1
 else
-    echo "❌ ESLint encountered an unexpected error for: $FILE_PATH"
+    echo "❌ ESLint encountered an unexpected error (exit code $ESLINT_EXIT_CODE) for: $FILE_PATH"
     exit 1
 fi

@@ -74,12 +74,6 @@
     "dead-code:all": "npm run dead-code && npm run dead-deps",
     "dead-code:analyze": "node scripts/analyze-dead-code.js"
   },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
   "browserslist": {
     "production": [
       ">0.2%",
