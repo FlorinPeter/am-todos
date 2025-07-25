@@ -65,6 +65,10 @@ fix-*.js
 *.backup
 *.orig
 
+# TypeScript compilation output (should not be committed)
+src/**/*.js
+src/**/*.d.ts
+
 # Google Cloud credentials (if accidentally created)
 *.json
 !package*.json

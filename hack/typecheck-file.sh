@@ -41,6 +41,7 @@ fi
 echo "🔍 Running TypeScript check on: $FILE_PATH"
 
 # Run TypeScript compiler with specified options
+# Force no output with explicit flags
 npx tsc \
     --noEmit \
     --skipLibCheck \
