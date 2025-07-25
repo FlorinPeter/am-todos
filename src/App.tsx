@@ -166,6 +166,31 @@ function App() {
       setSearchResults([]);
       setIsSearching(false);
       currentSearchIdRef.current = '';
+      
+      // Check if currently selected todo is archived to determine correct view
+      // Look in both todos array and search results to find selected todo
+      const currentSelectedTodo = todos.find(todo => todo.id === selectedTodoId) ||
+                                 searchResults.find(result => {
+                                   const generatedId = `search-${result.path.replace(/[/\s]/g, '-')}`;
+                                   return selectedTodoId?.startsWith(generatedId) || result.sha === selectedTodoId;
+                                 });
+      
+      const isCurrentTodoArchived = currentSelectedTodo?.isArchived || 
+                                   currentSelectedTodo?.path?.includes('/archive/');
+      
+      // Switch to appropriate view mode based on selected todo
+      if (isCurrentTodoArchived && viewMode !== 'archived') {
+        logger.log('🔄 Switching to archived view after search clear - selected todo is archived');
+        manualViewModeChangeRef.current = true;
+        setViewMode('archived');
+      } else if (!isCurrentTodoArchived && viewMode !== 'active') {
+        logger.log('🔄 Switching to active view after search clear - selected todo is active');
+        manualViewModeChangeRef.current = true;
+        setViewMode('active');
+      }
+      
+      // Refresh todos when search is cleared to ensure consistent state
+      fetchTodos();
       return;
     }
 
@@ -1608,7 +1633,15 @@ function App() {
             selectedTodoId={selectedTodoId}
             onTodoSelect={async (id) => {
               // Check if this is a search result by looking for it in search results
-              const searchResult = searchResults.find(result => result.sha === id);
+              // Search results have generated IDs that start with "search-" or match the actual SHA
+              const searchResult = searchResults.find(result => {
+                // Match by SHA if the ID is the SHA
+                if (result.sha === id) return true;
+                
+                // Match by generated ID pattern if the todo is a search result
+                const generatedId = `search-${result.path.replace(/[/\s]/g, '-')}`;
+                return id.startsWith(generatedId);
+              });
               
               if (searchResult) {
                 // This is a search result - need to fetch the full todo content
@@ -1661,7 +1694,17 @@ function App() {
                   // Check if this todo is already in our todos array
                   const existingTodo = todos.find(todo => todo.path === searchResult.path);
                   if (existingTodo) {
-                    // Todo already exists, just select it
+                    // Todo already exists, switch view mode if needed and select it
+                    const isArchived = existingTodo.isArchived || existingTodo.path.includes('/archive/');
+                    if (isArchived && viewMode !== 'archived') {
+                      logger.log('🔄 Switching to archived view - existing todo is archived');
+                      manualViewModeChangeRef.current = true;
+                      setViewMode('archived');
+                    } else if (!isArchived && viewMode !== 'active') {
+                      logger.log('🔄 Switching to active view - existing todo is active');
+                      manualViewModeChangeRef.current = true;
+                      setViewMode('active');
+                    }
                     setSelectedTodoId(existingTodo.id);
                   } else {
                     // Need to fetch the full todo content
@@ -1678,8 +1721,20 @@ function App() {
                       content: parsedMarkdown.markdownContent,
                       frontmatter: parsedMarkdown.frontmatter,
                       path: searchResult.path,
-                      sha: metadata.sha
+                      sha: metadata.sha,
+                      isArchived: searchResult.path.includes('/archive/')
                     };
+                    
+                    // Switch to appropriate view mode based on selected todo
+                    if (fullTodo.isArchived && viewMode !== 'archived') {
+                      logger.log('🔄 Switching to archived view - selected search result is archived');
+                      manualViewModeChangeRef.current = true;
+                      setViewMode('archived');
+                    } else if (!fullTodo.isArchived && viewMode !== 'active') {
+                      logger.log('🔄 Switching to active view - selected search result is active');
+                      manualViewModeChangeRef.current = true;
+                      setViewMode('active');
+                    }
                     
                     // Add to todos array and select it
                     setTodos(prev => [...prev, fullTodo]);

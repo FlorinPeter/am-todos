@@ -426,52 +426,22 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                       const text = extractTextFromChildren(children);
                       const hasToken = text.includes('XCHECKBOXX');
                       
-                      // Only log when we have tokens to debug
-                      if (hasToken) {
-                        logger.debug('🔍 TOKEN DETECTED in LI:', text.substring(0, 100));
-                      }
-                      
                       const checkboxTokenMatch = text.match(/XCHECKBOXX(\d+)XENDX/);
                       if (checkboxTokenMatch) {
                         const checkboxIndex = parseInt(checkboxTokenMatch[1], 10);
                         const checkboxData = checkboxRegistry[checkboxIndex];
                         
-                        logger.debug('🎯 TOKEN FOUND:', {
-                          token: checkboxTokenMatch[0],
-                          index: checkboxIndex,
-                          registrySize: checkboxRegistry.length,
-                          hasRegistryEntry: !!checkboxData,
-                          registryEntry: checkboxData
-                        });
-                        
                         if (checkboxData) {
-                          logger.debug('✅ RENDERING CHECKBOX:', {
-                            index: checkboxIndex,
-                            content: checkboxData.content,
-                            isChecked: checkboxData.isChecked
-                          });
-                          
                           // Filter out the checkbox token from children, preserve nested content
                           const preservedChildren = React.Children.toArray(children).filter((child: any) => {
                             if (typeof child === 'string') {
                               const hasToken = child.includes(`XCHECKBOXX${checkboxIndex}XENDX`);
-                              logger.debug('🧹 FILTERING STRING CHILD:', {
-                                child: child.substring(0, 100),
-                                hasToken,
-                                shouldKeep: !hasToken
-                              });
                               return !hasToken;
                             }
                             
                             // For React elements, check if they contain the token recursively
                             const childText = extractTextFromChildren(child);
                             const hasToken = childText.includes(`XCHECKBOXX${checkboxIndex}XENDX`);
-                            logger.debug('🧹 FILTERING ELEMENT CHILD:', {
-                              childType: typeof child,
-                              childText: childText.substring(0, 100),
-                              hasToken,
-                              shouldKeep: !hasToken
-                            });
                             return !hasToken;
                           });
                           

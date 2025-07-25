@@ -105,12 +105,13 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
       // Use search results from API - this handles BOTH "This Folder" and "Entire Repo"
       displayTodos = searchResults.map((result, index) => {
         // Backend now normalizes GitHub/GitLab responses to consistent format
-        // Both providers now return: { path, name, sha, url, repository, text_matches, priority }
+        // Both providers now return: { path, name, sha, url, repository, text_matches, priority, displayTitle }
         const normalizedResult = {
           path: result.path || '',
           name: result.name || 'unknown.md',
           sha: result.sha || 'unknown',
-          priority: result.priority || 3
+          priority: result.priority || 3,
+          displayTitle: result.displayTitle || result.name?.replace(/\.md$/, '') || 'Unknown'
         };
         
         // Extract folder path (everything except filename) for project name display
@@ -125,8 +126,8 @@ const TodoSidebar: React.FC<TodoSidebarProps> = ({
           ? normalizedResult.sha 
           : `search-${normalizedResult.path.replace(/[/\s]/g, '-')}-${Date.now()}-${index}`;
         
-        // Clean filename for display (remove .md extension)
-        const cleanTitle = normalizedResult.name.replace(/\.md$/, '');
+        // Use displayTitle from backend (already parsed from filename metadata)
+        const cleanTitle = normalizedResult.displayTitle;
         
         return {
           id: uniqueId,
