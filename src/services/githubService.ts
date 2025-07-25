@@ -1,7 +1,7 @@
 import logger from '../utils/logger';
 import { fetchWithTimeout, TIMEOUT_VALUES } from '../utils/fetchWithTimeout';
 import { parseRateLimitError, showRateLimitNotification } from '../utils/rateLimitHandler';
-import { parseFilenameMetadata, parseLegacyFilenameMetadata, generateFilename, isNewFormatFilename } from '../utils/filenameMetadata';
+import { parseFilenameMetadata, parseLegacyFilenameMetadata, generateFilename } from '../utils/filenameMetadata';
 import { parseMarkdownWithMetadata, stringifyMarkdownWithMetadata } from '../utils/markdown';
 import { Todo } from '../types';
 
@@ -56,7 +56,7 @@ const isCacheValid = (entry: CacheEntry, ttl: number): boolean => {
 const invalidateCache = (pattern: string) => {
   const keysToDelete: string[] = [];
   
-  for (const [key, entry] of responseCache.entries()) {
+  for (const [key] of responseCache.entries()) {
     if (key.includes(pattern)) {
       keysToDelete.push(key);
     }

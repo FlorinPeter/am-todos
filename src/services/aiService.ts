@@ -1,5 +1,5 @@
 import { loadSettings } from '../utils/localStorage';
-import { AIResponse, AIResponseWithFallback, CommitMessageResponse, CommitMessageResponseWithFallback } from '../types';
+import { AIResponse, AIResponseWithFallback, CommitMessageResponseWithFallback } from '../types';
 import logger from '../utils/logger';
 import { fetchJsonWithTimeout, TIMEOUT_VALUES } from '../utils/fetchWithTimeout';
 
@@ -16,7 +16,6 @@ const getApiUrl = () => {
   }
 };
 
-const AI_API_URL = getApiUrl();
 
 const getAISettings = () => {
   const settings = loadSettings();

@@ -3,7 +3,7 @@
 
 import logger from '../utils/logger';
 import { parseRateLimitError, showRateLimitNotification } from '../utils/rateLimitHandler';
-import { parseFilenameMetadata, parseLegacyFilenameMetadata, generateFilename, isNewFormatFilename } from '../utils/filenameMetadata';
+import { parseFilenameMetadata, parseLegacyFilenameMetadata, generateFilename } from '../utils/filenameMetadata';
 import { parseMarkdownWithMetadata, stringifyMarkdownWithMetadata } from '../utils/markdown';
 import { Todo } from '../types';
 
@@ -81,7 +81,7 @@ const invalidateCache = (pattern: string) => {
   const keysToDelete: string[] = [];
   const beforeSize = responseCache.size;
   
-  for (const [key, entry] of responseCache.entries()) {
+  for (const [key] of responseCache.entries()) {
     if (key.includes(pattern)) {
       keysToDelete.push(key);
     }

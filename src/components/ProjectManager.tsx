@@ -67,9 +67,6 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
       }
     };
 
-    // Only check immediately - no polling
-    checkForSettingsChanges();
-    
     // Listen for storage events instead of polling (for cross-tab changes)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'am-todos-settings') {
