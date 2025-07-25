@@ -48,6 +48,7 @@ npx tsc \
     --jsx react-jsx \
     --target es2015 \
     --allowSyntheticDefaultImports \
+    --useUnknownInCatchVariables \
     --moduleResolution node \
     "$FILE_PATH"
 

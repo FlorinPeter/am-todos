@@ -342,7 +342,7 @@ const makeGitLabRequest = async (action: string, settings: GitLabSettings, param
       });
       return raceResponse;
     } catch (error) {
-      logger.error('❌ GitLab Race Condition Promise Failed:', { requestId, action, error: error.message });
+      logger.error('❌ GitLab Race Condition Promise Failed:', { requestId, action, error: error instanceof Error ? error.message : String(error) });
       // Fall through to execute our own promise
     }
   }
@@ -663,7 +663,7 @@ export const getFileMetadata = async (settings: GitLabSettings, path: string) =>
   } catch (parseError) {
     logger.error('GitLab getFileMetadata JSON parse error:', parseError);
     logger.error('GitLab getFileMetadata full response:', responseText);
-    throw new Error(`Failed to parse GitLab API response: ${parseError.message}`);
+    throw new Error(`Failed to parse GitLab API response: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
   }
   
   logger.log('GitLab getFileMetadata parsed keys:', Object.keys(metadata));
