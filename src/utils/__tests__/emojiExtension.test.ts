@@ -157,8 +157,8 @@ describe('emojiExtension', () => {
       it('should use node-emoji search when no popular matches found', () => {
         const context = createMockContext(':unicorn', 0, 8);
         const mockResults = [
-          { key: 'unicorn', emoji: '🦄' },
-          { key: 'unicorn_face', emoji: '🦄' }
+          { name: 'unicorn', emoji: '🦄' },
+          { name: 'unicorn_face', emoji: '🦄' }
         ];
         mockSearch.mockReturnValue(mockResults);
         
@@ -174,7 +174,7 @@ describe('emojiExtension', () => {
         const context = createMockContext(':test', 0, 5);
         // Create 100 mock results
         const manyResults = Array.from({ length: 100 }, (_, i) => ({
-          key: `emoji${i}`,
+          name: `emoji${i}`,
           emoji: '😀'
         }));
         mockSearch.mockReturnValue(manyResults);
@@ -215,8 +215,8 @@ describe('emojiExtension', () => {
       it('should convert search results to proper completion format', () => {
         const context = createMockContext(':cat', 0, 4);
         const mockResults = [
-          { key: 'cat', emoji: '🐱' },
-          { key: 'cat2', emoji: '🐈' }
+          { name: 'cat', emoji: '🐱' },
+          { name: 'cat2', emoji: '🐈' }
         ];
         mockSearch.mockReturnValue(mockResults);
         
@@ -237,8 +237,8 @@ describe('emojiExtension', () => {
       it('should combine and deduplicate popular and search results', () => {
         const context = createMockContext(':fire', 0, 5);
         const mockResults = [
-          { key: 'fire', emoji: '🔥' }, // This matches popular emoji
-          { key: 'fireworks', emoji: '🎆' }
+          { name: 'fire', emoji: '🔥' }, // This matches popular emoji
+          { name: 'fireworks', emoji: '🎆' }
         ];
         mockSearch.mockReturnValue(mockResults);
         
@@ -253,9 +253,9 @@ describe('emojiExtension', () => {
       it('should sort results by relevance', () => {
         const context = createMockContext(':star', 0, 5);
         const mockResults = [
-          { key: 'superstar', emoji: '🌟' },
-          { key: 'star', emoji: '⭐' }, // Exact match should be prioritized
-          { key: 'starfish', emoji: '⭐' }
+          { name: 'superstar', emoji: '🌟' },
+          { name: 'star', emoji: '⭐' }, // Exact match should be prioritized
+          { name: 'starfish', emoji: '⭐' }
         ];
         mockSearch.mockReturnValue(mockResults);
         
@@ -270,7 +270,7 @@ describe('emojiExtension', () => {
         const context = createMockContext(':e', 0, 2);
         // Create many search results that would exceed the limit
         const manyResults = Array.from({ length: 60 }, (_, i) => ({
-          key: `emoji_${i}`,
+          name: `emoji_${i}`,
           emoji: '😀'
         }));
         mockSearch.mockReturnValue(manyResults);

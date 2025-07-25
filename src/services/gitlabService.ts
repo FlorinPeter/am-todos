@@ -251,7 +251,11 @@ const makeGitLabRequest = async (action: string, settings: GitLabSettings, param
       
       return clonedResponse;
     } catch (error) {
-      logger.error('❌ GitLab In-Flight Request Error:', { requestId, action, error: error.message });
+      logger.error('❌ GitLab In-Flight Request Error:', { 
+        requestId, 
+        action, 
+        error: error instanceof Error ? error.message : String(error) 
+      });
       // Remove the failed in-flight request and continue with new request
       inFlightRequests.delete(cacheKey);
     }

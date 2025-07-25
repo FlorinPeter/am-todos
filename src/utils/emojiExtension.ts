@@ -89,7 +89,7 @@ export function emojiCompletions(context: CompletionContext): CompletionResult |
       try {
         const searchResults = search(query);
         searchMatches = searchResults.slice(0, 50).map(result => ({
-          label: `:${result.key}:`,
+          label: `:${result.name}:`,
           detail: result.emoji,
           apply: result.emoji,
           type: 'variable'
