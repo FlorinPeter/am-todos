@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { getFileHistory, getFileAtCommit } from '../services/gitService';
 import { parseMarkdownWithFrontmatter } from '../utils/markdown';
+import { parseFilenameMetadata, parseLegacyFilenameMetadata, FileMetadata } from '../utils/filenameMetadata';
 import { TodoFrontmatter } from '../types';
 
 interface GitCommit {
@@ -10,6 +11,7 @@ interface GitCommit {
   date: string;
   url: string;
   frontmatter?: TodoFrontmatter | null; // Enhanced: Optional parsed frontmatter
+  metadata?: FileMetadata | null; // Enhanced: Filename-based metadata
   contentLoaded?: boolean; // Track if we've tried to load content for this commit
 }
 
@@ -19,8 +21,9 @@ interface GitHistoryProps {
   onClose: () => void;
 }
 
-// Enhanced: Performance optimization - frontmatter cache
+// Enhanced: Performance optimization - frontmatter and metadata cache
 const frontmatterCache = new Map<string, { frontmatter: TodoFrontmatter | null; timestamp: number }>();
+const metadataCache = new Map<string, { metadata: FileMetadata | null; timestamp: number }>();
 const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
 
 const GitHistory: React.FC<GitHistoryProps> = ({
@@ -67,6 +70,46 @@ const GitHistory: React.FC<GitHistoryProps> = ({
     return frontmatter;
   }, []);
 
+  // Enhanced: Performance optimization - cached metadata parsing from filename
+  const getCachedMetadata = useCallback((filePath: string): FileMetadata | null => {
+    const cacheKey = filePath;
+    const cached = metadataCache.get(cacheKey);
+    
+    // Check if cached result is still valid
+    if (cached && Date.now() - cached.timestamp < CACHE_EXPIRY) {
+      return cached.metadata;
+    }
+    
+    // Extract metadata from filename
+    let metadata: FileMetadata | null = null;
+    
+    // Try new format first
+    metadata = parseFilenameMetadata(filePath);
+    
+    // Fall back to legacy format if new format fails
+    if (!metadata) {
+      metadata = parseLegacyFilenameMetadata(filePath);
+    }
+    
+    // Cache the result
+    metadataCache.set(cacheKey, {
+      metadata,
+      timestamp: Date.now()
+    });
+    
+    // Clean up old cache entries periodically
+    if (metadataCache.size > 100) {
+      const now = Date.now();
+      for (const [key, value] of metadataCache.entries()) {
+        if (now - value.timestamp > CACHE_EXPIRY) {
+          metadataCache.delete(key);
+        }
+      }
+    }
+    
+    return metadata;
+  }, []);
+
   useEffect(() => {
     const fetchHistory = async () => {
       try {
@@ -86,7 +129,7 @@ const GitHistory: React.FC<GitHistoryProps> = ({
     fetchHistory();
   }, [filePath]);
 
-  // Enhanced: Load and parse frontmatter for specific commits
+  // Enhanced: Load and parse frontmatter and metadata for specific commits
   const loadFrontmatterForCommits = async (commitsToLoad: GitCommit[]) => {
     const promises = commitsToLoad.map(async (commit) => {
       if (commit.contentLoaded) return commit; // Already loaded
@@ -94,17 +137,22 @@ const GitHistory: React.FC<GitHistoryProps> = ({
       try {
         const fileData = await getFileAtCommit(filePath, commit.sha);
         const frontmatter = getCachedFrontmatter(fileData.content, commit.sha);
+        const metadata = getCachedMetadata(filePath);
         
         return {
           ...commit,
           frontmatter,
+          metadata,
           contentLoaded: true
         };
       } catch (error) {
-        // If we can't load content, mark as loaded but with null frontmatter
+        // If we can't load content, still try to extract metadata from filename
+        const metadata = getCachedMetadata(filePath);
+        
         return {
           ...commit,
           frontmatter: null,
+          metadata,
           contentLoaded: true
         };
       }
@@ -207,7 +255,22 @@ const GitHistory: React.FC<GitHistoryProps> = ({
   }, []);
 
   const renderCommitMetadata = useCallback((commit: GitCommit) => {
-    if (!commit.frontmatter) {
+    // Try to get metadata from filename first, then fall back to frontmatter
+    let priority: number | undefined;
+    let isArchived: boolean = false;
+    let createdAt: string | undefined;
+    
+    if (commit.metadata) {
+      priority = commit.metadata.priority;
+      createdAt = commit.metadata.date;
+      // Check if file is in archive folder
+      isArchived = filePath.includes('/archive/');
+    } else if (commit.frontmatter) {
+      // Legacy: fallback to frontmatter (shouldn't happen with new architecture)
+      priority = (commit.frontmatter as any).priority;
+      isArchived = (commit.frontmatter as any).isArchived || false;
+      createdAt = (commit.frontmatter as any).createdAt;
+    } else {
       // Show loading indicator if we haven't tried to load content yet
       if (!commit.contentLoaded) {
         return (
@@ -216,19 +279,17 @@ const GitHistory: React.FC<GitHistoryProps> = ({
           </div>
         );
       }
-      return null; // No frontmatter available
+      return null; // No metadata available
     }
-
-    const { priority, isArchived, createdAt } = commit.frontmatter;
     
     return (
       <div className="flex flex-wrap items-center gap-2 mt-2">
-        {getPriorityBadge(priority)}
+        {priority && getPriorityBadge(priority)}
         {isArchived && getArchiveBadge()}
-        {formatCreatedDate(createdAt, commit.date)}
+        {createdAt && formatCreatedDate(createdAt, commit.date)}
       </div>
     );
-  }, [getPriorityBadge, getArchiveBadge, formatCreatedDate]);
+  }, [getPriorityBadge, getArchiveBadge, formatCreatedDate, filePath]);
 
   if (loading) {
     return (
@@ -359,21 +420,41 @@ const GitHistory: React.FC<GitHistoryProps> = ({
                   {/* Enhanced: Metadata section for selected commit */}
                   {selectedCommit && (() => {
                     const commit = commits.find(c => c.sha === selectedCommit);
-                    return commit?.frontmatter ? (
+                    if (!commit?.metadata && !commit?.frontmatter) return null;
+                    
+                    let priority: number | undefined;
+                    let isArchived: boolean = false;
+                    let createdAt: string | undefined;
+                    let title: string | undefined;
+                    
+                    if (commit.metadata) {
+                      priority = commit.metadata.priority;
+                      createdAt = commit.metadata.date;
+                      title = commit.metadata.displayTitle;
+                      isArchived = filePath.includes('/archive/');
+                    } else if (commit.frontmatter) {
+                      // Legacy fallback
+                      priority = (commit.frontmatter as any).priority;
+                      isArchived = (commit.frontmatter as any).isArchived || false;
+                      createdAt = (commit.frontmatter as any).createdAt;
+                      title = (commit.frontmatter as any).title;
+                    }
+                    
+                    return (
                       <div className="mb-4 p-3 bg-gray-900 rounded border border-gray-600">
                         <h4 className="text-sm font-medium text-gray-300 mb-2">Metadata</h4>
                         <div className="flex flex-wrap items-center gap-2">
-                          {getPriorityBadge(commit.frontmatter.priority)}
-                          {commit.frontmatter.isArchived && getArchiveBadge()}
-                          {formatCreatedDate(commit.frontmatter.createdAt, commit.date)}
+                          {priority && getPriorityBadge(priority)}
+                          {isArchived && getArchiveBadge()}
+                          {createdAt && formatCreatedDate(createdAt, commit.date)}
                         </div>
-                        {commit.frontmatter.title && (
+                        {title && (
                           <div className="mt-2 text-sm text-gray-300">
-                            <span className="text-gray-400">Title:</span> {commit.frontmatter.title}
+                            <span className="text-gray-400">Title:</span> {title}
                           </div>
                         )}
                       </div>
-                    ) : null;
+                    );
                   })()}
                   {loadingPreview ? (
                     <div className="flex justify-center items-center h-32">
@@ -451,21 +532,41 @@ const GitHistory: React.FC<GitHistoryProps> = ({
                     {/* Enhanced: Metadata section for selected commit (mobile) */}
                     {selectedCommit && (() => {
                       const commit = commits.find(c => c.sha === selectedCommit);
-                      return commit?.frontmatter ? (
+                      if (!commit?.metadata && !commit?.frontmatter) return null;
+                      
+                      let priority: number | undefined;
+                      let isArchived: boolean = false;
+                      let createdAt: string | undefined;
+                      let title: string | undefined;
+                      
+                      if (commit.metadata) {
+                        priority = commit.metadata.priority;
+                        createdAt = commit.metadata.date;
+                        title = commit.metadata.displayTitle;
+                        isArchived = filePath.includes('/archive/');
+                      } else if (commit.frontmatter) {
+                        // Legacy fallback
+                        priority = (commit.frontmatter as any).priority;
+                        isArchived = (commit.frontmatter as any).isArchived || false;
+                        createdAt = (commit.frontmatter as any).createdAt;
+                        title = (commit.frontmatter as any).title;
+                      }
+                      
+                      return (
                         <div className="mb-4 p-3 bg-gray-900 rounded border border-gray-600">
                           <h4 className="text-sm font-medium text-gray-300 mb-2">Metadata</h4>
                           <div className="flex flex-wrap items-center gap-2">
-                            {getPriorityBadge(commit.frontmatter.priority)}
-                            {commit.frontmatter.isArchived && getArchiveBadge()}
-                            {formatCreatedDate(commit.frontmatter.createdAt, commit.date)}
+                            {priority && getPriorityBadge(priority)}
+                            {isArchived && getArchiveBadge()}
+                            {createdAt && formatCreatedDate(createdAt, commit.date)}
                           </div>
-                          {commit.frontmatter.title && (
+                          {title && (
                             <div className="mt-2 text-sm text-gray-300">
-                              <span className="text-gray-400">Title:</span> {commit.frontmatter.title}
+                              <span className="text-gray-400">Title:</span> {title}
                             </div>
                           )}
                         </div>
-                      ) : null;
+                      );
                     })()}
                     {loadingPreview ? (
                       <div className="flex justify-center items-center h-32">
