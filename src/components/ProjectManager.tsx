@@ -103,7 +103,9 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
       setAvailableFolders(folders);
     } catch (error) {
       logger.error('ProjectManager: Failed to load folders:', error);
-      logger.error('ProjectManager: Error details:', error.message, error.stack);
+      if (error instanceof Error) {
+        logger.error('ProjectManager: Error details:', error.message, error.stack);
+      }
       // Keep default folders on error
       setAvailableFolders(['todos']);
     } finally {
@@ -197,7 +199,12 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
       setShowCreateModal(false);
     } catch (error) {
       logger.error('Failed to create project:', error);
-      alert('Failed to create project: ' + (error as Error).message);
+      if (error instanceof Error) {
+        logger.error('Failed to create project: Error details:', error.message, error.stack);
+        alert('Failed to create project: ' + error.message);
+      } else {
+        alert('Failed to create project: An unknown error occurred.');
+      }
     } finally {
       setIsCreating(false);
     }

@@ -5,8 +5,16 @@
  * Previously, these were duplicated across multiple components.
  */
 
-// ❌ REMOVED: ChatMessage interface - unused throughout codebase
-// This was defined but never actually used for any chat functionality
+/**
+ * Chat message interface for the AI chat component.
+ * Used in: AIChat
+ */
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  checkpointId?: string;
+}
 
 /**
  * Todo item interface - Updated for filename-based metadata
@@ -14,14 +22,14 @@
  */
 export interface Todo {
   id: string;
-  title: string;        // ✅ Extracted from filename
+  title: string;        // Extracted from filename
   content: string;
   frontmatter: {
-    tags: string[];     // 🆕 Only tags remain in frontmatter
+    tags: string[];     // Only tags remain in frontmatter
   };
   path: string;
   sha: string;
-  // 🆕 Metadata now from filename instead of frontmatter
+  // Metadata now from filename instead of frontmatter
   priority: number;     // Extracted from filename
   createdAt: string;    // Extracted from filename
   isArchived: boolean;  // Determined by folder location
@@ -35,9 +43,9 @@ export interface Todo {
  * Used in: markdown utils
  */
 export interface TodoFrontmatter {
-  tags: string[];  // 🆕 Only tags field remains - provides extensibility
-  // ❌ REMOVED: title, createdAt, priority, isArchived (now in filename)
-  // ❌ REMOVED: chatHistory (unused code)
+  tags: string[];  // Only tags field remains - provides extensibility
+  // REMOVED: title, createdAt, priority, isArchived (now in filename)
+  // REMOVED: chatHistory (unused code)
 }
 
 /**

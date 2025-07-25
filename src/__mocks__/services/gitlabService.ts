@@ -1,11 +1,6 @@
 // Mock implementation of GitLab service for testing
 import { vi } from 'vitest';
 
-export const createOrUpdateTodo = vi.fn().mockResolvedValue({
-  file_path: 'todos/mock-todo.md',
-  content: 'mock content'
-});
-
 export const ensureDirectory = vi.fn().mockResolvedValue(undefined);
 
 export const getTodos = vi.fn().mockResolvedValue([
@@ -13,13 +8,6 @@ export const getTodos = vi.fn().mockResolvedValue([
 ]);
 
 export const getFileContent = vi.fn().mockResolvedValue('# Mock Todo\n\n- [ ] Mock task');
-
-export const getFileMetadata = vi.fn().mockResolvedValue({
-  sha: 'mock-sha',
-  content: '# Mock Todo\n\n- [ ] Mock task',
-  path: 'todos/mock-todo.md',
-  name: 'mock-todo.md'
-});
 
 export const ensureArchiveDirectory = vi.fn().mockResolvedValue(undefined);
 
