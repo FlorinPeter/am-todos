@@ -37,7 +37,7 @@ describe('Logger', () => {
     
     logger.log('test message');
     logger.info('info message');
-    logger.debug('debug message');
+    logger.debug('debug message'); // eslint-disable-line testing-library/no-debugging-utils
     
     expect(console.log).toHaveBeenCalledWith('test message');
     expect(console.info).toHaveBeenCalledWith('info message');
@@ -52,7 +52,7 @@ describe('Logger', () => {
     
     logger.log('test message');
     logger.info('info message');
-    logger.debug('debug message');
+    logger.debug('debug message'); // eslint-disable-line testing-library/no-debugging-utils
     
     expect(console.log).not.toHaveBeenCalled();
     expect(console.info).not.toHaveBeenCalled();

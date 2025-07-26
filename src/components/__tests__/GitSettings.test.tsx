@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import GitSettings from '../GitSettings';
 
@@ -207,6 +208,9 @@ describe('GitSettings - Focused Coverage Tests', () => {
       // Wait for folder loading to complete
       await waitFor(() => {
         expect(mockSaveSettings).toHaveBeenCalled();
+      });
+      
+      await waitFor(() => {
         expect(mockListProjectFolders).toHaveBeenCalled();
       });
     });
@@ -233,6 +237,9 @@ describe('GitSettings - Focused Coverage Tests', () => {
       // Wait for folder loading to complete
       await waitFor(() => {
         expect(mockSaveSettings).toHaveBeenCalled();
+      });
+      
+      await waitFor(() => {
         expect(mockListProjectFolders).toHaveBeenCalled();
       });
     });
@@ -354,6 +361,9 @@ describe('GitSettings - Focused Coverage Tests', () => {
       await waitFor(() => {
         const folderSelect = screen.getByDisplayValue('todos');
         expect(folderSelect.tagName).toBe('SELECT');
+      });
+      
+      await waitFor(() => {
         expect(screen.getByText('Found 3 project folders. Select one or create a new project.')).toBeInTheDocument();
       });
     });
@@ -449,6 +459,9 @@ describe('GitSettings - Focused Coverage Tests', () => {
       // Wait for creation to complete
       await waitFor(() => {
         expect(mockCreateProjectFolder).toHaveBeenCalledWith('new-project');
+      });
+      
+      await waitFor(() => {
         expect(mockListProjectFolders).toHaveBeenCalled();
       });
 
@@ -492,6 +505,9 @@ describe('GitSettings - Focused Coverage Tests', () => {
       // Wait for error handling
       await waitFor(() => {
         expect(mockLogger.error).toHaveBeenCalledWith('Failed to create folder:', createError);
+      });
+      
+      await waitFor(() => {
         expect(alertSpy).toHaveBeenCalledWith('Failed to create folder: Creation failed');
       });
 

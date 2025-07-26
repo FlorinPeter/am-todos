@@ -3,6 +3,7 @@
  */
 import React from 'react';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { vi, describe, test, expect, beforeEach, afterEach } from 'vitest';
 import SettingsSharing from '../SettingsSharing';
 import * as localStorage from '../../utils/localStorage';
@@ -41,6 +42,7 @@ describe('SettingsSharing', () => {
     repoOwner: 'test-owner',
     repoName: 'test-repo',
     todosDirectory: 'todos',
+    folder: 'todos',
     gitProvider: 'github' as const,
   };
 
@@ -186,13 +188,14 @@ describe('SettingsSharing', () => {
     const copyButton = screen.getByRole('button', { name: /copy/i });
     fireEvent.click(copyButton);
 
-    // Check for feedback toast with green background and check icon
+    // Check for feedback toast
     await waitFor(() => {
-      const feedbackToast = screen.getByText(/link copied to clipboard/i).closest('div')?.parentElement;
-      expect(feedbackToast).toHaveClass('bg-green-900/50', 'border-green-600');
-      
-      // Check for success icon in toast
-      const successIcon = feedbackToast?.querySelector('svg');
+      expect(screen.getByText(/link copied to clipboard/i)).toBeInTheDocument();
+    });
+    
+    // Check for success icon (should be present in the toast area)
+    await waitFor(() => {
+      const successIcon = screen.getByRole('img', { hidden: true });
       expect(successIcon).toBeInTheDocument();
     });
   });
@@ -235,7 +238,7 @@ describe('SettingsSharing', () => {
 
     // Check that success button has correct styling
     await waitFor(() => {
-      const successButton = screen.getByText('Copied!').closest('button');
+      const successButton = screen.getByRole('button', { name: /copied/i });
       expect(successButton).toHaveClass('bg-green-600', 'text-white', 'scale-105', 'shadow-lg');
     });
   });

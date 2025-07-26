@@ -1,4 +1,33 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { 
+  saveSettings,
+  loadSettings,
+  encodeSettingsToUrl,
+  decodeSettingsFromUrl,
+  getUrlConfig,
+  saveCheckpoint, 
+  getCheckpoints, 
+  clearCheckpoints, 
+  generateCheckpointId,
+  saveSelectedTodoId,
+  loadSelectedTodoId,
+  clearSelectedTodoId,
+  saveViewMode,
+  loadViewMode,
+  clearViewMode,
+  saveDraft,
+  getDraft,
+  clearDraft,
+  clearOtherDrafts,
+  saveChatSession,
+  getChatSession,
+  clearChatSession,
+  clearOtherChatSessions,
+  AIChatSession,
+  Checkpoint,
+  TodoDraft,
+} from '../localStorage';
+import logger from '../logger';
 
 // Create a proper localStorage mock
 const store = {} as Record<string, string>;
@@ -34,37 +63,7 @@ vi.mock('../logger', () => ({
   }
 }));
 
-// Now import the functions
-import { 
-  saveSettings,
-  loadSettings,
-  encodeSettingsToUrl,
-  decodeSettingsFromUrl,
-  getUrlConfig,
-  saveCheckpoint, 
-  getCheckpoints, 
-  clearCheckpoints, 
-  generateCheckpointId,
-  saveSelectedTodoId,
-  loadSelectedTodoId,
-  clearSelectedTodoId,
-  saveViewMode,
-  loadViewMode,
-  clearViewMode,
-  saveDraft,
-  getDraft,
-  clearDraft,
-  clearOtherDrafts,
-  saveChatSession,
-  getChatSession,
-  clearChatSession,
-  clearOtherChatSessions,
-  AIChatSession,
-  Checkpoint,
-  TodoDraft,
-  ViewMode
-} from '../localStorage';
-import logger from '../logger';
+// Imports moved to top of file
 
 describe('localStorage functions', () => {
   beforeEach(() => {
@@ -1408,7 +1407,7 @@ describe('localStorage functions', () => {
         const mockSession: AIChatSession = {
           todoId: 'todo-123',
           path: 'tasks/test.md',
-          chatHistory: [{ role: 'user', content: 'Test message' }],
+          chatHistory: [{ role: 'user', content: 'Test message', timestamp: '2023-01-01T00:00:00.000Z' }],
           checkpoints: [],
           isExpanded: true,
           timestamp: Date.now()
@@ -1459,7 +1458,7 @@ describe('localStorage functions', () => {
         const mockSession: AIChatSession = {
           todoId: 'todo-123',
           path: 'tasks/test.md',
-          chatHistory: [{ role: 'user', content: 'Test message' }],
+          chatHistory: [{ role: 'user', content: 'Test message', timestamp: '2023-01-01T00:00:00.000Z' }],
           checkpoints: [],
           isExpanded: true,
           timestamp: Date.now()

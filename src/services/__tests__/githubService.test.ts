@@ -5,6 +5,8 @@
  */
 
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { fetchWithTimeout } from '../../utils/fetchWithTimeout';
+import * as githubService from '../githubService';
 
 // Mock the fetchWithTimeout module entirely
 vi.mock('../../utils/fetchWithTimeout', () => ({
@@ -14,9 +16,6 @@ vi.mock('../../utils/fetchWithTimeout', () => ({
     LONG: 30000
   }
 }));
-
-import { fetchWithTimeout } from '../../utils/fetchWithTimeout';
-import * as githubService from '../githubService';
 
 const mockFetchWithTimeout = vi.mocked(fetchWithTimeout);
 
@@ -29,17 +28,25 @@ const createMockResponse = (options: {
   text?: () => Promise<string>;
   headers?: Map<string, string> | Headers;
   url?: string;
-}) => {
+}): Response => {
   const mockResponse = {
     ok: options.ok,
     status: options.status || (options.ok ? 200 : 500),
     statusText: options.statusText || (options.ok ? 'OK' : 'Error'),
     json: options.json || (async () => ({})),
     text: options.text || (async () => ''),
-    headers: options.headers || new Headers(),
+    headers: options.headers instanceof Headers ? options.headers : new Headers(),
     url: options.url || 'test-url',
-    clone: () => createMockResponse(options)
-  };
+    clone: () => createMockResponse(options),
+    // Add missing Response properties with defaults
+    redirected: false,
+    type: 'basic' as ResponseType,
+    body: null,
+    bodyUsed: false,
+    arrayBuffer: async () => new ArrayBuffer(0),
+    blob: async () => new Blob(),
+    formData: async () => new FormData(),
+  } as Response;
   return mockResponse;
 };
 

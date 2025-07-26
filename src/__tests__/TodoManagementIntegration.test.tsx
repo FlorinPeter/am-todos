@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import TodoEditor from '../components/TodoEditor';
 
@@ -34,12 +35,11 @@ const mockTodo = {
   id: 'test-todo-1',
   title: 'Original Title',
   content: '- [ ] Task 1\n- [ ] Task 2',
+  priority: 3,
+  createdAt: '2025-01-01T10:00:00.000Z',
+  isArchived: false,
   frontmatter: {
-    title: 'Original Title',
-    createdAt: '2025-01-01T10:00:00.000Z',
-    priority: 3,
-    isArchived: false,
-    chatHistory: []
+    tags: []
   },
   path: 'todos/2025-01-01-original-title.md',
   sha: 'abc123'
@@ -73,12 +73,11 @@ const mockTodos = [
     id: 'todo-1',
     title: 'First Todo',
     content: '- [ ] First task',
+    priority: 3,
+    createdAt: '2025-01-01T10:00:00.000Z',
+    isArchived: false,
     frontmatter: {
-      title: 'First Todo',
-      createdAt: '2025-01-01T10:00:00.000Z',
-      priority: 3,
-      isArchived: false,
-      chatHistory: []
+      tags: []
     },
     path: 'todos/2025-01-01-first-todo.md',
     sha: 'sha1'
@@ -87,12 +86,11 @@ const mockTodos = [
     id: 'todo-2',
     title: 'Second Todo',
     content: '- [ ] Second task',
+    priority: 2,
+    createdAt: '2025-01-02T10:00:00.000Z',
+    isArchived: false,
     frontmatter: {
-      title: 'Second Todo',
-      createdAt: '2025-01-02T10:00:00.000Z',
-      priority: 2,
-      isArchived: false,
-      chatHistory: []
+      tags: []
     },
     path: 'todos/2025-01-02-second-todo.md',
     sha: 'sha2'
@@ -101,12 +99,11 @@ const mockTodos = [
     id: 'todo-3',
     title: 'Third Todo',
     content: '- [ ] Third task',
+    priority: 1,
+    createdAt: '2025-01-03T10:00:00.000Z',
+    isArchived: false,
     frontmatter: {
-      title: 'Third Todo',
-      createdAt: '2025-01-03T10:00:00.000Z',
-      priority: 1,
-      isArchived: false,
-      chatHistory: []
+      tags: []
     },
     path: 'todos/2025-01-03-third-todo.md',
     sha: 'sha3'
@@ -814,8 +811,8 @@ describe('Todo Management Integration Tests', () => {
       ) => {
         // Step 1: Todo is updated, gets new SHA
         // Step 2: fetchTodos is called with preserveTodoPath
-        const viewMode = 'active';
-        const filteredTodos = viewMode === 'archived' 
+        const isArchiveView = false; // For this test, we're testing active view
+        const filteredTodos = isArchiveView 
           ? updatedTodos.filter(todo => todo.path.includes('/archive/'))
           : updatedTodos.filter(todo => !todo.path.includes('/archive/'));
 

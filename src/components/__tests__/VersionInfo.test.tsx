@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import VersionInfoComponent from '../VersionInfo';
 
@@ -65,7 +66,11 @@ describe('VersionInfo - Focused Coverage', () => {
         // Look for development in the commit SHA area specifically
         const commitElements = screen.getAllByText('development');
         expect(commitElements.length).toBeGreaterThan(0);
+      });
+      
+      await waitFor(() => {
         // Verify it's in the gray background (commit SHA style)
+        const commitElements = screen.getAllByText('development');
         const commitSha = commitElements.find(el => 
           el.className.includes('bg-gray-100')
         );
@@ -111,6 +116,9 @@ describe('VersionInfo - Focused Coverage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('v1.2.3')).toBeInTheDocument();
+      });
+      
+      await waitFor(() => {
         expect(screen.queryByText('1.0.0')).not.toBeInTheDocument();
       });
     });
@@ -132,6 +140,9 @@ describe('VersionInfo - Focused Coverage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('1.0.0')).toBeInTheDocument();
+      });
+      
+      await waitFor(() => {
         expect(screen.queryByText('unknown')).not.toBeInTheDocument();
       });
     });
@@ -174,6 +185,9 @@ describe('VersionInfo - Focused Coverage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Built:')).toBeInTheDocument();
+      });
+      
+      await waitFor(() => {
         // The date format should be YYYYMMDDHHMM - use regex to handle timezone differences
         expect(screen.getByText(/^20231225\d{4}$/)).toBeInTheDocument();
       });
@@ -233,6 +247,9 @@ describe('VersionInfo - Focused Coverage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Built:')).toBeInTheDocument();
+      });
+      
+      await waitFor(() => {
         // Invalid dates result in NaN values being formatted as NaNNaNNaNNaNNaN
         expect(screen.getByText('NaNNaNNaNNaNNaN')).toBeInTheDocument();
       });
@@ -266,6 +283,9 @@ describe('VersionInfo - Focused Coverage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Built:')).toBeInTheDocument();
+      });
+      
+      await waitFor(() => {
         // Should return the original dateString when catch block is hit (line 47)
         expect(screen.getByText('throw-error-date')).toBeInTheDocument();
       });
@@ -319,6 +339,13 @@ describe('VersionInfo - Focused Coverage', () => {
           el.className.includes('bg-yellow-100') && el.className.includes('text-yellow-800')
         );
         expect(envBadge).toBeInTheDocument();
+      });
+      
+      await waitFor(() => {
+        const envElements = screen.getAllByText('development');
+        const envBadge = envElements.find(el => 
+          el.className.includes('bg-yellow-100') && el.className.includes('text-yellow-800')
+        );
         expect(envBadge).toHaveClass('bg-yellow-100', 'text-yellow-800');
       });
     });
@@ -420,9 +447,18 @@ describe('VersionInfo - Focused Coverage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('v2.1.5-release')).toBeInTheDocument();
+      });
+      
+      await waitFor(() => {
         expect(screen.getByText('fedcba0')).toBeInTheDocument();
+      });
+      
+      await waitFor(() => {
         // Use regex to handle timezone differences across CI environments
         expect(screen.getByText(/^20231231\d{4}$/)).toBeInTheDocument();
+      });
+      
+      await waitFor(() => {
         expect(screen.getByText('production')).toBeInTheDocument();
       });
     });

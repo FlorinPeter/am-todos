@@ -142,7 +142,7 @@ export const parseMarkdownWithFrontmatter = (content: string, isArchived: boolea
         createdAt: String(rawFrontmatter?.createdAt || new Date().toISOString()),
         priority: validatePriority(rawFrontmatter?.priority),
         isArchived,
-        frontmatter: { tags: [] }, // Convert to new simplified format
+        frontmatter: { tags: Array.isArray(rawFrontmatter?.tags) ? rawFrontmatter.tags : [] }, // Preserve tags from frontmatter
         markdownContent
       };
     } catch (e) {

@@ -1,6 +1,7 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { vi, type MockedFunction } from 'vitest';
 import App from '../App';
 import * as localStorage from '../utils/localStorage';
 import * as gitService from '../services/gitService';
@@ -61,13 +62,13 @@ vi.mock('../components/TodoSidebar', () => ({
           <div 
             key={todo.id}
             data-testid={`todo-${todo.id}`}
-            onClick={() => onTodoSelect && onTodoSelect(todo.id)}
+            onClick={() => onTodoSelect?.(todo.id)}
             style={{ backgroundColor: selectedTodoId === todo.id ? 'blue' : 'white' }}
           >
             {todo.title}
           </div>
         ))}
-        <button data-testid="archive-toggle" onClick={() => onArchiveToggle && onArchiveToggle()}>
+        <button data-testid="archive-toggle" onClick={() => onArchiveToggle?.()}>
           Switch to {currentViewMode === 'active' ? 'Archived' : 'Active'}
         </button>
       </div>
@@ -84,26 +85,26 @@ vi.mock('../components/TodoEditor', () => ({
           <div data-testid="selected-todo-content">{selectedTodo.content}</div>
           <button 
             data-testid="save-todo" 
-            onClick={() => onSave && onSave('Updated content', [])}
+            onClick={() => onSave?.('Updated content', [])}
             disabled={isSaving}
           >
             {isSaving ? `Saving... ${saveStep}` : 'Save'}
           </button>
           <button 
             data-testid="archive-todo" 
-            onClick={() => onArchive && onArchive()}
+            onClick={() => onArchive?.()}
           >
             Archive
           </button>
           <button 
             data-testid="unarchive-todo" 
-            onClick={() => onUnarchive && onUnarchive()}
+            onClick={() => onUnarchive?.()}
           >
             Unarchive
           </button>
           <button 
             data-testid="delete-todo" 
-            onClick={() => onDelete && onDelete()}
+            onClick={() => onDelete?.()}
             disabled={isDeleting}
           >
             {isDeleting ? `Deleting... ${deletionStep}` : 'Delete'}
@@ -138,65 +139,32 @@ vi.mock('../components/ProjectManager', () => ({
 }));
 
 // Mock implementations
-const mockLoadSettings = localStorage.loadSettings as vi.MockedFunction<typeof localStorage.loadSettings>;
-const mockSaveSettings = localStorage.saveSettings as vi.MockedFunction<typeof localStorage.saveSettings>;
-const mockGetUrlConfig = localStorage.getUrlConfig as vi.MockedFunction<typeof localStorage.getUrlConfig>;
-const mockLoadSelectedTodoId = localStorage.loadSelectedTodoId as vi.MockedFunction<typeof localStorage.loadSelectedTodoId>;
-const mockSaveSelectedTodoId = localStorage.saveSelectedTodoId as vi.MockedFunction<typeof localStorage.saveSelectedTodoId>;
-const mockClearSelectedTodoId = localStorage.clearSelectedTodoId as vi.MockedFunction<typeof localStorage.clearSelectedTodoId>;
+const mockLoadSettings = localStorage.loadSettings as MockedFunction<typeof localStorage.loadSettings>;
+const mockSaveSettings = localStorage.saveSettings as MockedFunction<typeof localStorage.saveSettings>;
+const mockGetUrlConfig = localStorage.getUrlConfig as MockedFunction<typeof localStorage.getUrlConfig>;
+const mockLoadSelectedTodoId = localStorage.loadSelectedTodoId as MockedFunction<typeof localStorage.loadSelectedTodoId>;
+const mockSaveSelectedTodoId = localStorage.saveSelectedTodoId as MockedFunction<typeof localStorage.saveSelectedTodoId>;
+const mockClearSelectedTodoId = localStorage.clearSelectedTodoId as MockedFunction<typeof localStorage.clearSelectedTodoId>;
 
-const mockGetTodos = gitService.getTodos as vi.MockedFunction<typeof gitService.getTodos>;
-const mockGetFileContent = gitService.getFileContent as vi.MockedFunction<typeof gitService.getFileContent>;
-const mockCreateOrUpdateTodo = gitService.createOrUpdateTodo as vi.MockedFunction<typeof gitService.createOrUpdateTodo>;
-const mockDeleteFile = gitService.deleteFile as vi.MockedFunction<typeof gitService.deleteFile>;
-const mockMoveTaskToArchive = gitService.moveTaskToArchive as vi.MockedFunction<typeof gitService.moveTaskToArchive>;
-const mockMoveTaskFromArchive = gitService.moveTaskFromArchive as vi.MockedFunction<typeof gitService.moveTaskFromArchive>;
+const mockGetTodos = gitService.getTodos as MockedFunction<typeof gitService.getTodos>;
+const mockGetFileContent = gitService.getFileContent as MockedFunction<typeof gitService.getFileContent>;
+const mockCreateOrUpdateTodo = gitService.createOrUpdateTodo as MockedFunction<typeof gitService.createOrUpdateTodo>;
+const mockDeleteFile = gitService.deleteFile as MockedFunction<typeof gitService.deleteFile>;
+const mockMoveTaskToArchive = gitService.moveTaskToArchive as MockedFunction<typeof gitService.moveTaskToArchive>;
+const mockGenerateCommitMessage = aiService.generateCommitMessage as MockedFunction<typeof aiService.generateCommitMessage>;
 
-const mockGenerateInitialPlan = aiService.generateInitialPlan as vi.MockedFunction<typeof aiService.generateInitialPlan>;
-const mockGenerateCommitMessage = aiService.generateCommitMessage as vi.MockedFunction<typeof aiService.generateCommitMessage>;
-
-const mockParseMarkdownWithFrontmatter = markdown.parseMarkdownWithFrontmatter as vi.MockedFunction<typeof markdown.parseMarkdownWithFrontmatter>;
-const mockStringifyMarkdownWithFrontmatter = markdown.stringifyMarkdownWithFrontmatter as vi.MockedFunction<typeof markdown.stringifyMarkdownWithFrontmatter>;
+const mockParseMarkdownWithFrontmatter = markdown.parseMarkdownWithFrontmatter as MockedFunction<typeof markdown.parseMarkdownWithFrontmatter>;
+const mockStringifyMarkdownWithFrontmatter = markdown.stringifyMarkdownWithFrontmatter as MockedFunction<typeof markdown.stringifyMarkdownWithFrontmatter>;
 
 describe('App Component', () => {
   const mockSettings = {
-    gitProvider: 'github',
+    gitProvider: 'github' as const,
     pat: 'test-token',
     owner: 'testuser',
     repo: 'test-repo',
     folder: 'todos'
   };
 
-  const mockTodos = [
-    {
-      id: 'todo1',
-      title: 'Test Todo 1',
-      content: '# Test Todo 1\n\n- [ ] Task 1',
-      path: 'todos/todo1.md',
-      sha: 'sha1',
-      frontmatter: {
-        title: 'Test Todo 1',
-        createdAt: '2023-01-01T00:00:00.000Z',
-        priority: 3,
-        isArchived: false,
-        chatHistory: []
-      }
-    },
-    {
-      id: 'todo2',
-      title: 'Archived Todo',
-      content: '# Archived Todo\n\n- [x] Completed task',
-      path: 'todos/archive/todo2.md',
-      sha: 'sha2',
-      frontmatter: {
-        title: 'Archived Todo',
-        createdAt: '2023-01-02T00:00:00.000Z',
-        priority: 2,
-        isArchived: true,
-        chatHistory: []
-      }
-    }
-  ];
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -208,30 +176,58 @@ describe('App Component', () => {
     
     mockGetTodos.mockImplementation(async (folder, includeArchived) => {
       if (includeArchived) {
-        return [{ name: 'todo2.md', path: 'todos/archive/todo2.md', sha: 'sha2' }];
+        return [{
+          id: 'todo2',
+          title: 'Archived Todo',
+          content: '# Archived Todo\n\n- [x] Completed task',
+          path: 'todos/archive/todo2.md',
+          sha: 'sha2',
+          priority: 2,
+          createdAt: '2023-01-02T00:00:00.000Z',
+          isArchived: true,
+          frontmatter: { tags: [] }
+        }];
       } else {
-        return [{ name: 'todo1.md', path: 'todos/todo1.md', sha: 'sha1' }];
+        return [{
+          id: 'todo1',
+          title: 'Test Todo 1',
+          content: '# Test Todo 1\n\n- [ ] Task 1',
+          path: 'todos/todo1.md',
+          sha: 'sha1',
+          priority: 3,
+          createdAt: '2023-01-01T00:00:00.000Z',
+          isArchived: false,
+          frontmatter: { tags: [] }
+        }];
       }
     });
     
     mockGetFileContent.mockImplementation(async (path) => {
       if (path.includes('todo1')) {
-        return '---\ntitle: Test Todo 1\ncreatedAt: 2023-01-01T00:00:00.000Z\npriority: 3\nisArchived: false\nchatHistory: []\n---\n# Test Todo 1\n\n- [ ] Task 1';
+        return '---\ntags: []\n---\n# Test Todo 1\n\n- [ ] Task 1';
       } else {
-        return '---\ntitle: Archived Todo\ncreatedAt: 2023-01-02T00:00:00.000Z\npriority: 2\nisArchived: true\nchatHistory: []\n---\n# Archived Todo\n\n- [x] Completed task';
+        return '---\ntags: []\n---\n# Archived Todo\n\n- [x] Completed task';
       }
     });
     
     mockParseMarkdownWithFrontmatter.mockImplementation((content) => {
       if (content.includes('Test Todo 1')) {
         return {
-          frontmatter: mockTodos[0].frontmatter,
-          markdownContent: mockTodos[0].content
+          title: 'Test Todo 1',
+          createdAt: '2023-01-01T00:00:00.000Z',
+          priority: 3,
+          isArchived: false,
+          frontmatter: { tags: [] },
+          markdownContent: '# Test Todo 1\n\n- [ ] Task 1'
         };
       } else {
         return {
-          frontmatter: mockTodos[1].frontmatter,
-          markdownContent: mockTodos[1].content
+          title: 'Archived Todo',
+          createdAt: '2023-01-02T00:00:00.000Z',
+          priority: 2,
+          isArchived: true,
+          frontmatter: { tags: [] },
+          markdownContent: '# Archived Todo\n\n- [x] Completed task'
         };
       }
     });
@@ -253,7 +249,13 @@ describe('App Component', () => {
     });
 
     it('handles URL configuration on mount', () => {
-      const urlConfig = { gitProvider: 'github', pat: 'url-token' };
+      const urlConfig = { 
+        gitProvider: 'github' as const, 
+        pat: 'url-token',
+        owner: 'test-owner',
+        repo: 'test-repo', 
+        folder: 'todos'
+      };
       mockGetUrlConfig.mockReturnValue(urlConfig);
       
       // Mock URL and history
@@ -285,8 +287,8 @@ describe('App Component', () => {
       
       await waitFor(() => {
         expect(screen.getByTestId('todo-sidebar')).toBeInTheDocument();
-        expect(screen.getByTestId('todo-editor')).toBeInTheDocument();
       });
+      expect(screen.getByTestId('todo-editor')).toBeInTheDocument();
     });
   });
 
@@ -380,9 +382,9 @@ describe('App Component', () => {
       // Check that the app renders the main components
       await waitFor(() => {
         expect(screen.getByTestId('todo-sidebar')).toBeInTheDocument();
-        expect(screen.getByTestId('todo-editor')).toBeInTheDocument();
-        expect(screen.getByTestId('project-manager')).toBeInTheDocument();
       });
+      expect(screen.getByTestId('todo-editor')).toBeInTheDocument();
+      expect(screen.getByTestId('project-manager')).toBeInTheDocument();
     });
   });
 
@@ -489,8 +491,8 @@ describe('App Component', () => {
       await waitFor(() => {
         // Should log errors for both active and archived todo fetching
         expect(loggerSpy).toHaveBeenCalledWith('Failed to fetch active todos:', expect.any(Error));
-        expect(loggerSpy).toHaveBeenCalledWith('Failed to fetch archived todos (archive folder may not exist):', expect.any(Error));
       });
+      expect(loggerSpy).toHaveBeenCalledWith('Failed to fetch archived todos (archive folder may not exist):', expect.any(Error));
       
       loggerSpy.mockRestore();
     });
@@ -534,7 +536,7 @@ describe('App Component', () => {
     });
 
     it('provides correct provider name', async () => {
-      const gitlabSettings = { ...mockSettings, gitProvider: 'gitlab' };
+      const gitlabSettings = { ...mockSettings, gitProvider: 'gitlab' as const };
       mockLoadSettings.mockReturnValue(gitlabSettings);
       
       render(<App />);
@@ -546,8 +548,6 @@ describe('App Component', () => {
 
   describe('Data Persistence and Recovery', () => {
     it('preserves todo path during refresh', async () => {
-      const preservePath = 'todos/preserved-todo.md';
-      
       render(<App />);
       
       // This tests internal logic - the component should handle path preservation

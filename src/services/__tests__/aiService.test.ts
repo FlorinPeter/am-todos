@@ -1,4 +1,8 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { loadSettings } from '../../utils/localStorage';
+import logger from '../../utils/logger';
+import { fetchJsonWithTimeout } from '../../utils/fetchWithTimeout';
+import { generateInitialPlan, generateCommitMessage, processChatMessage } from '../aiService';
 
 // Mock external dependencies only
 vi.mock('../../utils/localStorage', () => ({
@@ -25,11 +29,6 @@ Object.defineProperty(window, 'location', {
   writable: true
 });
 
-import { loadSettings } from '../../utils/localStorage';
-import logger from '../../utils/logger';
-import { fetchJsonWithTimeout } from '../../utils/fetchWithTimeout';
-import { generateInitialPlan, generateCommitMessage, processChatMessage } from '../aiService';
-
 describe('AI Service - Comprehensive Coverage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -42,6 +41,8 @@ describe('AI Service - Comprehensive Coverage', () => {
     it('should use correct API URL for localhost', async () => {
       window.location.hostname = 'localhost';
       vi.mocked(loadSettings).mockReturnValue({
+        gitProvider: 'github',
+        folder: 'todos',
         aiProvider: 'gemini',
         geminiApiKey: 'test-key',
         aiModel: 'gemini-2.5-flash'
@@ -56,6 +57,8 @@ describe('AI Service - Comprehensive Coverage', () => {
     it('should use correct API URL for production', async () => {
       window.location.hostname = 'example.com';
       vi.mocked(loadSettings).mockReturnValue({
+        gitProvider: 'github',
+        folder: 'todos',
         aiProvider: 'gemini',
         geminiApiKey: 'test-key',
         aiModel: 'gemini-2.5-flash'
@@ -77,6 +80,8 @@ describe('AI Service - Comprehensive Coverage', () => {
 
     it('should throw error when Gemini API key not configured', async () => {
       vi.mocked(loadSettings).mockReturnValue({
+        gitProvider: 'github',
+        folder: 'todos',
         aiProvider: 'gemini',
         geminiApiKey: null
       });
@@ -86,6 +91,8 @@ describe('AI Service - Comprehensive Coverage', () => {
 
     it('should throw error when OpenRouter API key not configured', async () => {
       vi.mocked(loadSettings).mockReturnValue({
+        gitProvider: 'github',
+        folder: 'todos',
         aiProvider: 'openrouter',
         openRouterApiKey: null
       });
@@ -95,7 +102,9 @@ describe('AI Service - Comprehensive Coverage', () => {
 
     it('should throw error for invalid AI provider', async () => {
       vi.mocked(loadSettings).mockReturnValue({
-        aiProvider: 'invalid-provider',
+        gitProvider: 'github',
+        folder: 'todos',
+        aiProvider: 'invalid-provider' as any,
         geminiApiKey: 'test-key'
       });
 
@@ -104,6 +113,8 @@ describe('AI Service - Comprehensive Coverage', () => {
 
     it('should use default Gemini model when none specified', async () => {
       vi.mocked(loadSettings).mockReturnValue({
+        gitProvider: 'github',
+        folder: 'todos',
         aiProvider: 'gemini',
         geminiApiKey: 'test-key'
       });
@@ -127,6 +138,8 @@ describe('AI Service - Comprehensive Coverage', () => {
 
     it('should use default OpenRouter model when none specified', async () => {
       vi.mocked(loadSettings).mockReturnValue({
+        gitProvider: 'github',
+        folder: 'todos',
         aiProvider: 'openrouter',
         openRouterApiKey: 'test-key'
       });
@@ -150,6 +163,8 @@ describe('AI Service - Comprehensive Coverage', () => {
 
     it('should use custom model when specified', async () => {
       vi.mocked(loadSettings).mockReturnValue({
+        gitProvider: 'github',
+        folder: 'todos',
         aiProvider: 'gemini',
         geminiApiKey: 'test-key',
         aiModel: 'gemini-1.5-pro'
@@ -173,6 +188,8 @@ describe('AI Service - Comprehensive Coverage', () => {
   describe('generateInitialPlan', () => {
     beforeEach(() => {
       vi.mocked(loadSettings).mockReturnValue({
+        gitProvider: 'github',
+        folder: 'todos',
         aiProvider: 'gemini',
         geminiApiKey: 'test-key',
         aiModel: 'gemini-2.5-flash'
@@ -219,6 +236,8 @@ describe('AI Service - Comprehensive Coverage', () => {
     // This tests the internal parseCommitResponse function through generateCommitMessage
     beforeEach(() => {
       vi.mocked(loadSettings).mockReturnValue({
+        gitProvider: 'github',
+        folder: 'todos',
         aiProvider: 'gemini',
         geminiApiKey: 'test-key',
         aiModel: 'gemini-2.5-flash'
@@ -377,6 +396,8 @@ feat: Add user authentication system
   describe('generateCommitMessage', () => {
     beforeEach(() => {
       vi.mocked(loadSettings).mockReturnValue({
+        gitProvider: 'github',
+        folder: 'todos',
         aiProvider: 'gemini',
         geminiApiKey: 'test-key',
         aiModel: 'gemini-2.5-flash'
@@ -425,6 +446,8 @@ feat: Add user authentication system
   describe('processChatMessage', () => {
     beforeEach(() => {
       vi.mocked(loadSettings).mockReturnValue({
+        gitProvider: 'github',
+        folder: 'todos',
         aiProvider: 'openrouter',
         openRouterApiKey: 'test-key',
         aiModel: 'anthropic/claude-3.5-sonnet'

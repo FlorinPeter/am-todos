@@ -54,9 +54,11 @@ fi
 
 # Run ESLint on the specified file with better formatting
 # Capture both stdout and stderr, and the exit code
-# Use --format=stylish for better readability and --no-error-on-unmatched-pattern to avoid warnings
+# Temporarily disable set -e to capture ESLint output even when it returns non-zero exit code
+set +e
 ESLINT_OUTPUT=$(npx eslint "$FILE_PATH" --format=stylish --no-error-on-unmatched-pattern 2>&1)
 ESLINT_EXIT_CODE=$?
+set -e
 
 # Print the ESLint output
 if [ -n "$ESLINT_OUTPUT" ]; then
@@ -72,7 +74,8 @@ if [ $ESLINT_EXIT_CODE -eq 0 ]; then
     else
         # Check if output contains warnings (but no errors since exit code is 0)
         if echo "$ESLINT_OUTPUT" | grep -q "warning"; then
-            echo "⚠️  ESLint check passed with warnings for: $FILE_PATH"
+            echo "❌ ESLint check failed with warnings for: $FILE_PATH"
+            exit 1
         else
             echo "✅ ESLint check passed with no issues for: $FILE_PATH"
         fi

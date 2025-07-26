@@ -172,9 +172,9 @@ const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
   }, [onChange]);
 
   return (
-    <div className={className}>
+    <div className={className} data-testid="codemirror-editor">
       <CodeMirror
-        value={value}
+        value={value || ''}
         height={height}
         theme={customDarkTheme}
         extensions={extensions}

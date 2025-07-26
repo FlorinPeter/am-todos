@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, parseMarkdownWithMetadata, stringifyMarkdownWithMetadata, validatePriority } from '../markdown';
 import { TodoFrontmatter } from '../../types';
 import * as filenameMetadata from '../filenameMetadata';
+import logger from '../logger';
 
 // Mock logger
 vi.mock('../logger', () => ({
@@ -13,8 +14,6 @@ vi.mock('../logger', () => ({
     debug: vi.fn()
   }
 }));
-
-import logger from '../logger';
 
 // Mock the filenameMetadata module
 vi.mock('../filenameMetadata', () => ({
@@ -170,11 +169,7 @@ With extra spacing.`);
   describe('stringifyMarkdownWithFrontmatter', () => {
     it('creates valid markdown with frontmatter', () => {
       const frontmatter: TodoFrontmatter = {
-        title: 'Test Todo',
-        createdAt: '2023-01-01T00:00:00.000Z',
-        priority: 3,
-        isArchived: false,
-        chatHistory: []
+        tags: []
       };
       const content = `# Test Todo
 
@@ -184,60 +179,40 @@ With extra spacing.`);
       const result = stringifyMarkdownWithFrontmatter(frontmatter, content);
 
       expect(result).toContain('---\n');
-      expect(result).toContain('title: Test Todo\n');
-      expect(result).toContain('priority: 3\n');
-      expect(result).toContain('isArchived: false\n');
-      expect(result).toContain('chatHistory: []\n');
+      expect(result).toContain('tags: []\n');
       expect(result).toContain('---\n');
       expect(result).toContain(content);
     });
 
-    it('handles frontmatter with chat history', () => {
+    it('handles frontmatter with tags', () => {
       const frontmatter: TodoFrontmatter = {
-        title: 'Chat Todo',
-        createdAt: '2023-01-01T00:00:00.000Z',
-        priority: 2,
-        isArchived: false,
-        chatHistory: [
-          { role: 'user', content: 'Add a task' },
-          { role: 'assistant', content: 'Task added successfully' }
-        ]
+        tags: ['work', 'urgent']
       };
       const content = '# Chat Todo Content';
 
       const result = stringifyMarkdownWithFrontmatter(frontmatter, content);
 
-      expect(result).toContain('chatHistory:');
-      expect(result).toContain('role: user');
-      expect(result).toContain('content: Add a task');
-      expect(result).toContain('role: assistant');
-      expect(result).toContain('content: Task added successfully');
+      expect(result).toContain('tags:');
+      expect(result).toContain('- work');
+      expect(result).toContain('- urgent');
       expect(result).toContain(content);
     });
 
     it('handles empty content', () => {
       const frontmatter: TodoFrontmatter = {
-        title: 'Empty Todo',
-        createdAt: '2023-01-01T00:00:00.000Z',
-        priority: 1,
-        isArchived: true,
-        chatHistory: []
+        tags: []
       };
 
       const result = stringifyMarkdownWithFrontmatter(frontmatter, '');
 
       expect(result).toContain('---\n');
-      expect(result).toContain('title: Empty Todo\n');
+      expect(result).toContain('tags: []\n');
       expect(result.endsWith('---\n')).toBe(true);
     });
 
     it('preserves special characters in content', () => {
       const frontmatter: TodoFrontmatter = {
-        title: 'Special Todo',
-        createdAt: '2023-01-01T00:00:00.000Z',
-        priority: 3,
-        isArchived: false,
-        chatHistory: []
+        tags: ['special']
       };
       const content = `# Special Characters
 
@@ -259,13 +234,7 @@ With extra spacing.`);
   describe('round trip parsing', () => {
     it('parses and stringifies back to equivalent content', () => {
       const originalFrontmatter: TodoFrontmatter = {
-        title: 'Round Trip Test',
-        createdAt: '2023-01-01T00:00:00.000Z',
-        priority: 4,
-        isArchived: false,
-        chatHistory: [
-          { role: 'user', content: 'Test message' }
-        ]
+        tags: ['test', 'roundtrip']
       };
       const originalContent = `# Round Trip Test
 
@@ -278,27 +247,14 @@ With extra spacing.`);
       // Parse it back
       const parsed = parseMarkdownWithFrontmatter(stringified);
 
-      // In the new system, compare top-level fields instead of nested frontmatter
-      expect(parsed.title).toBe(originalFrontmatter.title);
-      expect(parsed.createdAt).toBe(originalFrontmatter.createdAt);
-      expect(parsed.priority).toBe(originalFrontmatter.priority);
-      expect(parsed.isArchived).toBe(originalFrontmatter.isArchived);
-      // Frontmatter is simplified to just tags in new system  
-      expect(parsed.frontmatter).toEqual({ tags: [] });
+      // In the new system, frontmatter only contains tags
+      expect(parsed.frontmatter).toEqual({ tags: ['test', 'roundtrip'] });
       expect(parsed.markdownContent).toBe(originalContent);
     });
 
     it('handles complex frontmatter round trip', () => {
       const complexFrontmatter: TodoFrontmatter = {
-        title: 'Complex Todo with "quotes" and special chars',
-        createdAt: '2023-12-31T23:59:59.999Z',
-        priority: 5,
-        isArchived: true,
-        chatHistory: [
-          { role: 'user', content: 'Create a complex task with: special characters!' },
-          { role: 'assistant', content: 'Task created with &amp; entities and <tags>' },
-          { role: 'user', content: 'Perfect, thanks!' }
-        ]
+        tags: ['complex', 'special-chars', 'test']
       };
       const complexContent = `# Complex Todo
 
@@ -318,14 +274,8 @@ function test() {
       const stringified = stringifyMarkdownWithFrontmatter(complexFrontmatter, complexContent);
       const parsed = parseMarkdownWithFrontmatter(stringified);
 
-      // In the new system, compare top-level fields instead of nested frontmatter
-      expect(parsed.title).toBe(complexFrontmatter.title);
-      expect(parsed.createdAt).toBe(complexFrontmatter.createdAt);
-      expect(parsed.priority).toBe(complexFrontmatter.priority);
-      // isArchived defaults to false in the new system unless explicitly passed
-      expect(parsed.isArchived).toBe(false);
-      // Frontmatter is simplified to just tags in new system
-      expect(parsed.frontmatter).toEqual({ tags: [] });
+      // In the new system, frontmatter only contains tags
+      expect(parsed.frontmatter).toEqual({ tags: ['complex', 'special-chars', 'test'] });
       expect(parsed.markdownContent).toBe(complexContent);
     });
   });
@@ -348,8 +298,8 @@ tags: ['holiday', 'family']
         vi.mocked(filenameMetadata.parseFilenameMetadata).mockReturnValue({
           date: '2023-12-25',
           priority: 2,
+          title: 'Christmas Tasks',
           displayTitle: 'Christmas Tasks',
-          slug: 'christmas-tasks'
         });
 
         const result = parseMarkdownWithMetadata(content, filename, false);
@@ -369,8 +319,8 @@ tags: ['holiday', 'family']
         expect(logger.log).toHaveBeenCalledWith('parseMarkdownWithMetadata: Using filename metadata', {
           date: '2023-12-25',
           priority: 2,
+          title: 'Christmas Tasks',
           displayTitle: 'Christmas Tasks',
-          slug: 'christmas-tasks'
         });
       });
 
@@ -382,8 +332,8 @@ Just some content without frontmatter`;
         vi.mocked(filenameMetadata.parseFilenameMetadata).mockReturnValue({
           date: '2023-12-25',
           priority: 3,
+          title: 'Simple Task',
           displayTitle: 'Simple Task',
-          slug: 'simple-task'
         });
 
         const result = parseMarkdownWithMetadata(content, filename, true);
@@ -408,8 +358,8 @@ invalid: yaml: content: [
         vi.mocked(filenameMetadata.parseFilenameMetadata).mockReturnValue({
           date: '2023-12-25',
           priority: 1,
+          title: 'Invalid YAML',
           displayTitle: 'Invalid YAML',
-          slug: 'invalid-yaml'
         });
 
         const result = parseMarkdownWithMetadata(content, filename, false);
@@ -427,7 +377,7 @@ invalid: yaml: content: [
         const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
         
         // Re-run the function to trigger the error with the spy in place
-        const retryResult = parseMarkdownWithMetadata(content, filename, false);
+        parseMarkdownWithMetadata(content, filename, false);
         
         expect(loggerSpy).toHaveBeenCalledWith('Error parsing YAML frontmatter:', expect.any(Error));
         loggerSpy.mockRestore();
@@ -443,8 +393,8 @@ tags: 'single-tag'
         vi.mocked(filenameMetadata.parseFilenameMetadata).mockReturnValue({
           date: '2023-12-25',
           priority: 2,
+          title: 'Bad Tags',
           displayTitle: 'Bad Tags',
-          slug: 'bad-tags'
         });
 
         const result = parseMarkdownWithMetadata(content, filename, false);

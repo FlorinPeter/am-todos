@@ -219,7 +219,7 @@ describe('Rate Limit Handler', () => {
 
     it('should log error message and call alert when window.alert exists', () => {
       // Mock window.alert to not actually show alert in tests
-      global.window = { 
+      (global.window as any) = { 
         alert: mockAlert,
         // Override any other alert references to prevent JSDOM errors
         ...global.window
@@ -271,7 +271,7 @@ describe('Rate Limit Handler', () => {
     });
 
     it('should call generateRateLimitMessage internally', () => {
-      global.window = { 
+      (global.window as any) = { 
         alert: mockAlert,
         ...global.window
       };

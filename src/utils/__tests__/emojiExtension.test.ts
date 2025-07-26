@@ -1,5 +1,6 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { emojiExtension, emojiCompletions } from '../emojiExtension';
+import { search } from 'node-emoji';
 
 // Mock node-emoji module - the only external dependency we need to mock
 vi.mock('node-emoji', () => ({
@@ -7,15 +8,14 @@ vi.mock('node-emoji', () => ({
   get: vi.fn()
 }));
 
-import { search } from 'node-emoji';
-const mockSearch = search as vi.MockedFunction<typeof search>;
+const mockSearch = search as any;
 
 // Helper function to create mock CompletionContext objects
 function createMockContext(text: string, from: number, to: number, explicit: boolean = false) {
   return {
     matchBefore: vi.fn((regex: RegExp) => {
       const match = text.match(regex);
-      if (match && match.index !== undefined) {
+      if (match?.index !== undefined) {
         return {
           from: from,
           to: to,
@@ -25,9 +25,12 @@ function createMockContext(text: string, from: number, to: number, explicit: boo
       return null;
     }),
     explicit,
-    state: {},
-    pos: to
-  };
+    state: {} as any,
+    pos: to,
+    tokenBefore: vi.fn(),
+    aborted: false,
+    addEventListener: vi.fn()
+  } as any;
 }
 
 describe('emojiExtension', () => {
@@ -144,12 +147,11 @@ describe('emojiExtension', () => {
         
         expect(result).not.toBeNull();
         const heartOption = result?.options.find(opt => opt.label === ':heart:');
-        if (heartOption) {
-          expect(heartOption.label).toBe(':heart:');
-          expect(heartOption.detail).toBe('❤️');
-          expect(heartOption.apply).toBe('❤️');
-          expect(heartOption.type).toBe('variable');
-        }
+        expect(heartOption).toBeDefined();
+        expect(heartOption?.label).toBe(':heart:');
+        expect(heartOption?.detail).toBe('❤️');
+        expect(heartOption?.apply).toBe('❤️');
+        expect(heartOption?.type).toBe('variable');
       });
     });
 
@@ -224,12 +226,11 @@ describe('emojiExtension', () => {
         
         expect(result).not.toBeNull();
         const catOption = result?.options.find(opt => opt.label === ':cat:');
-        if (catOption) {
-          expect(catOption.label).toBe(':cat:');
-          expect(catOption.detail).toBe('🐱');
-          expect(catOption.apply).toBe('🐱');
-          expect(catOption.type).toBe('variable');
-        }
+        expect(catOption).toBeDefined();
+        expect(catOption?.label).toBe(':cat:');
+        expect(catOption?.detail).toBe('🐱');
+        expect(catOption?.apply).toBe('🐱');
+        expect(catOption?.type).toBe('variable');
       });
     });
 
@@ -348,6 +349,7 @@ describe('emojiExtension', () => {
         // This will trigger the outer catch block but with no popular matches
         const originalFilter = Array.prototype.filter;
         let errorThrown = false;
+        // eslint-disable-next-line no-extend-native
         Array.prototype.filter = function() {
           // Only trigger error for the popularEmojis.filter() call in the main try block
           if (!errorThrown && this.length > 0 && typeof this[0] === 'object' && this[0].name) {
@@ -357,10 +359,14 @@ describe('emojiExtension', () => {
           return originalFilter.apply(this, arguments as any);
         };
         
-        const result = emojiCompletions(context);
-        
-        // Restore original method
-        Array.prototype.filter = originalFilter;
+        let result;
+        try {
+          result = emojiCompletions(context);
+        } finally {
+          // Restore original method
+          // eslint-disable-next-line no-extend-native
+          Array.prototype.filter = originalFilter;
+        }
         
         // Should have caught the error and tried fallback but found no matches
         expect(consoleSpy).toHaveBeenCalledWith('Emoji search error:', expect.any(Error));
