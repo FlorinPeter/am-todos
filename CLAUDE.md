@@ -32,22 +32,6 @@ This is "Agentic Markdown Todos" - an AI-powered todo application that transform
 **Hot Reload**: Both servers support automatic reloading on code changes.  
 **Proxy**: Frontend automatically forwards `/api` requests to backend.
 
-## Production Deployment
-
-> **🚀 Complete Deployment Guide**: See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions
-
-### Quick Cloud Run Deployment
-```bash
-# Prerequisites
-sudo ./hack/install-dependencies.sh
-gcloud auth login
-export GOOGLE_CLOUD_PROJECT="your-project-id"
-
-# Deploy
-export SOURCE_IMAGE="ghcr.io/your-username/am-todos:main"
-./hack/deploy-all.sh
-```
-
 ## Development vs Production Differences
 
 ### Key Configuration Changes
@@ -94,12 +78,7 @@ export SOURCE_IMAGE="ghcr.io/your-username/am-todos:main"
 ### Testing Production Locally
 To test production build locally:
 ```bash
-# Build production version
-npm run build
-
-# Start production server
-NODE_ENV=production node server/server.js
-
+./hack/restart-dev.sh
 # Access at http://localhost:3001
 ```
 
@@ -132,7 +111,9 @@ NODE_ENV=production node server/server.js
 - Stores todos as markdown files in configurable directory of your repository (defaults to `/todos`)
 - **Multi-folder support**: Organize tasks in different folders for multiple projects (e.g., `work-tasks`, `personal`, `client-alpha`)
 - Uses **fine-grained Personal Access Token** restricted to specific repository only
-- **Smart file naming**: `YYYY-MM-DD-task-slug.md` format (e.g., `2025-01-05-deploy-web-app.md`)
+- **New filename format**: `P{priority}--{date}--{title}.md` (e.g., `P1--2025-07-24--Deploy_Web_Application.md`)
+- **Legacy format support**: Backward compatibility with `YYYY-MM-DD-task-slug.md` format
+- **Performance optimization**: 99%+ reduction in API requests by encoding metadata in filenames
 - **Auto-directory creation**: Creates folder and `/archive` subfolder with `.gitkeep` if missing
 - **Delete functionality**: Complete file removal from repository with confirmation
 - **Unicode support**: Proper Base64 encoding handles special characters and emojis
@@ -162,7 +143,8 @@ NODE_ENV=production node server/server.js
 - Unified API endpoint (`/api/ai`) handles both providers with OpenAI-compatible format
 
 ### Markdown Processing
-- Files use **YAML frontmatter** for metadata (title, createdAt, priority, isArchived)
+- **Simplified frontmatter**: Only contains `tags: []` field - all other metadata encoded in filename
+- **Filename-based metadata**: Priority, date, and title extracted from new filename format
 - `react-markdown` with `remark-gfm` for GitHub-flavored markdown rendering
 - **Interactive checkboxes**: Click to toggle with real-time GitHub sync
 - **Fixed regex bug**: Proper checkbox pattern matching (`\[[ xX]\]`)
@@ -170,7 +152,14 @@ NODE_ENV=production node server/server.js
 - **Priority system**: P1 (Critical/Red) to P5 (Very Low/Gray) with color coding
 - **Archive functionality**: Toggle task visibility without deletion
 
-#### Frontmatter Schema Example:
+#### Current Frontmatter Schema:
+```yaml
+---
+tags: []
+---
+```
+
+#### Legacy Frontmatter (Backward Compatibility):
 ```yaml
 ---
 title: 'Plan a weekend trip to the mountains'
@@ -179,6 +168,10 @@ priority: 3
 isArchived: false
 ---
 ```
+
+#### Filename Format Examples:
+- **New format**: `P1--2025-07-24--Deploy_Web_Application.md` (Critical priority)
+- **Legacy format**: `2025-07-22-fix-authentication-bug.md` (Backward compatible)
 
 ### Configuration Requirements
 - **Backend**: Requires AI API keys (no `.env` file needed - keys provided via UI)
@@ -217,8 +210,8 @@ isArchived: false
 
 ## Current Status
 
-> **📊 Implementation Status: 100% Complete** - See [features/implementation-evidence.md](features/implementation-evidence.md) for detailed verification  
-> **🧪 Testing Status: 100% Coverage** - See [TESTING.md](TESTING.md) for comprehensive test documentation
+> **📊 Implementation Status: ** - See [features/implementation-evidence.md](features/implementation-evidence.md) for detailed verification  
+> **🧪 Testing Status:** - See [TESTING.md](TESTING.md) for comprehensive test documentation
 
 All core functionality is implemented and production-ready:
 - ✅ AI-powered task generation with multi-provider support
@@ -271,7 +264,7 @@ All core functionality is implemented and production-ready:
 4. AI returns markdown checklist → combined with frontmatter
 5. `generateCommitMessage()` creates conventional commit message
 6. **Auto-directory creation**: Creates `/todos` folder if missing
-7. GitHub API creates file with smart naming: `YYYY-MM-DD-task-slug.md`
+7. GitHub API creates file with new filename format: `P{priority}--{date}--{title}.md`
 8. App refreshes and auto-selects new task
 
 ### Editing Tasks with Markdown Editor
@@ -485,5 +478,18 @@ testCases.forEach(({ input, expected }) => {
 3. **Add targeted tests**: Cover missing branches systematically  
 4. **Verify improvement**: Re-run coverage to confirm gains
 
-**Current Status**: 78.93% coverage achieved (excellent production standard)
+## Performance Optimizations
+
+### Filename-Based Metadata
+- **Performance Impact**: 99%+ reduction in API requests for todo listing operations
+- **Three-tier parsing strategy**:
+  1. **New format** (`P3--2025-07-21--title.md`) → Zero API calls ⚡
+  2. **Legacy format** (`2025-07-21-title.md`) → Zero API calls (default P3 priority) ⚡
+  3. **Unknown format** → Content fetch fallback (rare case) 🐌
+- **Instant metadata availability**: Priority, date, and title extracted from filename
+- **Simplified frontmatter**: Only `tags: []` field needed for future filtering capabilities
+
+### Implementation Details
+See [features/filename-based-metadata.md](features/filename-based-metadata.md) for complete technical documentation and performance analysis.
+
 
