@@ -213,9 +213,8 @@ describe('ExistingComponent', () => {
 
 ## 📚 **References**
 
-- **Consolidation Documentation**: [REWORK_TESTS.md](REWORK_TESTS.md) - Complete consolidation history
-- **Development Guide**: [CLAUDE.md](CLAUDE.md) - Updated development guidelines  
-- **Feature Documentation**: [FEATURES.md](FEATURES.md) - Feature validation evidence
+- **Development Guide**: [CLAUDE.md](CLAUDE.md) - Anti-test-cluttering guidelines and development practices  
+- **Feature Documentation**: [features/implementation-evidence.md](features/implementation-evidence.md) - Feature validation evidence
 
 ---
 

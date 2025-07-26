@@ -560,7 +560,7 @@ const PrioritySelector: React.FC<PrioritySelectorProps> = ({
 
 ## 🔧 **TECHNICAL STACK**
 
-> **🏗 Detailed Architecture**: See [CONCEPT.md](CONCEPT.md) for complete technical architecture documentation
+> **🏗 Detailed Architecture**: See [concept-and-architecture.md](concept-and-architecture.md) for complete technical architecture documentation
 
 ### **Core Technologies**
 - **Frontend:** React with TypeScript and TailwindCSS
@@ -594,6 +594,6 @@ const PrioritySelector: React.FC<PrioritySelectorProps> = ({
 ## 📚 **Related Documentation**
 
 - **🧪 Testing Validation**: [TESTING.md](TESTING.md) - Comprehensive test coverage and validation
-- **🏗 Architecture Design**: [CONCEPT.md](CONCEPT.md) - Application design and technical overview
+- **🏗 Architecture Design**: [concept-and-architecture.md](concept-and-architecture.md) - Application design and technical overview
 - **👩‍💻 Development Guide**: [CLAUDE.md](CLAUDE.md) - Development setup and guidelines
 - **🚀 Deployment Guide**: [DEPLOYMENT.md](DEPLOYMENT.md) - Production deployment instructions

@@ -112,7 +112,7 @@ isArchived: false
 
 The application has been **fully implemented and is production-ready** with all core features operational and additional advanced functionality:
 
-> **📋 For detailed feature evidence and implementation verification, see [FEATURES.md](FEATURES.md)**  
+> **📋 For detailed feature evidence and implementation verification, see [implementation-evidence.md](implementation-evidence.md)**  
 > **🧪 For comprehensive testing documentation, see [TESTING.md](TESTING.md)**
 
 ### ✅ Completed Features (100% Implementation)
@@ -174,7 +174,7 @@ The application has been **fully implemented and is production-ready** with all 
 
 All features described in the concept document have been fully implemented, tested, and validated, including comprehensive GitLab integration for true provider sovereignty and **interactive checkbox functionality**.
 
-> **🔍 For complete feature verification with code evidence, see [FEATURES.md](FEATURES.md)**
+> **🔍 For complete feature verification with code evidence, see [implementation-evidence.md](implementation-evidence.md)**
 
 ### ✅ **Key Implemented Features**
 
