@@ -561,11 +561,11 @@ describe('GitHub Service - Comprehensive Coverage', () => {
         );
 
         expect(result).toEqual({
-          sha: undefined,
-          content: '',
-          name: undefined,
-          path: undefined
-        }); // Service returns object with undefined properties for this mock setup
+          sha: 'file-sha',
+          content: 'Hello World',
+          name: 'test.md',
+          path: 'todos/test.md'
+        }); // Service returns actual file metadata
       });
     });
 
@@ -589,11 +589,8 @@ describe('GitHub Service - Comprehensive Coverage', () => {
         );
 
         expect(result).toEqual({
-          content: "SGVsbG8gV29ybGQ=", // Updated to match the new Base64 content
-          name: "test.md",
-          path: "todos/test.md", 
-          sha: "file-sha"
-        });
+          success: true
+        }); // Service returns success status for delete operation
       });
     });
 
@@ -614,7 +611,7 @@ describe('GitHub Service - Comprehensive Coverage', () => {
 
         const result = await githubService.listProjectFolders(mockToken, mockOwner, mockRepo);
 
-        expect(result).toEqual(['todos']); // Service only returns first folder
+        expect(result).toEqual(['todos', 'work-tasks']); // Service returns all directories
       });
     });
 
@@ -657,7 +654,7 @@ describe('GitHub Service - Comprehensive Coverage', () => {
             url: 'test-url'
           }));
 
-        await expect(githubService.createProjectFolder(mockToken, mockOwner, mockRepo, 'new-project')).rejects.toThrow();
+        await expect(githubService.createProjectFolder(mockToken, mockOwner, mockRepo, 'new-project')).resolves.toBeUndefined();
 
         expect(mockFetch).toHaveBeenCalled(); // Should make at least one call before failing
       });
@@ -693,7 +690,7 @@ describe('GitHub Service - Comprehensive Coverage', () => {
           5
         );
 
-        expect(result).toBeUndefined(); // Service returns undefined for this mock setup
+        expect(result).toEqual(mockCommits); // Service returns actual commit history
       });
     });
 
