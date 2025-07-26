@@ -479,6 +479,6 @@ kubectl exec -it deployment/am-todos -- /bin/sh
 - **Security Documentation**: [SECURITY_FINDINGS.md](SECURITY_FINDINGS.md)
 - **Cloud Run Security**: [CLOUD_RUN_SECURITY.md](CLOUD_RUN_SECURITY.md)
 - **Main Documentation**: [README.md](README.md)
-- **Feature Overview**: [FEATURES.md](FEATURES.md)
+- **Feature Overview**: [features/implementation-evidence.md](features/implementation-evidence.md)
 
 For specific deployment questions or issues, check the troubleshooting section above or review the security documentation for detailed configuration options.

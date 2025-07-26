@@ -1,5 +1,6 @@
 import React from 'react';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import AIChat from '../AIChat';
@@ -142,10 +143,8 @@ describe('AIChat Component', () => {
       
       await userEvent.type(input, 'Test message');
       
-      // Wrap the async action in act() to ensure proper React updates
-      await act(async () => {
-        await userEvent.click(sendButton);
-      });
+      // Click send button
+      await userEvent.click(sendButton);
       
       // Should show loading state
       expect(screen.getByText(/processing/i)).toBeInTheDocument();
@@ -205,14 +204,6 @@ describe('AIChat Component', () => {
   });
 
   describe('Checkpoint Functionality', () => {
-    const mockCheckpoint = {
-      id: 'test-checkpoint-id',
-      content: '# Original content before AI response',
-      timestamp: '2023-01-01T12:00:00.000Z',
-      chatMessage: 'Add a new task',
-      description: 'Before: Add a new task'
-    };
-
     beforeEach(() => {
       vi.mocked(localStorage.getCheckpoints).mockReturnValue([]);
       vi.mocked(localStorage.generateCheckpointId).mockReturnValue('test-checkpoint-id');
@@ -481,13 +472,15 @@ describe('AIChat Component', () => {
       
       await waitFor(() => {
         expect(screen.getByText('Test message')).toBeInTheDocument();
+      });
+      
+      await waitFor(() => {
         expect(screen.getByText(/checkpoint/)).toBeInTheDocument();
       });
       
       // Click clear chat button
-      const clearChatButtons = screen.getAllByText(/Clear Chat/);
-      const clearChatButton = clearChatButtons[0].closest('button');
-      await userEvent.click(clearChatButton!);
+      const clearChatButton = screen.getByRole('button', { name: /clear chat/i });
+      await userEvent.click(clearChatButton);
       
       expect(window.confirm).toHaveBeenCalledWith(
         'Clear chat history and all checkpoints? This cannot be undone.'
@@ -496,6 +489,9 @@ describe('AIChat Component', () => {
       // Should clear both chat history and checkpoints
       await waitFor(() => {
         expect(screen.queryByText('Test message')).not.toBeInTheDocument();
+      });
+      
+      await waitFor(() => {
         expect(screen.queryByText(/checkpoint/)).not.toBeInTheDocument();
       });
     });

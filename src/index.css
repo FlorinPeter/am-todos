@@ -1,1 +1,319 @@
 @import "tailwindcss";
+
+/* Custom dark theme overrides for GitHub Markdown Preview */
+.github-markdown-dark {
+  /* Background and text colors to match app theme */
+  background-color: transparent !important;
+  color: #d1d5db !important;
+}
+
+.github-markdown-dark h1,
+.github-markdown-dark h2,
+.github-markdown-dark h3,
+.github-markdown-dark h4,
+.github-markdown-dark h5,
+.github-markdown-dark h6 {
+  color: #ffffff !important;
+  border-bottom-color: #374151 !important;
+}
+
+.github-markdown-dark h1 {
+  font-size: 1.875rem !important;
+  font-weight: 700 !important;
+  margin-bottom: 1.5rem !important;
+  margin-top: 2rem !important;
+  padding-bottom: 0.5rem !important;
+  border-bottom: 1px solid #374151 !important;
+}
+
+.github-markdown-dark h2 {
+  font-size: 1.5rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 1rem !important;
+  margin-top: 1.5rem !important;
+}
+
+.github-markdown-dark h3 {
+  font-size: 1.25rem !important;
+  font-weight: 500 !important;
+  margin-bottom: 0.75rem !important;
+  margin-top: 1.25rem !important;
+}
+
+.github-markdown-dark p {
+  color: #d1d5db !important;
+  line-height: 1.625 !important;
+  margin-bottom: 1rem !important;
+}
+
+.github-markdown-dark a {
+  color: #60a5fa !important;
+  text-decoration: underline !important;
+  text-underline-offset: 2px !important;
+}
+
+.github-markdown-dark a:hover {
+  color: #93c5fd !important;
+}
+
+.github-markdown-dark code {
+  background-color: #374151 !important;
+  color: #93c5fd !important;
+  padding: 0.125rem 0.5rem !important;
+  border-radius: 0.25rem !important;
+  font-size: 0.875rem !important;
+}
+
+.github-markdown-dark pre {
+  background-color: #111827 !important;
+  border: 1px solid #374151 !important;
+  border-radius: 0.5rem !important;
+  overflow-x: auto !important;
+  margin-bottom: 1rem !important;
+}
+
+.github-markdown-dark pre code {
+  background-color: transparent !important;
+  color: #10b981 !important;
+  padding: 1rem !important;
+  display: block !important;
+  border-radius: 0 !important;
+}
+
+.github-markdown-dark blockquote {
+  border-left: 4px solid #3b82f6 !important;
+  padding-left: 1rem !important;
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+  margin-bottom: 1rem !important;
+  background-color: #1f2937 !important;
+  border-radius: 0 0.25rem 0.25rem 0 !important;
+  color: #d1d5db !important;
+  font-style: italic !important;
+}
+
+.github-markdown-dark ul,
+.github-markdown-dark ol {
+  margin-bottom: 1rem !important;
+  margin-left: 1.5rem !important;
+}
+
+.github-markdown-dark li {
+  color: #d1d5db !important;
+  margin-bottom: 0.25rem !important;
+}
+
+/* Ensure regular list items have bullets/numbers */
+.github-markdown-dark ul li:not(.task-list-item) {
+  list-style-type: disc !important;
+  display: list-item !important;
+}
+
+.github-markdown-dark ol li {
+  list-style-type: decimal !important;
+  display: list-item !important;
+}
+
+/* Nested list styling */
+.github-markdown-dark ul ul li:not(.task-list-item) {
+  list-style-type: circle !important;
+}
+
+.github-markdown-dark ul ul ul li:not(.task-list-item) {
+  list-style-type: square !important;
+}
+
+.github-markdown-dark strong {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.github-markdown-dark em {
+  color: #e5e7eb !important;
+  font-style: italic !important;
+}
+
+.github-markdown-dark hr {
+  border-color: #374151 !important;
+  margin: 1.5rem 0 !important;
+}
+
+.github-markdown-dark table {
+  border-collapse: collapse !important;
+  margin: 1rem 0 !important;
+  width: 100% !important;
+}
+
+.github-markdown-dark th,
+.github-markdown-dark td {
+  border: 1px solid #374151 !important;
+  padding: 0.5rem 1rem !important;
+  text-align: left !important;
+}
+
+.github-markdown-dark th {
+  background-color: #374151 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.github-markdown-dark td {
+  color: #d1d5db !important;
+}
+
+/* Task list specific styling */
+.github-markdown-dark .task-list-item {
+  list-style: none !important;
+}
+
+.github-markdown-dark .task-list-item input[type="checkbox"] {
+  margin-right: 0.5rem !important;
+  margin-top: 0.25rem !important;
+}
+
+/* Remove list styling from checkbox parent lists */
+.github-markdown-dark .checkbox-parent-list {
+  list-style: none !important;
+  list-style-type: none !important;
+}
+
+.github-markdown-dark .checkbox-list-item {
+  list-style: none !important;
+}
+
+/* Alert boxes (GitHub Flavored Markdown) */
+.github-markdown-dark .markdown-alert {
+  padding: 0.5rem 1rem !important;
+  margin-bottom: 1rem !important;
+  border-left: 4px solid !important;
+  border-radius: 0.25rem !important;
+}
+
+.github-markdown-dark .markdown-alert-note {
+  background-color: #1e293b !important;
+  border-left-color: #3b82f6 !important;
+}
+
+.github-markdown-dark .markdown-alert-tip {
+  background-color: #14532d !important;
+  border-left-color: #10b981 !important;
+}
+
+.github-markdown-dark .markdown-alert-warning {
+  background-color: #451a03 !important;
+  border-left-color: #f59e0b !important;
+}
+
+.github-markdown-dark .markdown-alert-important {
+  background-color: #581c87 !important;
+  border-left-color: #a855f7 !important;
+}
+
+.github-markdown-dark .markdown-alert-caution {
+  background-color: #7f1d1d !important;
+  border-left-color: #ef4444 !important;
+}
+
+/* Responsive design for mobile devices */
+@media (max-width: 640px) {
+  .github-markdown-dark h1 {
+    font-size: 1.5rem !important;
+    margin-top: 1.5rem !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .github-markdown-dark h2 {
+    font-size: 1.25rem !important;
+    margin-top: 1.25rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .github-markdown-dark h3 {
+    font-size: 1.125rem !important;
+    margin-top: 1rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .github-markdown-dark pre {
+    font-size: 0.875rem !important;
+    overflow-x: auto !important;
+  }
+
+  .github-markdown-dark pre code {
+    padding: 0.75rem !important;
+  }
+
+  .github-markdown-dark table {
+    font-size: 0.875rem !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+    display: block !important;
+    white-space: nowrap !important;
+  }
+
+  .github-markdown-dark th,
+  .github-markdown-dark td {
+    padding: 0.375rem 0.5rem !important;
+  }
+
+  .github-markdown-dark blockquote {
+    padding-left: 0.75rem !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .github-markdown-dark ul,
+  .github-markdown-dark ol {
+    margin-left: 1rem !important;
+  }
+}
+
+/* Ensure checkbox functionality works on touch devices */
+.github-markdown-dark .task-list-item input[type="checkbox"] {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 1rem !important;
+  height: 1rem !important;
+  border: 2px solid #6b7280 !important;
+  border-radius: 0.25rem !important;
+  background-color: #374151 !important;
+  margin-right: 0.5rem !important;
+  margin-top: 0.125rem !important;
+  cursor: pointer !important;
+  position: relative !important;
+  flex-shrink: 0 !important;
+}
+
+.github-markdown-dark .task-list-item input[type="checkbox"]:checked {
+  background-color: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+}
+
+.github-markdown-dark .task-list-item input[type="checkbox"]:checked::after {
+  content: '✓' !important;
+  position: absolute !important;
+  top: -2px !important;
+  left: 1px !important;
+  color: white !important;
+  font-size: 0.75rem !important;
+  font-weight: bold !important;
+}
+
+.github-markdown-dark .task-list-item input[type="checkbox"]:hover {
+  background-color: #4b5563 !important;
+  border-color: #9ca3af !important;
+}
+
+/* Improve touch targets for mobile */
+@media (max-width: 640px) {
+  .github-markdown-dark .task-list-item input[type="checkbox"] {
+    width: 1.125rem !important;
+    height: 1.125rem !important;
+    margin-right: 0.75rem !important;
+  }
+
+  .github-markdown-dark .task-list-item input[type="checkbox"]:checked::after {
+    font-size: 0.875rem !important;
+    left: 0px !important;
+  }
+}

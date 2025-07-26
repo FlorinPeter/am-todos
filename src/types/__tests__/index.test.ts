@@ -60,20 +60,19 @@ describe('Type Definitions', () => {
         title: 'Test Todo',
         content: '# Test Todo\n\n- [ ] Task 1',
         frontmatter: {
-          title: 'Test Todo',
-          createdAt: '2023-01-01T12:00:00.000Z',
-          priority: 3,
-          isArchived: false,
-          chatHistory: []
+          tags: []
         },
         path: '/todos/test.md',
-        sha: 'abc123def456'
+        sha: 'abc123def456',
+        priority: 3,
+        createdAt: '2023-01-01T12:00:00.000Z',
+        isArchived: false
       };
 
       expect(todo.id).toBe('todo-123');
       expect(todo.title).toBe('Test Todo');
-      expect(todo.frontmatter.priority).toBe(3);
-      expect(todo.frontmatter.isArchived).toBe(false);
+      expect(todo.priority).toBe(3);
+      expect(todo.isArchived).toBe(false);
     });
 
     it('should accept Todo with optional search result properties', () => {
@@ -82,14 +81,13 @@ describe('Type Definitions', () => {
         title: 'Search Result Todo',
         content: '# Search Result',
         frontmatter: {
-          title: 'Search Result Todo',
-          createdAt: '2023-01-01T12:00:00.000Z',
-          priority: 1,
-          isArchived: false,
-          chatHistory: []
+          tags: []
         },
         path: '/todos/search.md',
         sha: 'search123',
+        priority: 1,
+        createdAt: '2023-01-01T12:00:00.000Z',
+        isArchived: false,
         isSearchResult: true,
         projectName: 'My Project'
       };
@@ -98,93 +96,56 @@ describe('Type Definitions', () => {
       expect(searchTodo.projectName).toBe('My Project');
     });
 
-    it('should accept Todo with chat history', () => {
-      const chatHistory: ChatMessage[] = [
-        {
-          role: 'user',
-          content: 'Add a task',
-          timestamp: '2023-01-01T12:00:00.000Z'
-        },
-        {
-          role: 'assistant',
-          content: 'Task added',
-          timestamp: '2023-01-01T12:01:00.000Z'
-        }
-      ];
-
+    it('should accept Todo with tags', () => {
       const todo: Todo = {
-        id: 'todo-with-chat',
-        title: 'Todo with Chat',
-        content: '# Todo with Chat',
+        id: 'todo-with-tags',
+        title: 'Todo with Tags',
+        content: '# Todo with Tags',
         frontmatter: {
-          title: 'Todo with Chat',
-          createdAt: '2023-01-01T12:00:00.000Z',
-          priority: 2,
-          isArchived: false,
-          chatHistory
+          tags: ['work', 'urgent']
         },
-        path: '/todos/chat.md',
-        sha: 'chat123'
+        path: '/todos/tagged.md',
+        sha: 'tagged123',
+        priority: 2,
+        createdAt: '2023-01-01T12:00:00.000Z',
+        isArchived: false
       };
 
-      expect(todo.frontmatter.chatHistory).toHaveLength(2);
-      expect(todo.frontmatter.chatHistory[0].role).toBe('user');
-      expect(todo.frontmatter.chatHistory[1].role).toBe('assistant');
+      expect(todo.frontmatter.tags).toHaveLength(2);
+      expect(todo.frontmatter.tags[0]).toBe('work');
+      expect(todo.frontmatter.tags[1]).toBe('urgent');
     });
   });
 
   describe('TodoFrontmatter Interface', () => {
-    it('should accept valid TodoFrontmatter', () => {
+    it('should accept valid TodoFrontmatter with tags', () => {
       const frontmatter: TodoFrontmatter = {
-        title: 'Frontmatter Test',
-        createdAt: '2023-01-01T12:00:00.000Z',
-        priority: 4,
-        isArchived: true,
-        chatHistory: []
+        tags: ['work', 'urgent', 'feature']
       };
 
-      expect(frontmatter.title).toBe('Frontmatter Test');
-      expect(frontmatter.priority).toBe(4);
-      expect(frontmatter.isArchived).toBe(true);
-      expect(frontmatter.chatHistory).toEqual([]);
+      expect(frontmatter.tags).toEqual(['work', 'urgent', 'feature']);
+      expect(Array.isArray(frontmatter.tags)).toBe(true);
     });
 
-    it('should handle priority number values', () => {
-      const priorities = [1, 2, 3, 4, 5];
-      
-      priorities.forEach(priority => {
-        const frontmatter: TodoFrontmatter = {
-          title: `Priority ${priority} Todo`,
-          createdAt: '2023-01-01T12:00:00.000Z',
-          priority,
-          isArchived: false,
-          chatHistory: []
-        };
+    it('should handle empty tags array', () => {
+      const frontmatter: TodoFrontmatter = {
+        tags: []
+      };
 
-        expect(frontmatter.priority).toBe(priority);
-        expect(typeof frontmatter.priority).toBe('number');
-      });
+      expect(frontmatter.tags).toEqual([]);
+      expect(frontmatter.tags).toHaveLength(0);
     });
 
-    it('should handle boolean isArchived values', () => {
-      const archivedFrontmatter: TodoFrontmatter = {
-        title: 'Archived Todo',
-        createdAt: '2023-01-01T12:00:00.000Z',
-        priority: 1,
-        isArchived: true,
-        chatHistory: []
+    it('should handle string tags', () => {
+      const tags = ['bug-fix', 'high-priority', 'client-work'];
+      const frontmatter: TodoFrontmatter = {
+        tags
       };
 
-      const activeFrontmatter: TodoFrontmatter = {
-        title: 'Active Todo',
-        createdAt: '2023-01-01T12:00:00.000Z',
-        priority: 1,
-        isArchived: false,
-        chatHistory: []
-      };
-
-      expect(archivedFrontmatter.isArchived).toBe(true);
-      expect(activeFrontmatter.isArchived).toBe(false);
+      expect(frontmatter.tags).toBe(tags);
+      expect(frontmatter.tags).toContain('bug-fix');
+      expect(frontmatter.tags).toContain('high-priority');
+      expect(frontmatter.tags).toContain('client-work');
     });
   });
 
@@ -274,18 +235,20 @@ describe('Type Definitions', () => {
           timestamp: '2023-01-01T12:00:00.000Z'
         }
       ];
+      
+      // Verify ChatMessage type structure
+      expect(chatHistory[0].role).toBe('user');
 
       const frontmatter: TodoFrontmatter = {
-        title: 'Integration Test Todo',
-        createdAt: '2023-01-01T12:00:00.000Z',
-        priority: 3,
-        isArchived: false,
-        chatHistory
+        tags: ['integration']
       };
 
       const todo: Todo = {
         id: 'integration-test',
-        title: frontmatter.title,
+        title: 'Integration Test Todo',
+        createdAt: '2023-01-01T12:00:00.000Z',
+        priority: 3,
+        isArchived: false,
         content: '# Integration Test\n\n- [ ] Test task',
         frontmatter,
         path: '/todos/integration.md',
@@ -302,7 +265,7 @@ describe('Type Definitions', () => {
         description: aiResponse.description
       };
 
-      expect(todo.frontmatter.chatHistory).toHaveLength(1);
+      expect(todo.frontmatter.tags).toContain('integration');
       expect(aiResponse.description).toContain('testing');
       expect(fallbackResponse.content).toBe(aiResponse.content);
     });

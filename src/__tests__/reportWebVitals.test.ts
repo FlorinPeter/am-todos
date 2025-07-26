@@ -2,18 +2,18 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import reportWebVitals from '../reportWebVitals';
 
 // Mock web-vitals module
-const mockGetCLS = vi.fn();
-const mockGetINP = vi.fn();
-const mockGetFCP = vi.fn();
-const mockGetLCP = vi.fn();
-const mockGetTTFB = vi.fn();
+const mockOnCLS = vi.fn();
+const mockOnINP = vi.fn();
+const mockOnFCP = vi.fn();
+const mockOnLCP = vi.fn();
+const mockOnTTFB = vi.fn();
 
 vi.mock('web-vitals', () => ({
-  getCLS: mockGetCLS,
-  getINP: mockGetINP,
-  getFCP: mockGetFCP,
-  getLCP: mockGetLCP,
-  getTTFB: mockGetTTFB,
+  onCLS: mockOnCLS,
+  onINP: mockOnINP,
+  onFCP: mockOnFCP,
+  onLCP: mockOnLCP,
+  onTTFB: mockOnTTFB,
 }));
 
 describe('reportWebVitals', () => {
@@ -33,11 +33,11 @@ describe('reportWebVitals', () => {
     // Allow time for dynamic import to resolve
     await new Promise(resolve => setTimeout(resolve, 0));
 
-    expect(mockGetCLS).toHaveBeenCalledWith(mockReportHandler);
-    expect(mockGetINP).toHaveBeenCalledWith(mockReportHandler);
-    expect(mockGetFCP).toHaveBeenCalledWith(mockReportHandler);
-    expect(mockGetLCP).toHaveBeenCalledWith(mockReportHandler);
-    expect(mockGetTTFB).toHaveBeenCalledWith(mockReportHandler);
+    expect(mockOnCLS).toHaveBeenCalledWith(mockReportHandler);
+    expect(mockOnINP).toHaveBeenCalledWith(mockReportHandler);
+    expect(mockOnFCP).toHaveBeenCalledWith(mockReportHandler);
+    expect(mockOnLCP).toHaveBeenCalledWith(mockReportHandler);
+    expect(mockOnTTFB).toHaveBeenCalledWith(mockReportHandler);
   });
 
   it('should not call web vitals functions when no ReportHandler is provided', async () => {
@@ -46,11 +46,11 @@ describe('reportWebVitals', () => {
     // Allow time for any potential dynamic import
     await new Promise(resolve => setTimeout(resolve, 0));
 
-    expect(mockGetCLS).not.toHaveBeenCalled();
-    expect(mockGetINP).not.toHaveBeenCalled();
-    expect(mockGetFCP).not.toHaveBeenCalled();
-    expect(mockGetLCP).not.toHaveBeenCalled();
-    expect(mockGetTTFB).not.toHaveBeenCalled();
+    expect(mockOnCLS).not.toHaveBeenCalled();
+    expect(mockOnINP).not.toHaveBeenCalled();
+    expect(mockOnFCP).not.toHaveBeenCalled();
+    expect(mockOnLCP).not.toHaveBeenCalled();
+    expect(mockOnTTFB).not.toHaveBeenCalled();
   });
 
   it('should not call web vitals functions when null is provided', async () => {
@@ -59,11 +59,11 @@ describe('reportWebVitals', () => {
     // Allow time for any potential dynamic import
     await new Promise(resolve => setTimeout(resolve, 0));
 
-    expect(mockGetCLS).not.toHaveBeenCalled();
-    expect(mockGetINP).not.toHaveBeenCalled();
-    expect(mockGetFCP).not.toHaveBeenCalled();
-    expect(mockGetLCP).not.toHaveBeenCalled();
-    expect(mockGetTTFB).not.toHaveBeenCalled();
+    expect(mockOnCLS).not.toHaveBeenCalled();
+    expect(mockOnINP).not.toHaveBeenCalled();
+    expect(mockOnFCP).not.toHaveBeenCalled();
+    expect(mockOnLCP).not.toHaveBeenCalled();
+    expect(mockOnTTFB).not.toHaveBeenCalled();
   });
 
   it('should not call web vitals functions when undefined is provided', async () => {
@@ -72,11 +72,11 @@ describe('reportWebVitals', () => {
     // Allow time for any potential dynamic import
     await new Promise(resolve => setTimeout(resolve, 0));
 
-    expect(mockGetCLS).not.toHaveBeenCalled();
-    expect(mockGetINP).not.toHaveBeenCalled();
-    expect(mockGetFCP).not.toHaveBeenCalled();
-    expect(mockGetLCP).not.toHaveBeenCalled();
-    expect(mockGetTTFB).not.toHaveBeenCalled();
+    expect(mockOnCLS).not.toHaveBeenCalled();
+    expect(mockOnINP).not.toHaveBeenCalled();
+    expect(mockOnFCP).not.toHaveBeenCalled();
+    expect(mockOnLCP).not.toHaveBeenCalled();
+    expect(mockOnTTFB).not.toHaveBeenCalled();
   });
 
   it('should not call web vitals functions when non-function is provided', async () => {
@@ -85,11 +85,11 @@ describe('reportWebVitals', () => {
     // Allow time for any potential dynamic import
     await new Promise(resolve => setTimeout(resolve, 0));
 
-    expect(mockGetCLS).not.toHaveBeenCalled();
-    expect(mockGetINP).not.toHaveBeenCalled();
-    expect(mockGetFCP).not.toHaveBeenCalled();
-    expect(mockGetLCP).not.toHaveBeenCalled();
-    expect(mockGetTTFB).not.toHaveBeenCalled();
+    expect(mockOnCLS).not.toHaveBeenCalled();
+    expect(mockOnINP).not.toHaveBeenCalled();
+    expect(mockOnFCP).not.toHaveBeenCalled();
+    expect(mockOnLCP).not.toHaveBeenCalled();
+    expect(mockOnTTFB).not.toHaveBeenCalled();
   });
 
   it('should handle dynamic import failure gracefully', async () => {
@@ -115,11 +115,11 @@ describe('reportWebVitals', () => {
     // Allow time for dynamic import to resolve
     await new Promise(resolve => setTimeout(resolve, 0));
 
-    expect(mockGetCLS).toHaveBeenCalledWith(arrowFunction);
-    expect(mockGetINP).toHaveBeenCalledWith(arrowFunction);
-    expect(mockGetFCP).toHaveBeenCalledWith(arrowFunction);
-    expect(mockGetLCP).toHaveBeenCalledWith(arrowFunction);
-    expect(mockGetTTFB).toHaveBeenCalledWith(arrowFunction);
+    expect(mockOnCLS).toHaveBeenCalledWith(arrowFunction);
+    expect(mockOnINP).toHaveBeenCalledWith(arrowFunction);
+    expect(mockOnFCP).toHaveBeenCalledWith(arrowFunction);
+    expect(mockOnLCP).toHaveBeenCalledWith(arrowFunction);
+    expect(mockOnTTFB).toHaveBeenCalledWith(arrowFunction);
   });
 
   it('should work with bound function ReportHandler', async () => {
@@ -133,10 +133,10 @@ describe('reportWebVitals', () => {
     // Allow time for dynamic import to resolve
     await new Promise(resolve => setTimeout(resolve, 0));
 
-    expect(mockGetCLS).toHaveBeenCalledWith(boundFunction);
-    expect(mockGetINP).toHaveBeenCalledWith(boundFunction);
-    expect(mockGetFCP).toHaveBeenCalledWith(boundFunction);
-    expect(mockGetLCP).toHaveBeenCalledWith(boundFunction);
-    expect(mockGetTTFB).toHaveBeenCalledWith(boundFunction);
+    expect(mockOnCLS).toHaveBeenCalledWith(boundFunction);
+    expect(mockOnINP).toHaveBeenCalledWith(boundFunction);
+    expect(mockOnFCP).toHaveBeenCalledWith(boundFunction);
+    expect(mockOnLCP).toHaveBeenCalledWith(boundFunction);
+    expect(mockOnTTFB).toHaveBeenCalledWith(boundFunction);
   });
 });

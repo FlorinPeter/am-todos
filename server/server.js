@@ -950,78 +950,63 @@ app.post('/api/search', async (req, res) => {
     results = uniqueResults;
     logger.log(`Search results: ${results.length} unique files after deduplication`);
 
-    // Enhance search results with frontmatter data (priority, etc.)
-    // This fixes the issue where search results always show P3 priority
-    const enhancedResults = [];
-    
-    for (const result of results) {
-      try {
-        let fileContent = null;
-        let priority = 3; // default fallback
-        
-        if (provider === 'github') {
-          // Fetch file content from GitHub
-          const contentUrl = `https://api.github.com/repos/${credentials.owner}/${credentials.repo}/contents/${result.path}`;
-          const contentResponse = await fetch(contentUrl, {
-            headers: {
-              'User-Agent': 'Agentic-Markdown-Todos',
-              'Authorization': `Bearer ${sanitizeHeader(credentials.token)}`,
-              'Accept': 'application/vnd.github.v3+json'
-            }
-          });
-          
-          if (contentResponse.ok) {
-            const contentData = await contentResponse.json();
-            fileContent = Buffer.from(contentData.content, 'base64').toString('utf-8');
-          }
-        } else if (provider === 'gitlab') {
-          // Fetch file content from GitLab
-          const encodedPath = encodeURIComponent(result.path);
-          const contentUrl = `${credentials.instanceUrl}/api/v4/projects/${credentials.projectId}/repository/files/${encodedPath}/raw?ref=main`;
-          const contentResponse = await fetch(contentUrl, {
-            headers: {
-              'Authorization': `Bearer ${sanitizeHeader(credentials.token)}`
-            }
-          });
-          
-          if (contentResponse.ok) {
-            fileContent = await contentResponse.text();
-          }
-        }
-        
-        // Parse frontmatter to extract priority
-        if (fileContent) {
-          const frontmatterMatch = fileContent.match(/^---\n([\s\S]*?)\n---/);
-          if (frontmatterMatch) {
-            const frontmatterText = frontmatterMatch[1];
-            const priorityMatch = frontmatterText.match(/^priority:\s*(\d+)$/m);
-            if (priorityMatch) {
-              const parsedPriority = parseInt(priorityMatch[1], 10);
-              // Validate priority range (1-5)
-              if (parsedPriority >= 1 && parsedPriority <= 5) {
-                priority = parsedPriority;
-              } else {
-                console.warn(`Invalid priority ${parsedPriority} in file ${result.path}, using default: 3`);
-                priority = 3;
-              }
-            }
-          }
-        }
-        
-        // Add priority to result
-        enhancedResults.push({
-          ...result,
-          priority
-        });
-      } catch (error) {
-        logger.error('Error fetching content for search result:', result.path, error.message);
-        // Add result with default priority if content fetch fails
-        enhancedResults.push({
-          ...result,
-          priority: 3
-        });
+    // Helper function to parse filename metadata (server-side version)
+    const parseFilenameMetadata = (fullPath) => {
+      // Extract just the filename from the full path
+      const filename = fullPath.split('/').pop() || fullPath;
+      
+      // Pattern: P{1-5}--YYYY-MM-DD--Title_With_Underscores.md
+      const newFormatPattern = /^P([1-5])--(\d{4}-\d{2}-\d{2})--(.+)\.md$/;
+      const newMatch = filename.match(newFormatPattern);
+      
+      if (newMatch) {
+        const [, priority, date, title] = newMatch;
+        return {
+          priority: parseInt(priority),
+          date,
+          title,
+          displayTitle: title.replace(/_/g, ' ')
+        };
       }
-    }
+      
+      // Pattern: YYYY-MM-DD-title.md (legacy format)
+      const legacyPattern = /^(\d{4}-\d{2}-\d{2})-(.+)\.md$/;
+      const legacyMatch = filename.match(legacyPattern);
+      
+      if (legacyMatch) {
+        const [, date, title] = legacyMatch;
+        return {
+          priority: 3, // Default priority for legacy files
+          date,
+          title,
+          displayTitle: title.replace(/-/g, ' ')
+        };
+      }
+      
+      return null;
+    };
+
+    // Enhance search results with metadata from filenames (NO API CALLS!)
+    // This replaces the expensive frontmatter fetching with instant filename parsing
+    const enhancedResults = results.map(result => {
+      const metadata = parseFilenameMetadata(result.name);
+      
+      if (metadata) {
+        // Use filename metadata - much faster than content fetching!
+        return {
+          ...result,
+          priority: metadata.priority,
+          displayTitle: metadata.displayTitle
+        };
+      } else {
+        // Unknown format - use defaults
+        return {
+          ...result,
+          priority: 3,
+          displayTitle: result.name.replace(/\.md$/, '').replace(/-/g, ' ')
+        };
+      }
+    });
 
     res.json({
       query: sanitizedQuery,

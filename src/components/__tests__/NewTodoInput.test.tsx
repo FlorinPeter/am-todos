@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import NewTodoInput from '../NewTodoInput';
@@ -92,7 +93,9 @@ describe('NewTodoInput Component', () => {
       const input = screen.getByPlaceholderText(/enter a new high-level goal/i);
       
       await userEvent.type(input, 'Test goal');
-      fireEvent.submit(input.closest('form'));
+      
+      // Submit by pressing Enter or clicking submit button
+      await userEvent.keyboard('{Enter}');
       
       expect(mockProps.onGoalSubmit).toHaveBeenCalledWith('Test goal');
     });

@@ -38,8 +38,6 @@ const SettingsSharing: React.FC<SettingsSharingProps> = ({ isVisible, onClose })
         width: 256,
         margin: 1,
         errorCorrectionLevel: 'L', // Low error correction for smaller QR code
-        type: 'image/png',
-        quality: 0.92,
         color: {
           dark: '#1f2937',
           light: '#ffffff'

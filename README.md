@@ -28,8 +28,8 @@ An AI-powered todo application that merges the simplicity of plain text markdown
 - **🎯 Smart Priority System**: P1-P5 color-coded priority management
 - **📦 Archive System**: Hide completed tasks without losing data
 
-> **📋 Complete Feature List**: See [FEATURES.md](FEATURES.md) for detailed implementation evidence  
-> **🏗 Architecture Details**: See [CONCEPT.md](CONCEPT.md) for design principles and vision
+> **📋 Complete Feature List**: See [features/implementation-evidence.md](features/implementation-evidence.md) for detailed implementation evidence  
+> **🏗 Architecture Details**: See [features/concept-and-architecture.md](features/concept-and-architecture.md) for design principles and vision
 
 ## 🚀 Quick Start
 
@@ -142,7 +142,7 @@ For local development and customization:
 
 ## 🏗️ Architecture
 
-> **📖 Detailed Architecture**: See [CONCEPT.md](CONCEPT.md) for complete design documentation
+> **📖 Detailed Architecture**: See [features/concept-and-architecture.md](features/concept-and-architecture.md) for complete design documentation
 
 ### Three-Layer Design
 ```
@@ -221,8 +221,8 @@ npm run test:basic     # Run feature validation tests
 
 ## 📚 Documentation
 
-- **📋 [FEATURES.md](FEATURES.md)** - Detailed feature list with implementation evidence
-- **🏗 [CONCEPT.md](CONCEPT.md)** - Architecture, vision, and design principles  
+- **📋 [features/implementation-evidence.md](features/implementation-evidence.md)** - Detailed feature list with implementation evidence
+- **🏗 [features/concept-and-architecture.md](features/concept-and-architecture.md)** - Architecture, vision, and design principles  
 - **👩‍💻 [CLAUDE.md](CLAUDE.md)** - Complete development guide and workflows
 - **🧪 [TESTING.md](TESTING.md)** - Test coverage, validation, and CI/CD
 - **🚀 [DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment with Docker and Cloud Run
@@ -230,7 +230,7 @@ npm run test:basic     # Run feature validation tests
 
 ## 📱 Usage Examples
 
-> **📖 Complete Usage Guide**: See [CONCEPT.md](CONCEPT.md) for detailed usage scenarios
+> **📖 Complete Usage Guide**: See [features/concept-and-architecture.md](features/concept-and-architecture.md) for detailed usage scenarios
 
 ### Quick Start Example
 1. **Create task**: "Plan weekend camping trip"
