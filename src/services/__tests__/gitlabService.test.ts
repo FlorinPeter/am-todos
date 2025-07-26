@@ -323,6 +323,134 @@ describe('GitLab Service', () => {
     });
   });
 
+  describe('moveTaskFromArchive', () => {
+    it('should move a task from archive to active folder successfully', async () => {
+      // Mock createOrUpdateTodo call for active folder
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        json: () => Promise.resolve({ file_path: 'todos/restored-todo.md' })
+      }));
+
+      // Mock deleteFile call for archive
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        json: () => Promise.resolve({ message: 'File deleted from archive' })
+      }));
+
+      const { moveTaskFromArchive } = await import('../gitlabService');
+      const result = await moveTaskFromArchive(
+        mockSettings,
+        'todos/archive/restored-todo.md',
+        '# Restored Todo\n\n- [ ] Unarchived task',
+        'feat: Restore todo from archive',
+        'work-items'
+      );
+
+      expect(result).toBe('work-items/restored-todo.md');
+      expect(fetch).toHaveBeenCalledTimes(2); // create in active, delete from archive
+
+      // Verify createOrUpdateTodo call for active folder
+      expect(fetch).toHaveBeenNthCalledWith(1,
+        '/api/gitlab',
+        expect.objectContaining({
+          body: expect.stringContaining('"filePath":"work-items/restored-todo.md"')
+        })
+      );
+
+      // Verify deleteFile call for archive
+      expect(fetch).toHaveBeenNthCalledWith(2,
+        '/api/gitlab',
+        expect.objectContaining({
+          body: expect.stringContaining('"filePath":"todos/archive/restored-todo.md"')
+        })
+      );
+    });
+
+    it('should use default folder for moveTaskFromArchive', async () => {
+      // Mock createOrUpdateTodo call
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        json: () => Promise.resolve({ file_path: 'todos/default-todo.md' })
+      }));
+
+      // Mock deleteFile call
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        json: () => Promise.resolve({ message: 'File deleted' })
+      }));
+
+      const { moveTaskFromArchive } = await import('../gitlabService');
+      const result = await moveTaskFromArchive(
+        mockSettings,
+        'todos/archive/default-todo.md',
+        '# Default Todo',
+        'feat: Restore todo'
+      );
+
+      expect(result).toBe('todos/default-todo.md');
+      expect(fetch).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('getFileHistory', () => {
+    it('should get file history successfully', async () => {
+      const mockCommits = [
+        {
+          sha: 'abc123',
+          message: 'feat: Add initial todo',
+          author: 'testuser',
+          date: '2023-01-01T00:00:00Z',
+          url: 'https://gitlab.example.com/project/commits/abc123'
+        },
+        {
+          sha: 'def456', 
+          message: 'fix: Update todo content',
+          author: 'testuser',
+          date: '2023-01-02T00:00:00Z',
+          url: 'https://gitlab.example.com/project/commits/def456'
+        }
+      ];
+
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        json: () => Promise.resolve(mockCommits)
+      }));
+
+      const { getFileHistory } = await import('../gitlabService');
+      const result = await getFileHistory(mockSettings, 'todos/test-todo.md');
+
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/gitlab',
+        expect.objectContaining({
+          body: JSON.stringify({
+            action: 'getFileHistory',
+            instanceUrl: mockSettings.instanceUrl,
+            projectId: mockSettings.projectId,
+            token: mockSettings.token,
+            branch: mockSettings.branch,
+            filePath: 'todos/test-todo.md'
+          })
+        })
+      );
+
+      expect(result).toEqual(mockCommits);
+    });
+
+    it('should handle getFileHistory API errors', async () => {
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        text: () => Promise.resolve('File history not found')
+      }));
+
+      const { getFileHistory } = await import('../gitlabService');
+      await expect(
+        getFileHistory(mockSettings, 'todos/nonexistent.md')
+      ).rejects.toThrow('GitLab API proxy error: Not Found - File history not found');
+    });
+  });
+
   describe('listProjectFolders', () => {
     it('should list available project folders', async () => {
       // Mock repository tree response
@@ -375,6 +503,111 @@ describe('GitLab Service', () => {
       const result = await listProjectFolders(mockSettings);
 
       expect(result).toEqual(['todos']);
+    });
+
+    it('should filter project folders using specific patterns (lines 842-846)', async () => {
+      // Mock repository tree with various folder types including the specific patterns
+      const mockTreeResponse = createMockResponse({
+        ok: true,
+        json: () => Promise.resolve([
+          { name: 'project-alpha', type: 'tree', path: 'project-alpha' }, // Should match "project"
+          { name: 'work-items', type: 'tree', path: 'work-items' }, // Should match "work"
+          { name: 'personal-notes', type: 'tree', path: 'personal-notes' }, // Should match "personal"
+          { name: 'my-todos', type: 'tree', path: 'my-todos' }, // Should match "todo"
+          { name: 'task-list', type: 'tree', path: 'task-list' }, // Should match "task"
+          { name: 'valid_folder-name', type: 'tree', path: 'valid_folder-name' }, // Should match regex
+          { name: 'src', type: 'tree', path: 'src' }, // Should NOT match
+          { name: '123invalid', type: 'tree', path: '123invalid' }, // Should NOT match regex
+          { name: 'special!chars', type: 'tree', path: 'special!chars' } // Should NOT match regex
+        ])
+      });
+
+      mockFetch.mockResolvedValueOnce(mockTreeResponse);
+
+      const { listProjectFolders } = await import('../gitlabService');
+      const result = await listProjectFolders(mockSettings);
+
+      // Should include folders matching the specific patterns (lines 842-846)
+      expect(result).toContain('project-alpha'); // "project" pattern
+      expect(result).toContain('work-items'); // "work" pattern
+      expect(result).toContain('personal-notes'); // "personal" pattern
+      expect(result).toContain('my-todos'); // "todo" pattern
+      expect(result).toContain('task-list'); // "task" pattern
+      expect(result).toContain('valid_folder-name'); // regex pattern
+
+      // Should exclude folders not matching any pattern
+      expect(result).not.toContain('src');
+      expect(result).not.toContain('123invalid');
+      expect(result).not.toContain('special!chars');
+    });
+
+    it('should add default todos folder when no project folders found (lines 853-854)', async () => {
+      // Mock repository tree with only system folders that are excluded
+      const mockTreeResponse = createMockResponse({
+        ok: true,
+        json: () => Promise.resolve([
+          { name: 'src', type: 'tree', path: 'src' }, // System folder - excluded
+          { name: 'docs', type: 'tree', path: 'docs' }, // System folder - excluded
+          { name: 'node_modules', type: 'tree', path: 'node_modules' }, // System folder - excluded
+          { name: '123invalid', type: 'tree', path: '123invalid' }, // Invalid regex - excluded
+          { name: 'special!chars', type: 'tree', path: 'special!chars' }, // Invalid regex - excluded
+          { name: 'README.md', type: 'blob', path: 'README.md' } // Not a tree - excluded
+        ])
+      });
+
+      mockFetch.mockResolvedValueOnce(mockTreeResponse);
+
+      const { listProjectFolders } = await import('../gitlabService');
+      const result = await listProjectFolders(mockSettings);
+
+      // Should fall back to default 'todos' when no project folders match (lines 853-854)
+      expect(result).toEqual(['todos']);
+    });
+
+    it('should include todos folder when present in directory listing (line 845)', async () => {
+      // Mock repository tree with 'todos' folder and other valid folders
+      const mockTreeResponse = createMockResponse({
+        ok: true,
+        json: () => Promise.resolve([
+          { name: 'project-work', type: 'tree', path: 'project-work' }, // Should match
+          { name: 'personal-stuff', type: 'tree', path: 'personal-stuff' }, // Should match
+          { name: 'todos', type: 'tree', path: 'todos' } // Should match (line 845: name === 'todos')
+        ])
+      });
+
+      mockFetch.mockResolvedValueOnce(mockTreeResponse);
+
+      const { listProjectFolders } = await import('../gitlabService');
+      const result = await listProjectFolders(mockSettings);
+
+      // Should include all found folders including explicit 'todos'
+      expect(result).toContain('project-work');
+      expect(result).toContain('personal-stuff');
+      expect(result).toContain('todos'); // Included because it's in the directory listing (line 845)
+    });
+
+    it('should only include valid project folders when todos folder not present', async () => {
+      // Mock repository tree without 'todos' folder but with other valid folders
+      const mockTreeResponse = createMockResponse({
+        ok: true,
+        json: () => Promise.resolve([
+          { name: 'project-work', type: 'tree', path: 'project-work' }, // Should match
+          { name: 'personal-stuff', type: 'tree', path: 'personal-stuff' }, // Should match
+          { name: 'src', type: 'tree', path: 'src' } // System folder - should be excluded
+        ])
+      });
+
+      mockFetch.mockResolvedValueOnce(mockTreeResponse);
+
+      const { listProjectFolders } = await import('../gitlabService');
+      const result = await listProjectFolders(mockSettings);
+
+      // Should include only the valid project folders, not 'todos' (since it wasn't found AND other folders exist)
+      expect(result).toContain('project-work');
+      expect(result).toContain('personal-stuff');
+      expect(result).not.toContain('todos'); // Not added because other folders exist
+      expect(result).not.toContain('src'); // System folder excluded
+      expect(result).toHaveLength(2);
     });
   });
 
@@ -429,6 +662,312 @@ describe('GitLab Service', () => {
       await expect(
         createProjectFolder(mockSettings, 'spaces not allowed')
       ).rejects.toThrow('Invalid folder name');
+    });
+  });
+
+  describe('createTodo (New Format)', () => {
+    it('should create a new todo with filename-based metadata', async () => {
+      const mockResponse = {
+        file_path: 'todos/P2--2023-01-01--test-todo.md',
+        content: 'test content'
+      };
+
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        json: () => Promise.resolve(mockResponse)
+      }));
+
+      const { createTodo } = await import('../gitlabService');
+      const result = await createTodo(
+        mockSettings,
+        'Test Todo',
+        '# Test Todo\n\n- [ ] Test task',
+        2,
+        'work-tasks'
+      );
+
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/gitlab',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('"action":"createOrUpdateFile"')
+        })
+      );
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should use default priority and folder for createTodo', async () => {
+      const mockResponse = {
+        file_path: 'todos/P3--2023-01-01--simple-todo.md',
+        content: 'test content'
+      };
+
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        json: () => Promise.resolve(mockResponse)
+      }));
+
+      const { createTodo } = await import('../gitlabService');
+      const result = await createTodo(
+        mockSettings,
+        'Simple Todo',
+        '# Simple Todo\n\n- [ ] Default task'
+      );
+
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/gitlab',
+        expect.objectContaining({
+          body: expect.stringContaining('"filePath":"todos/')
+        })
+      );
+
+      expect(result).toEqual(mockResponse);
+    });
+  });
+
+  describe('getFileAtCommit', () => {
+    it('should get file content at specific commit', async () => {
+      const mockData = {
+        content: '# Test Todo\n\n- [x] Completed task',
+        sha: 'abc123'
+      };
+
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        json: () => Promise.resolve(mockData)
+      }));
+
+      const { getFileAtCommit } = await import('../gitlabService');
+      const result = await getFileAtCommit(mockSettings, 'todos/test.md', 'abc123');
+
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/gitlab',
+        expect.objectContaining({
+          body: JSON.stringify({
+            action: 'getFileAtCommit',
+            instanceUrl: mockSettings.instanceUrl,
+            projectId: mockSettings.projectId,
+            token: mockSettings.token,
+            branch: mockSettings.branch,
+            filePath: 'todos/test.md',
+            sha: 'abc123'
+          })
+        })
+      );
+
+      expect(result).toEqual(mockData);
+    });
+
+    it('should handle getFileAtCommit errors', async () => {
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        text: () => Promise.resolve('File not found at commit')
+      }));
+
+      const { getFileAtCommit } = await import('../gitlabService');
+      await expect(
+        getFileAtCommit(mockSettings, 'todos/missing.md', 'invalid123')
+      ).rejects.toThrow('GitLab API proxy error: Not Found - File not found at commit');
+    });
+  });
+
+  describe('getProject', () => {
+    it('should get GitLab project information', async () => {
+      const mockProject = {
+        id: 12345,
+        name: 'Test Project',
+        description: 'A test project',
+        web_url: 'https://gitlab.example.com/user/test-project'
+      };
+
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        json: () => Promise.resolve(mockProject)
+      }));
+
+      const { getProject } = await import('../gitlabService');
+      const result = await getProject(mockSettings);
+
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/gitlab',
+        expect.objectContaining({
+          body: JSON.stringify({
+            action: 'getProject',
+            instanceUrl: mockSettings.instanceUrl,
+            projectId: mockSettings.projectId,
+            token: mockSettings.token,
+            branch: mockSettings.branch
+          })
+        })
+      );
+
+      expect(result).toEqual(mockProject);
+    });
+
+    it('should handle getProject API errors', async () => {
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        text: () => Promise.resolve('Access denied')
+      }));
+
+      const { getProject } = await import('../gitlabService');
+      await expect(
+        getProject(mockSettings)
+      ).rejects.toThrow('GitLab API proxy error: Forbidden - Access denied');
+    });
+  });
+
+  describe('getFileMetadata', () => {
+    it('should get file metadata successfully', async () => {
+      const mockMetadata = {
+        sha: 'abc123def456',
+        content: 'base64encodedcontent==',
+        path: 'todos/test-file.md',
+        name: 'test-file.md',
+        size: 1024,
+        encoding: 'base64'
+      };
+
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        text: () => Promise.resolve(JSON.stringify(mockMetadata))
+      }));
+
+      const { getFileMetadata } = await import('../gitlabService');
+      const result = await getFileMetadata(mockSettings, 'todos/test-file.md');
+
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/gitlab',
+        expect.objectContaining({
+          body: JSON.stringify({
+            action: 'getFile',
+            instanceUrl: mockSettings.instanceUrl,
+            projectId: mockSettings.projectId,
+            token: mockSettings.token,
+            branch: mockSettings.branch,
+            filePath: 'todos/test-file.md'
+          })
+        })
+      );
+
+      expect(result).toEqual({
+        sha: 'abc123def456',
+        content: 'base64encodedcontent==',
+        path: 'todos/test-file.md',
+        name: 'test-file.md'
+      });
+    });
+
+    it('should handle JSON parse error in getFileMetadata', async () => {
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        text: () => Promise.resolve('invalid json response')
+      }));
+
+      const { getFileMetadata } = await import('../gitlabService');
+      await expect(
+        getFileMetadata(mockSettings, 'todos/invalid.md')
+      ).rejects.toThrow('Failed to parse GitLab API response:');
+    });
+  });
+
+  describe('ensureArchiveDirectory', () => {
+    it('should not create archive directory when it already exists', async () => {
+      // Mock getTodos to succeed (directory exists)
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        json: () => Promise.resolve([])
+      }));
+
+      const { ensureArchiveDirectory } = await import('../gitlabService');
+      await ensureArchiveDirectory(mockSettings, 'existing-folder');
+
+      expect(fetch).toHaveBeenCalledTimes(1); // Only the getTodos call
+    });
+  });
+
+  describe('Additional Coverage Tests', () => {
+    it('should test caching system cache hit', async () => {
+      const { getTodos } = await import('../gitlabService');
+      
+      // Mock successful response
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: true,
+        json: async () => ([
+          {
+            id: 'test1',
+            title: 'Test Todo 1',
+            content: '# Test 1\\n\\n- [ ] Task',
+            path: 'todos/test1.md',
+            createdAt: '2023-01-01T10:00:00.000Z',
+            priority: 2,
+            isArchived: false
+          }
+        ])
+      }));
+
+      // First call
+      await getTodos(mockSettings, 'todos', false);
+      expect(fetch).toHaveBeenCalledTimes(1);
+
+      // Second call should use cache
+      await getTodos(mockSettings, 'todos', false);
+      expect(fetch).toHaveBeenCalledTimes(1); // No additional call
+    });
+
+    it('should test error handling with different status codes', async () => {
+      const { createOrUpdateTodo } = await import('../gitlabService');
+      
+      // Test 500 error
+      mockFetch.mockResolvedValueOnce(createMockResponse({
+        ok: false,
+        status: 500,
+        json: async () => ({ message: 'Server error' }),
+        text: async () => 'Server error'
+      }));
+
+      await expect(
+        createOrUpdateTodo(mockSettings, 'todos/test.md', 'content', 'commit')
+      ).rejects.toThrow();
+    });
+
+  });
+
+  // === Coverage Improvement: Uncovered Lines 635-637, 686-692 ===
+  describe('Error Handling Coverage (lines 635-637, 686-692)', () => {
+    it('should handle retry failure in getTodos (lines 635-637)', async () => {
+      const { getTodos } = await import('../gitlabService');
+      
+      // Mock first call to fail with network error, second call (retry) to also fail
+      mockFetch
+        .mockRejectedValueOnce(new TypeError('fetch failed'))
+        .mockRejectedValueOnce(new TypeError('Retry fetch failed'))
+        .mockResolvedValue(createMockResponse({ ok: true, json: async () => [] })); // Fallback
+
+      const result = await getTodos(mockSettings, 'todos', false);
+
+      expect(result).toEqual([]); // Should return empty array after retry fails
+    }, 10000); // Increase timeout
+
+    it('should create archive directory when it does not exist (lines 686-692)', async () => {
+      const { ensureArchiveDirectory } = await import('../gitlabService');
+      
+      // Mock getTodos to fail, then mock create operations to succeed
+      mockFetch
+        .mockRejectedValueOnce(new Error('Directory not found'))
+        .mockResolvedValue(createMockResponse({
+          ok: true,
+          json: async () => ({ file_path: 'todos/archive/.gitkeep' })
+        }));
+
+      await ensureArchiveDirectory(mockSettings, 'todos');
+
+      expect(mockFetch).toHaveBeenCalled(); // Verify fetch operations occurred
     });
   });
 });

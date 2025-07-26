@@ -542,10 +542,13 @@ describe('ProjectManager', () => {
 
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
 
-    // Wait for initial load and clear mock
+    // Wait for initial load and any pending timeouts to complete
     await waitFor(() => {
       expect(mockListProjectFolders).toHaveBeenCalled();
-    });
+    }, { timeout: 2000 });
+    
+    // Wait additional time to ensure all timeouts are done
+    await new Promise(resolve => setTimeout(resolve, 1200));
     mockListProjectFolders.mockClear();
 
     // Simulate a storage event for a different key
@@ -557,8 +560,8 @@ describe('ProjectManager', () => {
 
     window.dispatchEvent(storageEvent);
 
-    // Should NOT trigger additional loadFolders calls
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Should NOT trigger additional loadFolders calls - wait longer than debounce
+    await new Promise(resolve => setTimeout(resolve, 1200));
     expect(mockListProjectFolders).not.toHaveBeenCalled();
   });
 
@@ -578,10 +581,10 @@ describe('ProjectManager', () => {
 
     const { rerender } = render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
 
-    // Wait for initial load to complete and settle any timeouts
+    // Wait for initial load to complete and settle any timeouts (component uses 1s debounce)
     await waitFor(() => {
       expect(mockListProjectFolders).toHaveBeenCalled();
-    });
+    }, { timeout: 2000 });
 
     // Clear call counts from initial render
     setTimeoutSpy.mockClear();

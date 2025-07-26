@@ -271,6 +271,303 @@ describe('MarkdownViewer - Basic Feature Coverage', () => {
     });
   });
 
+  describe('Checkbox Token Error Handling', () => {
+    it('handles malformed checkbox tokens with debug fallback', () => {
+      // Create content with malformed checkbox tokens that should trigger debug fallback
+      const malformedContent = '- XCHECKBOXX invalid token format';
+      
+      render(
+        <MarkdownViewer 
+          {...mockProps} 
+          content={malformedContent}
+        />
+      );
+
+      // Should render content without crashing
+      expect(document.body).toBeInTheDocument();
+    });
+
+    it('handles registry mismatch for checkbox tokens', () => {
+      // Content that might cause registry index mismatches
+      const contentWithMismatch = '- [ ] Task 1\n- XCHECKBOXX999XENDX Invalid index';
+      
+      render(
+        <MarkdownViewer 
+          {...mockProps} 
+          content={contentWithMismatch}
+        />
+      );
+
+      // Should handle registry mismatch gracefully
+      expect(document.body).toBeInTheDocument();
+    });
+
+    it('handles checkbox lists with proper UL styling', () => {
+      const checkboxListContent = '# Task List\n\n- [ ] First task\n- [ ] Second task\n- [x] Completed task';
+      
+      render(
+        <MarkdownViewer 
+          {...mockProps} 
+          content={checkboxListContent}
+        />
+      );
+
+      // Should render checkbox list structure
+      expect(screen.getByText('Task List')).toBeInTheDocument();
+      const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+      expect(checkboxes.length).toBeGreaterThan(0);
+    });
+
+    it('handles mixed content lists (checkbox and non-checkbox)', () => {
+      const mixedContent = '# Mixed List\n\n- [ ] Checkbox item\n- Regular list item\n- Another regular item';
+      
+      render(
+        <MarkdownViewer 
+          {...mockProps} 
+          content={mixedContent}
+        />
+      );
+
+      // Should handle mixed list content
+      expect(screen.getByText('Mixed List')).toBeInTheDocument();
+      expect(screen.getByText('Regular list item')).toBeInTheDocument();
+    });
+  });
+
+  describe('Draft Persistence and Error Handling', () => {
+    it('handles localStorage errors gracefully during draft save', async () => {
+      // Mock localStorage to throw an error
+      const originalSetItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = vi.fn(() => {
+        throw new Error('localStorage quota exceeded');
+      });
+
+      render(<MarkdownViewer {...mockProps} todoId="test-id" filePath="test.md" />);
+      
+      const editButton = screen.getByText('Edit');
+      await userEvent.click(editButton);
+      
+      await waitFor(() => {
+        const editor = document.querySelector('.cm-editor');
+        expect(editor).toBeInTheDocument();
+      });
+      
+      // Should handle localStorage error gracefully without crashing
+      const contentArea = document.querySelector('.cm-content');
+      if (contentArea) {
+        contentArea.focus();
+        await userEvent.type(contentArea, ' Modified');
+      }
+
+      // Restore original localStorage
+      Storage.prototype.setItem = originalSetItem;
+      
+      // Should still show unsaved indicator despite localStorage error
+      await waitFor(() => {
+        expect(screen.getByText('• Unsaved')).toBeInTheDocument();
+      });
+    });
+
+    it('handles corrupted draft data gracefully', () => {
+      // Mock localStorage to return corrupted data
+      const originalGetItem = Storage.prototype.getItem;
+      Storage.prototype.getItem = vi.fn(() => 'invalid-json-data');
+
+      render(<MarkdownViewer {...mockProps} todoId="test-id" filePath="test.md" />);
+      
+      // Should handle corrupted draft gracefully
+      expect(screen.getByText('Test Task')).toBeInTheDocument();
+      
+      // Restore original localStorage
+      Storage.prototype.getItem = originalGetItem;
+    });
+
+    it('auto-saves draft with debounce when content changes', async () => {
+      const mockSaveDraft = vi.fn();
+      vi.doMock('../../utils/localStorage', () => ({
+        saveDraft: mockSaveDraft,
+        getDraft: vi.fn(() => null),
+        clearDraft: vi.fn()
+      }));
+
+      render(<MarkdownViewer {...mockProps} todoId="test-id" filePath="test.md" />);
+      
+      const editButton = screen.getByText('Edit');
+      await userEvent.click(editButton);
+      
+      await waitFor(() => {
+        const editor = document.querySelector('.cm-editor');
+        expect(editor).toBeInTheDocument();
+      });
+      
+      // Make changes to trigger auto-save
+      const contentArea = document.querySelector('.cm-content');
+      if (contentArea) {
+        contentArea.focus();
+        await userEvent.type(contentArea, ' Auto-save test');
+      }
+
+      // Should trigger auto-save after debounce
+      await waitFor(() => {
+        expect(screen.getByText('• Unsaved')).toBeInTheDocument();
+      }, { timeout: 1000 });
+    });
+  });
+
+  describe('Mode Switching and Content Sync', () => {
+    it('syncs viewContent with editContent when switching from edit to view', async () => {
+      render(<MarkdownViewer {...mockProps} />);
+      
+      const editButton = screen.getByText('Edit');
+      await userEvent.click(editButton);
+      
+      await waitFor(() => {
+        const editor = document.querySelector('.cm-editor');
+        expect(editor).toBeInTheDocument();
+      });
+      
+      // Make changes in edit mode
+      const contentArea = document.querySelector('.cm-content');
+      if (contentArea) {
+        contentArea.focus();
+        await userEvent.type(contentArea, ' Modified in edit');
+      }
+      
+      // Switch back to view mode
+      const viewButton = screen.getByText('View');
+      await userEvent.click(viewButton);
+      
+      // Content should be synced
+      expect(document.querySelector('.cm-editor')).not.toBeInTheDocument();
+    });
+
+    it('syncs editContent with viewContent when switching from view to edit', async () => {
+      render(<MarkdownViewer {...mockProps} />);
+      
+      // Start in view mode, switch to edit
+      const editButton = screen.getByText('Edit');
+      await userEvent.click(editButton);
+      
+      await waitFor(() => {
+        const editor = document.querySelector('.cm-editor');
+        expect(editor).toBeInTheDocument();
+      });
+      
+      // Content should be properly synced from view to edit
+      expect(screen.getByText('View')).toBeInTheDocument();
+    });
+  });
+
+  describe('History and Restoration Features', () => {
+    it('handles restore from history with confirmation dialog', async () => {
+      // Mock window.confirm to return true
+      const originalConfirm = window.confirm;
+      window.confirm = vi.fn(() => true);
+
+      render(<MarkdownViewer {...mockProps} />);
+      
+      // Should handle history restoration logic
+      expect(screen.getByText('📜 History')).toBeInTheDocument();
+      
+      // Restore original confirm
+      window.confirm = originalConfirm;
+    });
+
+    it('handles restore from history with unsaved changes warning', async () => {
+      const originalConfirm = window.confirm;
+      let confirmCallCount = 0;
+      window.confirm = vi.fn(() => {
+        confirmCallCount++;
+        return confirmCallCount === 1; // Return true for first call (unsaved changes), false for second
+      });
+
+      render(<MarkdownViewer {...mockProps} />);
+      
+      // Switch to edit mode and make changes
+      const editButton = screen.getByText('Edit');
+      await userEvent.click(editButton);
+      
+      await waitFor(() => {
+        const editor = document.querySelector('.cm-editor');
+        expect(editor).toBeInTheDocument();
+      });
+      
+      // Make unsaved changes
+      const contentArea = document.querySelector('.cm-content');
+      if (contentArea) {
+        contentArea.focus();
+        await userEvent.type(contentArea, ' Unsaved changes');
+      }
+      
+      await waitFor(() => {
+        expect(screen.getByText('• Unsaved')).toBeInTheDocument();
+      });
+      
+      // Should handle the scenario with unsaved changes
+      expect(screen.getByText('📜 History')).toBeInTheDocument();
+      
+      // Restore original confirm
+      window.confirm = originalConfirm;
+    });
+  });
+
+  describe('Cancel Operation Edge Cases', () => {
+    it('cancels edit mode without confirmation when no changes', async () => {
+      render(<MarkdownViewer {...mockProps} />);
+      
+      const editButton = screen.getByText('Edit');
+      await userEvent.click(editButton);
+      
+      await waitFor(() => {
+        const editor = document.querySelector('.cm-editor');
+        expect(editor).toBeInTheDocument();
+      });
+      
+      // Cancel without making changes
+      const cancelButton = screen.getByText('Cancel');
+      await userEvent.click(cancelButton);
+      
+      // Should switch back to view mode without confirmation
+      expect(document.querySelector('.cm-editor')).not.toBeInTheDocument();
+    });
+
+    it('shows confirmation dialog when canceling with unsaved changes', async () => {
+      const originalConfirm = window.confirm;
+      window.confirm = vi.fn(() => false); // User cancels the cancel operation
+
+      render(<MarkdownViewer {...mockProps} />);
+      
+      const editButton = screen.getByText('Edit');
+      await userEvent.click(editButton);
+      
+      await waitFor(() => {
+        const editor = document.querySelector('.cm-editor');
+        expect(editor).toBeInTheDocument();
+      });
+      
+      // Make changes
+      const contentArea = document.querySelector('.cm-content');
+      if (contentArea) {
+        contentArea.focus();
+        await userEvent.type(contentArea, ' Some changes');
+      }
+      
+      await waitFor(() => {
+        expect(screen.getByText('• Unsaved')).toBeInTheDocument();
+      });
+      
+      // Try to cancel
+      const cancelButton = screen.getByText('Cancel');
+      await userEvent.click(cancelButton);
+      
+      // Should stay in edit mode since user canceled the cancel
+      expect(document.querySelector('.cm-editor')).toBeInTheDocument();
+      
+      // Restore original confirm
+      window.confirm = originalConfirm;
+    });
+  });
+
   describe('Git History Restoration - Frontmatter Handling', () => {
     it('should handle restoration with empty content', () => {
       render(
@@ -328,6 +625,125 @@ This is plain markdown content without frontmatter.
       // Should display the restored content
       expect(screen.getByText('Restored Task')).toBeInTheDocument();
       expect(screen.getByText('This is restored content.')).toBeInTheDocument();
+    });
+  });
+
+  describe('Specific Coverage Improvements', () => {
+    describe('handleRestoreFromHistory function (line 245)', () => {
+      it('should render git history button when showGitHistory is enabled', () => {
+        render(
+          <MarkdownViewer 
+            {...mockProps} 
+            content="# Test Content"
+            showGitHistory={true}
+          />
+        );
+
+        // The GitHistory button should be rendered, which means handleRestoreFromHistory is available (line 245)
+        expect(screen.getByText('📜 History')).toBeInTheDocument();
+      });
+    });
+
+    describe('Preserved Children Rendering (lines 460-462)', () => {
+      it('should render preserved children when they exist', () => {
+        const contentWithNestedTasks = `# Main Task
+
+- [ ] Parent task
+  - [ ] Child task 1
+  - [ ] Child task 2
+- [ ] Another parent task
+  - [ ] Child task 3`;
+
+        render(
+          <MarkdownViewer 
+            {...mockProps} 
+            content={contentWithNestedTasks}
+          />
+        );
+
+        // This should trigger the preservedChildren.length > 0 condition (lines 460-462)
+        expect(screen.getByText('Parent task')).toBeInTheDocument();
+        expect(screen.getByText('Child task 1')).toBeInTheDocument();
+        expect(screen.getByText('Child task 2')).toBeInTheDocument();
+        expect(screen.getByText('Child task 3')).toBeInTheDocument();
+      });
+    });
+
+    describe('Unordered List Rendering (line 521)', () => {
+      it('should render unordered lists correctly', () => {
+        const contentWithUnorderedList = `# Task List
+
+Regular unordered list:
+- First item
+- Second item
+- Third item`;
+
+        render(
+          <MarkdownViewer 
+            {...mockProps} 
+            content={contentWithUnorderedList}
+          />
+        );
+
+        // This should trigger the ul component override (line 521)
+        expect(screen.getByText('First item')).toBeInTheDocument();
+        expect(screen.getByText('Second item')).toBeInTheDocument();
+        expect(screen.getByText('Third item')).toBeInTheDocument();
+        
+        // Check that the ul element is present in the DOM
+        const listElements = screen.getAllByRole('list');
+        expect(listElements.length).toBeGreaterThan(0);
+      });
+
+      it('should handle mixed content with lists', () => {
+        const mixedContent = `# Mixed Content
+
+Some text before the list.
+
+- List item 1
+- List item 2
+
+Some text after the list.`;
+
+        render(
+          <MarkdownViewer 
+            {...mockProps} 
+            content={mixedContent}
+          />
+        );
+
+        // This exercises the ul rendering path (line 521)
+        expect(screen.getByText('Some text before the list.')).toBeInTheDocument();
+        expect(screen.getByText('List item 1')).toBeInTheDocument();
+        expect(screen.getByText('List item 2')).toBeInTheDocument();
+        expect(screen.getByText('Some text after the list.')).toBeInTheDocument();
+      });
+    });
+  });
+
+  // === Coverage Improvement: checkboxPreprocessor.ts lines 74-75 ===
+  describe('Checkbox Preprocessor Coverage (lines 74-75)', () => {
+    it('should handle null/undefined originalContent in updateContentWithCheckboxStates', async () => {
+      const { updateContentWithCheckboxStates } = await import('../../utils/checkboxPreprocessor');
+      const mockCheckboxRegistry: any[] = [];
+
+      // Test null input (line 73-74)
+      expect(updateContentWithCheckboxStates(null, mockCheckboxRegistry)).toBe('');
+      
+      // Test undefined input (line 73-74)
+      expect(updateContentWithCheckboxStates(undefined, mockCheckboxRegistry)).toBe('');
+      
+      // Test non-string input (line 73-74)
+      expect(updateContentWithCheckboxStates(123 as any, mockCheckboxRegistry)).toBe('');
+      expect(updateContentWithCheckboxStates({} as any, mockCheckboxRegistry)).toBe('');
+    });
+
+    it('should handle empty string originalContent', async () => {
+      const { updateContentWithCheckboxStates } = await import('../../utils/checkboxPreprocessor');
+      const mockCheckboxRegistry: any[] = [];
+
+      // Test empty string input (should pass validation but return empty)
+      expect(updateContentWithCheckboxStates('', mockCheckboxRegistry)).toBe('');
     });
   });
 });

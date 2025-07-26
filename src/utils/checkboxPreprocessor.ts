@@ -18,6 +18,9 @@ export interface PreprocessResult {
  * and creates a registry mapping tokens to checkbox data.
  */
 export function preprocessMarkdownCheckboxes(content: string): PreprocessResult {
+  if (!content || typeof content !== 'string') {
+    return { processedContent: '', checkboxRegistry: [] };
+  }
   const lines = content.split('\n');
   const checkboxRegistry: CheckboxData[] = [];
   const processedLines: string[] = [];
@@ -67,6 +70,9 @@ export function updateContentWithCheckboxStates(
   originalContent: string, 
   checkboxRegistry: CheckboxData[]
 ): string {
+  if (!originalContent || typeof originalContent !== 'string') {
+    return '';
+  }
   const lines = originalContent.split('\n');
   
   checkboxRegistry.forEach((checkbox) => {

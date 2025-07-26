@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, parseMarkdownWithMetadata, stringifyMarkdownWithMetadata } from '../markdown';
+import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, parseMarkdownWithMetadata, stringifyMarkdownWithMetadata, validatePriority } from '../markdown';
 import { TodoFrontmatter } from '../../types';
 import * as filenameMetadata from '../filenameMetadata';
 
@@ -656,6 +656,77 @@ tags:
   - test
 ---
 `);
+    });
+  });
+
+  describe('Priority Validation Coverage (lines 20-22)', () => {
+    it('should handle invalid priority values and log warning', () => {
+      const loggerWarnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+      
+      // Test values outside range 1-5
+      expect(validatePriority(0)).toBe(3);
+      expect(validatePriority(6)).toBe(3);
+      expect(validatePriority(-1)).toBe(3);
+      expect(validatePriority(10)).toBe(3);
+      
+      // Test non-integer values
+      expect(validatePriority(2.5)).toBe(3);
+      expect(validatePriority(3.7)).toBe(3);
+      
+      // Verify warning messages were logged (lines 20-21)
+      expect(loggerWarnSpy).toHaveBeenCalledWith('Priority value 0 out of range (1-5), defaulting to 3');
+      expect(loggerWarnSpy).toHaveBeenCalledWith('Priority value 6 out of range (1-5), defaulting to 3');
+      expect(loggerWarnSpy).toHaveBeenCalledWith('Priority value -1 out of range (1-5), defaulting to 3');
+      expect(loggerWarnSpy).toHaveBeenCalledWith('Priority value 10 out of range (1-5), defaulting to 3');
+      expect(loggerWarnSpy).toHaveBeenCalledWith('Priority value 2.5 out of range (1-5), defaulting to 3');
+      expect(loggerWarnSpy).toHaveBeenCalledWith('Priority value 3.7 out of range (1-5), defaulting to 3');
+      
+      loggerWarnSpy.mockRestore();
+    });
+  });
+
+  describe('Legacy Filename Without Frontmatter Coverage (lines 108-116)', () => {
+    it('should handle legacy filename format without frontmatter (lines 108-116)', () => {
+      const filename = '2023-12-25-legacy-no-frontmatter.md';
+      const content = '# Simple legacy content without frontmatter';
+
+      // Mock the filename metadata functions to trigger legacy path
+      vi.mocked(filenameMetadata.parseFilenameMetadata).mockReturnValue(null);
+      vi.mocked(filenameMetadata.isLegacyFormatFilename).mockReturnValue(true);
+      vi.mocked(filenameMetadata.extractDateFromLegacyFilename).mockReturnValue('2023-12-25');
+      vi.mocked(filenameMetadata.extractTitleFromLegacyFilename).mockReturnValue('Legacy No Frontmatter');
+
+      const result = parseMarkdownWithMetadata(content, filename, false);
+
+      // This triggers legacy format with empty frontmatter (lines 98-105)
+      expect(result).toEqual({
+        title: 'Legacy No Frontmatter', // legacyTitle
+        createdAt: '2023-12-25T00:00:00.000Z', // legacyDate + 'T00:00:00.000Z'
+        priority: undefined, // legacyData.priority is undefined (line 101)
+        isArchived: false,
+        frontmatter: { tags: [] }, // Line 103
+        markdownContent: '# Simple legacy content without frontmatter' // Line 104
+      });
+    });
+
+    it('should use fallback values when legacy extraction fails (lines 109-110)', () => {
+      const filename = 'malformed-legacy.md';
+      const content = '# Content with missing metadata';
+
+      // Mock to trigger legacy path with no extracted data
+      vi.mocked(filenameMetadata.parseFilenameMetadata).mockReturnValue(null);
+      vi.mocked(filenameMetadata.isLegacyFormatFilename).mockReturnValue(true);
+      vi.mocked(filenameMetadata.extractDateFromLegacyFilename).mockReturnValue(null); // No date
+      vi.mocked(filenameMetadata.extractTitleFromLegacyFilename).mockReturnValue(null); // No title
+
+      const result = parseMarkdownWithMetadata(content, filename, false);
+
+      // Goes through if block (lines 98-105) since frontmatter object exists
+      expect(result.title).toBe('Untitled'); // legacyTitle || legacyData.title || 'Untitled' (line 99)
+      expect(result.createdAt).toBeUndefined(); // legacyDate is null, legacyData.createdAt is undefined (line 100)
+      expect(result.priority).toBeUndefined(); // legacyData.priority is undefined (line 101)
+      expect(result.isArchived).toBe(false);
+      expect(result.frontmatter).toEqual({ tags: [] });
     });
   });
 });

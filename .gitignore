@@ -69,6 +69,9 @@ fix-*.js
 src/**/*.js
 src/**/*.d.ts
 
+# Test consolidation working files
+PROMPT.md
+
 # Google Cloud credentials (if accidentally created)
 *.json
 !package*.json

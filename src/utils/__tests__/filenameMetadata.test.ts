@@ -540,4 +540,25 @@ describe('filenameMetadata', () => {
       }
     });
   });
+
+  // === Coverage Improvement: Lines 181-183 ===
+  describe('parseLegacyFilenameMetadata Error Handling (lines 181-183)', () => {
+    it('should return null when date/title extraction fails (lines 181-183)', () => {
+      // Test with malformed filename that will fail date/title extraction
+      const malformedFilename = 'invalid-filename-format.md';
+      const result = parseLegacyFilenameMetadata(malformedFilename);
+      
+      expect(result).toBeNull(); // Should return null when extraction fails
+    });
+
+    it('should return null for empty filename', () => {
+      const result = parseLegacyFilenameMetadata('');
+      expect(result).toBeNull();
+    });
+
+    it('should return null for filename without proper date format', () => {
+      const result = parseLegacyFilenameMetadata('no-date-here.md');
+      expect(result).toBeNull();
+    });
+  });
 });

@@ -444,6 +444,58 @@ describe('emojiExtension', () => {
         // Should find the bug emoji when searching for 'bug'
         expect(labels).toContain(':bug:');
       });
+
+      it('should cover popular matches map and return logic (lines 130-133, 137-141)', () => {
+        // Search for a popular emoji to trigger the map function and return path
+        const context = createMockContext(':heart', 0, 6);
+        mockSearch.mockReturnValue([]); // No additional search results
+        
+        const result = emojiCompletions(context);
+        
+        expect(result).not.toBeNull();
+        expect(result?.options).toBeDefined();
+        expect(result?.options.length).toBeGreaterThan(0);
+        
+        // Verify the popular match structure (covers lines 130-133)
+        const firstOption = result?.options[0];
+        expect(firstOption?.label).toBeDefined();
+        expect(firstOption?.detail).toBeDefined();
+        expect(firstOption?.apply).toBeDefined();
+        expect(firstOption?.type).toBe('variable');
+      });
+
+      it('should handle search errors and use fallback popular matches (lines 130-133, 137-141)', () => {
+        // Mock search to throw an error to trigger catch block
+        const context = createMockContext(':heart', 0, 6);
+        mockSearch.mockImplementation(() => {
+          throw new Error('Search failed');
+        });
+        
+        const result = emojiCompletions(context);
+        
+        expect(result).not.toBeNull();
+        expect(result?.options).toBeDefined();
+        expect(result?.options.length).toBeGreaterThan(0);
+        
+        // Verify the fallback popular match structure (covers lines 130-133)
+        const firstOption = result?.options[0];
+        expect(firstOption?.label).toContain(':');
+        expect(firstOption?.detail).toBeDefined();
+        expect(firstOption?.apply).toBeDefined();
+        expect(firstOption?.type).toBe('variable');
+      });
+
+      it('should return null when no popular matches found in error fallback (line 143)', () => {
+        // Mock search to throw an error and search for something that won't match popular emojis
+        const context = createMockContext(':zzzznonexistent', 0, 15);
+        mockSearch.mockImplementation(() => {
+          throw new Error('Search failed');
+        });
+        
+        const result = emojiCompletions(context);
+        
+        expect(result).toBeNull(); // Should return null when no popular matches found
+      });
     });
   });
 });

@@ -741,4 +741,24 @@ describe('Search Service', () => {
       await expect(searchTodos('test')).rejects.toThrow('Search API error: Bad Request');
     });
   });
+
+  // === Coverage Improvement: Lines 119-120 ===
+  describe('Search Query Validation Coverage (lines 119-120)', () => {
+    it('should throw error for invalid search query (lines 119-120)', async () => {
+      const mockSettings = {
+        gitProvider: 'github' as const,
+        pat: 'test-token',
+        owner: 'test-owner',  
+        repo: 'test-repo',
+        folder: 'todos'
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+
+      // Create a search query that will be considered invalid by ReDoS protection
+      const invalidQuery = '*'.repeat(1000); // Extremely long pattern that should be invalid
+
+      await expect(searchTodos(invalidQuery)).rejects.toThrow(/Invalid search query/);
+    });
+  });
 });

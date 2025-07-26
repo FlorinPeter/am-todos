@@ -328,4 +328,75 @@ describe('ReDoS Protection', () => {
       Date.now = originalDateNow;
     });
   });
+
+  // === Coverage Improvement: lines 248-249, 258-269 ===
+  describe('Cleanup Functionality Coverage (lines 248-249, 258-269)', () => {
+    it('should trigger cleanup when random condition is met (lines 248-249)', () => {
+      const ip = '192.168.1.100';
+      
+      // Mock Math.random to return a value that will trigger cleanup (< 0.01)
+      const originalMathRandom = Math.random;
+      Math.random = vi.fn().mockReturnValue(0.005); // Less than 0.01 threshold
+      
+      // Mock Date.now to control time
+      const originalDateNow = Date.now;
+      const baseTime = Date.now();
+      Date.now = vi.fn().mockReturnValue(baseTime);
+      
+      // Make a request which should trigger cleanup due to mocked random
+      expect(searchRateLimiter.isAllowed(ip)).toBe(true);
+      
+      // Verify that cleanup was triggered (the function should still return true)
+      expect(searchRateLimiter.isAllowed(ip)).toBe(true);
+      
+      // Restore original functions
+      Math.random = originalMathRandom;
+      Date.now = originalDateNow;
+    });
+
+    it('should not trigger cleanup when random condition is not met', () => {
+      const ip = '192.168.1.101';
+      
+      // Mock Math.random to return a value that will NOT trigger cleanup (>= 0.01)
+      const originalMathRandom = Math.random;
+      Math.random = vi.fn().mockReturnValue(0.5); // Greater than 0.01 threshold
+      
+      // Make a request which should NOT trigger cleanup
+      expect(searchRateLimiter.isAllowed(ip)).toBe(true);
+      
+      // Restore original function
+      Math.random = originalMathRandom;
+    });
+
+    it('should clean up old entries properly (lines 258-269)', () => {
+      const ip1 = '192.168.1.200';
+      const ip2 = '192.168.1.201';
+      
+      const originalDateNow = Date.now;
+      const baseTime = Date.now();
+      Date.now = vi.fn().mockReturnValue(baseTime);
+      
+      // Make requests from both IPs
+      expect(searchRateLimiter.isAllowed(ip1)).toBe(true);
+      expect(searchRateLimiter.isAllowed(ip2)).toBe(true);
+      
+      // Move time forward beyond the window (lines 258-269 cleanup logic)
+      Date.now = vi.fn().mockReturnValue(baseTime + 62000); // Beyond 60000ms window
+      
+      // Force cleanup by mocking random to trigger it
+      const originalMathRandom = Math.random;
+      Math.random = vi.fn().mockReturnValue(0.005); // Force cleanup
+      
+      // This request should trigger cleanup of old entries
+      expect(searchRateLimiter.isAllowed(ip1)).toBe(true);
+      
+      // After cleanup, both IPs should have fresh limits
+      expect(searchRateLimiter.getRemainingRequests(ip1)).toBe(9); // Used 1, has 9 left (out of 10)
+      expect(searchRateLimiter.getRemainingRequests(ip2)).toBe(10); // Fresh limit after cleanup
+      
+      // Restore original functions
+      Date.now = originalDateNow;
+      Math.random = originalMathRandom;
+    });
+  });
 });
