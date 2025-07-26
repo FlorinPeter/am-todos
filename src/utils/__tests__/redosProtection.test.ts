@@ -332,7 +332,7 @@ describe('ReDoS Protection', () => {
   // === Coverage Improvement: lines 248-249, 258-269 ===
   describe('Cleanup Functionality Coverage (lines 248-249, 258-269)', () => {
     it('should trigger cleanup when random condition is met (lines 248-249)', () => {
-      const ip = '192.168.1.100';
+      const ip = '192.168.1.150'; // Use unique IP to avoid conflicts with other tests
       
       // Mock Math.random to return a value that will trigger cleanup (< 0.01)
       const originalMathRandom = Math.random;
