@@ -170,6 +170,39 @@ describe('ReDoS Protection', () => {
       // Should either succeed quickly or return null if timeout
       expect(result === null || Array.isArray(result)).toBe(true);
     });
+
+    it('should trigger timeout error on lines 193-194', () => {
+      // Create a scenario that will definitely trigger the timeout
+      const pattern = /(a+)+b/; // Catastrophic backtracking pattern
+      const text = 'a'.repeat(20); // No 'b' at the end, causes exponential backtracking
+      
+      // Use very short timeout to force the timeout condition
+      const result = safeRegexExecution(pattern, text, 1); // 1ms timeout
+      
+      // Should return null due to timeout protection (caught by catch block on line 205-206)
+      expect(result).toBeNull();
+    });
+
+    it('should handle execution errors and return null (lines 205-206)', () => {
+      // Mock the regex exec method to throw an error
+      const pattern = /test/;
+      const originalExec = pattern.exec;
+      
+      // Replace exec with a function that throws an error
+      pattern.exec = vi.fn().mockImplementation(() => {
+        throw new Error('Simulated regex execution error');
+      });
+      
+      const text = 'test string';
+      const result = safeRegexExecution(pattern, text);
+      
+      // Should catch the error and return null (lines 205-206)
+      expect(result).toBeNull();
+      
+      // Restore original exec method
+      pattern.exec = originalExec;
+    });
+
   });
 
   describe('searchRateLimiter', () => {

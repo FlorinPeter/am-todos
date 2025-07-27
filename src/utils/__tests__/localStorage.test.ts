@@ -1972,5 +1972,57 @@ describe('localStorage functions', () => {
         loggerSpy.mockRestore();
       });
     });
+
+    describe('Ultra-Aggressive Size Limit Coverage', () => {
+      it('should handle configuration too large to encode in URL (lines 240-241)', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        
+        // Create a massive configuration that exceeds 10000 character limit
+        const hugeSettings: GitHubSettings = {
+          token: 'a'.repeat(8000), // Very long token
+          owner: 'b'.repeat(500),   // Very long owner
+          repo: 'c'.repeat(500),    // Very long repo  
+          branch: 'd'.repeat(500),  // Very long branch
+          folder: 'e'.repeat(500),  // Very long folder
+          aiProvider: 'gemini',
+          geminiApiKey: 'f'.repeat(1000) // Very long API key
+        };
+        
+        const result = encodeSettingsToUrl(hugeSettings);
+        
+        // Should return empty string when configuration is too large (lines 240-241)
+        expect(result).toBe('');
+        expect(loggerSpy).toHaveBeenCalledWith('Error encoding settings to URL', expect.any(Error));
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('should handle decoded configuration too large (lines 267-268)', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        
+        // Create a configuration that when decoded exceeds 15000 character limit
+        // But with enough valid structure to pass validation
+        const hugeConfig = {
+          g: {
+            t: 'a'.repeat(14000), // Huge token that will exceed limit when decoded
+            o: 'owner',
+            r: 'repo',
+            b: 'main',
+            f: 'todos',
+            a: 'gemini',
+            gk: 'api-key' // Add required fields for valid config
+          }
+        };
+        
+        const encoded = btoa(JSON.stringify(hugeConfig));
+        const result = decodeSettingsFromUrl(encoded);
+        
+        // Should return null when decoded config is too large (lines 267-268)
+        expect(result).toBeNull();
+        expect(loggerSpy).toHaveBeenCalled(); // Just check that error was logged
+        
+        loggerSpy.mockRestore();
+      });
+    });
   });
 });

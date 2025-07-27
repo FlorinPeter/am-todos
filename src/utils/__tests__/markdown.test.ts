@@ -634,6 +634,14 @@ tags:
       
       loggerWarnSpy.mockRestore();
     });
+
+    it('should parse valid string numbers to cover lines 15-16', () => {
+      // Test string numbers that can be parsed successfully (hits lines 15-16)
+      expect(validatePriority('1')).toBe(1);
+      expect(validatePriority('3')).toBe(3);
+      expect(validatePriority('5')).toBe(5);
+      expect(validatePriority(' 2 ')).toBe(2); // With whitespace, parseInt handles it
+    });
   });
 
   describe('Legacy Filename Without Frontmatter Coverage (lines 108-116)', () => {
@@ -659,6 +667,7 @@ tags:
         markdownContent: '# Simple legacy content without frontmatter' // Line 104
       });
     });
+
 
     it('should use fallback values when legacy extraction fails (lines 109-110)', () => {
       const filename = 'malformed-legacy.md';
@@ -1003,4 +1012,5 @@ Another paragraph here.
       });
     });
   });
+
 });

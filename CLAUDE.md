@@ -346,35 +346,6 @@ All core functionality is implemented and production-ready:
    - Scope: TypeScript project-wide check + ESLint file-specific check
    - Filters: Only runs on `.ts`, `.tsx`, `.js`, `.jsx` files
 
-### Example Hook Outputs:
-
-**✅ SUCCESS - Proceed with work:**
-```
-🔍 PostToolUse Hook: Running check on modified file: src/services/example.ts
-==================================================
-📘 TypeScript Check: ✅ PASSED  
-📋 ESLint Check: ✅ PASSED
-🎉 Overall Result: ALL CHECKS PASSED - File is ready for commit!
-==================================================
-```
-
-**❌ FAILURE - MUST FIX BEFORE CONTINUING:**
-```
-🔍 PostToolUse Hook: Running check on modified file: src/App.tsx
-==================================================
-📘 TypeScript Check: ✅ PASSED
-📋 ESLint Check: ❌ FAILED
-
-/root/am-todos/src/App.tsx
-  223:6  warning  React Hook useCallback has missing dependencies
-  593:6  warning  React Hook useEffect has a missing dependency
-
-❌ ESLint check failed with warnings for: src/App.tsx
-💥 Overall Result: SOME CHECKS FAILED
-Please fix the issues before committing.
-==================================================
-```
-
 **🚨 CRITICAL: When you see warnings or errors in PostToolUse output:**
 1. **STOP** all other work immediately
 2. **FIX** every warning and error shown

@@ -214,6 +214,7 @@ describe('emojiExtension', () => {
         consoleSpy.mockRestore();
       });
 
+
       it('should convert search results to proper completion format', () => {
         const context = createMockContext(':cat', 0, 4);
         const mockResults = [
@@ -501,6 +502,78 @@ describe('emojiExtension', () => {
         const result = emojiCompletions(context);
         
         expect(result).toBeNull(); // Should return null when no popular matches found
+      });
+
+      it('should execute fallback popular emoji mapping when search fails (lines 130-133, 137-141)', () => {
+        // Use a query that will definitely match popular emojis (heart is in popularEmojis)
+        const context = createMockContext(':heart', 0, 6);
+        
+        // Mock search to throw an error to trigger the catch block
+        mockSearch.mockImplementation(() => {
+          throw new Error('Forced search error for coverage');
+        });
+        
+        const result = emojiCompletions(context);
+        
+        // Should hit the fallback and return popular matches
+        expect(result).not.toBeNull();
+        expect(result?.options).toBeDefined();
+        expect(result?.options.length).toBeGreaterThan(0);
+        
+        // Verify the specific mapping structure (lines 130-133)
+        const firstOption = result?.options[0];
+        expect(firstOption?.label).toMatch(/^:.*:$/); // Should start and end with :
+        expect(firstOption?.detail).toBeDefined(); // Should have emoji character
+        expect(firstOption?.apply).toBeDefined(); // Should have apply character
+        expect(firstOption?.type).toBe('variable'); // Should be variable type
+        
+        // Verify return structure (lines 137-141)
+        expect(result?.from).toBe(0);
+        expect(result?.options).toBeDefined();
+      });
+
+      it('should precisely trigger lines 130-133 and 137-141 in error fallback', () => {
+        // Use 'smi' query which will match 'smile' in popularEmojis
+        const context = createMockContext(':smi', 0, 4);
+        
+        // Mock search to throw an error to force fallback to popular emojis
+        mockSearch.mockImplementation(() => {
+          throw new Error('Simulated error to test fallback');
+        });
+        
+        const result = emojiCompletions(context);
+        
+        // Should return popular matches (not null) even when search fails
+        expect(result).not.toBeNull();
+        expect(result?.options.length).toBeGreaterThan(0);
+        
+        // Verify the mapping done in lines 130-133
+        const matchedOption = result?.options.find(opt => opt.label.includes('smile'));
+        expect(matchedOption).toBeDefined();
+        expect(matchedOption?.label).toBe(':smile:'); // Line 130: label: `:${name}:`
+        expect(matchedOption?.detail).toBeDefined(); // Line 131: detail: char
+        expect(matchedOption?.apply).toBeDefined(); // Line 132: apply: char  
+        expect(matchedOption?.type).toBe('variable'); // Line 133: type: 'variable'
+        
+        // Verify the return structure from lines 137-141
+        expect(result?.from).toBe(0); // Line 138: from: word.from
+        expect(Array.isArray(result?.options)).toBe(true); // Line 139: options: popularMatches.slice(0, 20)
+        expect(result?.options.length).toBeLessThanOrEqual(20); // Line 139: slice(0, 20)
+      });
+
+      it('should return null when error occurs and no popular emojis match query', () => {
+        // Use a query that won't match any popular emojis to trigger line 143
+        const context = createMockContext(':xyznomatch', 0, 11);
+        
+        // Mock search to throw an error to force fallback to popular emojis
+        mockSearch.mockImplementation(() => {
+          throw new Error('Simulated error to test fallback');
+        });
+        
+        const result = emojiCompletions(context);
+        
+        // Should return null when no popular matches found in error fallback (line 143)
+        expect(result).toBeNull();
       });
 
     });

@@ -559,5 +559,31 @@ describe('filenameMetadata', () => {
       const result = parseLegacyFilenameMetadata('no-date-here.md');
       expect(result).toBeNull();
     });
+
+    it('should return null when legacy filename passes format check but fails extraction (lines 181-183)', () => {
+      // Create a filename that looks like legacy format but causes extraction to fail
+      // Edge case: filename with missing title part after date (just a hyphen)
+      const edgeCaseFilename = '2023-12-25-.md'; // Empty title after final hyphen
+      const result = parseLegacyFilenameMetadata(edgeCaseFilename);
+      
+      expect(result).toBeNull(); // Should hit lines 181-183 and return null
+    });
+
+    it('should return null when date extraction fails completely', () => {
+      // Test filename that has no date pattern at all
+      const noDateFilename = 'just-a-regular-filename.md';
+      const result = parseLegacyFilenameMetadata(noDateFilename);
+      
+      expect(result).toBeNull(); // Should hit lines 181-183 and return null
+    });
+
+    it('should return null when title extraction fails (empty title after date)', () => {
+      // Test filename where date pattern matches but title pattern doesn't  
+      const emptyTitleFilename = '2023-12-25.md'; // Missing hyphen after date
+      const result = parseLegacyFilenameMetadata(emptyTitleFilename);
+      
+      expect(result).toBeNull(); // Should hit lines 181-183 and return null
+    });
+
   });
 });

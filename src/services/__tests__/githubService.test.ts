@@ -416,6 +416,21 @@ describe('GitHub Service - Comprehensive Test Suite', () => {
       });
     });
 
+    it('should handle API errors when fetching file metadata (lines 482-483)', async () => {
+      // Mock a failed response to trigger lines 482-483
+      mockFetchWithTimeout.mockResolvedValueOnce(createMockResponse({
+        ok: false,
+        statusText: 'Not Found',
+        status: 404
+      }));
+
+      const { getFileMetadata } = await import('../githubService');
+      
+      await expect(
+        getFileMetadata('fake-token', 'test-owner', 'test-repo', 'nonexistent/file.md')
+      ).rejects.toThrow('GitHub API proxy error: Not Found');
+    });
+
     it('returns file metadata successfully', async () => {
       const mockFileData = {
         name: 'example.md',
@@ -1390,6 +1405,42 @@ describe('GitHub Service - Comprehensive Test Suite', () => {
           })
         })
       );
+    });
+  });
+
+  describe('Coverage Improvement - Missing Error Paths', () => {
+    it('should handle API error when getting file content fails (lines 482-483)', async () => {
+      const { getFileContent } = await import('../githubService');
+
+      // Mock API response failure
+      mockFetchWithTimeout.mockResolvedValueOnce(createMockResponse({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found'
+      }));
+
+      await expect(
+        getFileContent(mockToken, mockOwner, mockRepo, 'todos/missing-file.md')
+      ).rejects.toThrow('GitHub API proxy error: Not Found');
+    });
+
+    it('should handle archive directory creation failure (lines 514-521)', async () => {
+      const { ensureArchiveDirectory } = await import('../githubService');
+
+      // Mock getTodos to fail (directory doesn't exist)
+      mockFetchWithTimeout.mockRejectedValueOnce(new Error('Directory not found'));
+      
+      // Mock createOrUpdateTodo to fail when creating .gitkeep
+      mockFetchWithTimeout.mockResolvedValueOnce(createMockResponse({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+        text: () => Promise.resolve('Permission denied')
+      }));
+
+      await expect(
+        ensureArchiveDirectory(mockToken, mockOwner, mockRepo, 'todos')
+      ).rejects.toThrow('GitHub API proxy error: Forbidden');
     });
   });
 });

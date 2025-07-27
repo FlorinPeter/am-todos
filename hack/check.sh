@@ -58,7 +58,7 @@ if [ ! -x "$SCRIPT_DIR/eslint-file.sh" ]; then
 fi
 
 echo "🔍 Running comprehensive checks on: $FILE_PATH"
-echo "=================================================="
+echo "----"
 
 # Track overall success
 TYPESCRIPT_SUCCESS=0
@@ -68,7 +68,7 @@ OVERALL_SUCCESS=0
 # Run TypeScript check
 echo ""
 echo "📘 TypeScript Check:"
-echo "-------------------"
+echo "----"
 if "$SCRIPT_DIR/typecheck-file.sh" "$FILE_PATH"; then
     TYPESCRIPT_SUCCESS=1
 else
@@ -78,7 +78,7 @@ fi
 
 echo ""
 echo "📋 ESLint Check:"
-echo "---------------"
+echo "----"
 # Run ESLint check
 if "$SCRIPT_DIR/eslint-file.sh" "$FILE_PATH"; then
     ESLINT_SUCCESS=1
@@ -87,44 +87,12 @@ else
     OVERALL_SUCCESS=1
 fi
 
-# Summary
-echo ""
-echo "=================================================="
-echo "📊 Check Summary for: $FILE_PATH"
-echo "=================================================="
-
-if [ $TYPESCRIPT_SUCCESS -eq 1 ]; then
-    echo "✅ TypeScript: PASSED"
-else
-    echo "❌ TypeScript: FAILED"
-fi
-
-if [ $ESLINT_SUCCESS -eq 1 ]; then
-    echo "✅ ESLint: PASSED"
-else
-    echo "❌ ESLint: FAILED"
-fi
-
 echo ""
 if [ $OVERALL_SUCCESS -eq 0 ]; then
-    echo "🎉 Overall Result: ALL CHECKS PASSED"
-    echo "File is ready for commit!"
+    echo "🎉 ALL CHECKS PASSED - File is ready for commit!"
 else
-    echo "🚨 CRITICAL: CHECKS FAILED - IMMEDIATE ACTION REQUIRED"
-    echo ""
-    echo "❌ YOU MUST FIX ALL ISSUES ABOVE BEFORE PROCEEDING ❌"
-    echo "   → TypeScript errors prevent compilation"
-    echo "   → ESLint warnings are treated as failures in this project"
-    echo "   → Zero tolerance policy - ALL issues must be resolved"
-    echo ""
-    echo "🔧 Quick fixes for common issues:"
-    echo "   → react-hooks/exhaustive-deps: Add missing dependencies"
-    echo "   → @typescript-eslint/no-unused-vars: Remove or prefix with _"
-    echo "   → testing-library warnings: Use proper Testing Library methods"
-    echo ""
-    echo "⚠️  PostToolUse Hook will BLOCK further work until this is resolved!"
+    echo "🚨 CHECKS FAILED - FIX IMMEDIATELY!"
+    echo "❌ Zero tolerance policy: Fix all issues before proceeding"
 fi
-
-echo "=================================================="
 
 exit $OVERALL_SUCCESS

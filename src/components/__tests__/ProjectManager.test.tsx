@@ -213,7 +213,7 @@ describe('ProjectManager', () => {
     expect(mockListProjectFolders).toHaveBeenCalledWith(); // Should be called for initial load and after create
   });
 
-  it('handles create project error', async () => {
+  it('handles create project error with known error object', async () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
       pat: 'token',
@@ -237,6 +237,37 @@ describe('ProjectManager', () => {
 
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith('Failed to create project: Creation failed');
+    });
+
+    alertSpy.mockRestore();
+  });
+
+  it('handles create project with unknown error type (lines 203-204)', async () => {
+    mockLoadSettings.mockReturnValue({
+      gitProvider: 'github',
+      pat: 'token',
+      owner: 'user',
+      repo: 'repo',
+      folder: 'todos'
+    });
+
+    // Mock createProjectFolder to throw non-Error object (unknown error)
+    mockCreateProjectFolder.mockRejectedValue('string error'); // Not an Error object
+
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
+
+    fireEvent.click(screen.getByText('New Project'));
+
+    const input = screen.getByPlaceholderText('work-tasks');
+    fireEvent.change(input, { target: { value: 'new-project' } });
+
+    const createButton = screen.getByText('Create Project');
+    fireEvent.click(createButton);
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith('Failed to create project: An unknown error occurred.');
     });
 
     alertSpy.mockRestore();
@@ -493,6 +524,16 @@ describe('ProjectManager', () => {
     // Clear the mock to track new calls
     mockListProjectFolders.mockClear();
 
+    // Update mockLoadSettings to return the new folder when called again
+    mockLoadSettings.mockReturnValue({
+      gitProvider: 'github',
+      pat: 'token',
+      owner: 'user',
+      repo: 'repo',
+      folder: 'work-tasks' // Changed folder
+    });
+    mockListProjectFolders.mockResolvedValue(['work-tasks']);
+
     // Simulate a storage event for settings change
     const storageEvent = new StorageEvent('storage', {
       key: 'am-todos-settings',
@@ -515,10 +556,11 @@ describe('ProjectManager', () => {
     // Dispatch the storage event to trigger the handler
     window.dispatchEvent(storageEvent);
 
-    // Should trigger checkForSettingsChanges which calls loadFolders
+    // Should trigger checkForSettingsChanges which updates settings and calls loadFolders
+    // Wait for the debounced call (1 second + some buffer)
     await waitFor(() => {
       expect(mockListProjectFolders).toHaveBeenCalled();
-    });
+    }, { timeout: 2000 });
   });
 
   it('ignores storage events for non-settings keys (line 75)', async () => {
