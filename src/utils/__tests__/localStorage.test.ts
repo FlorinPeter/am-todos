@@ -29,6 +29,36 @@ import {
 } from '../localStorage';
 import logger from '../logger';
 
+// Define GitHubSettings type to match the actual interface
+type GitHubSettings = {
+  gitProvider: 'github' | 'gitlab';
+  folder: string;
+  aiProvider?: 'gemini' | 'openrouter';
+  geminiApiKey?: string;
+  openRouterApiKey?: string;
+  aiModel?: string;
+  github?: {
+    pat: string;
+    owner: string;
+    repo: string;
+    branch?: string;
+  };
+  gitlab?: {
+    instanceUrl: string;
+    projectId: string;
+    token: string;
+    branch?: string;
+  };
+  // Legacy fields for backward compatibility
+  pat?: string;
+  owner?: string;
+  repo?: string;
+  instanceUrl?: string;
+  projectId?: string;
+  token?: string;
+  branch?: string;
+};
+
 // Create a proper localStorage mock
 const store = {} as Record<string, string>;
 
@@ -1979,13 +2009,16 @@ describe('localStorage functions', () => {
         
         // Create a massive configuration that exceeds 10000 character limit
         const hugeSettings: GitHubSettings = {
-          token: 'a'.repeat(8000), // Very long token
-          owner: 'b'.repeat(500),   // Very long owner
-          repo: 'c'.repeat(500),    // Very long repo  
-          branch: 'd'.repeat(500),  // Very long branch
+          gitProvider: 'github',
           folder: 'e'.repeat(500),  // Very long folder
           aiProvider: 'gemini',
-          geminiApiKey: 'f'.repeat(1000) // Very long API key
+          geminiApiKey: 'f'.repeat(1000), // Very long API key
+          github: {
+            pat: 'a'.repeat(8000), // Very long token
+            owner: 'b'.repeat(500),   // Very long owner
+            repo: 'c'.repeat(500),    // Very long repo  
+            branch: 'd'.repeat(500),  // Very long branch
+          }
         };
         
         const result = encodeSettingsToUrl(hugeSettings);

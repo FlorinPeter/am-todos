@@ -217,5 +217,69 @@ describe('TodoEditor - Basic Feature Coverage', () => {
       const prioritySelect = screen.getByRole('combobox');
       expect(prioritySelect).toHaveValue('1'); // Component defaults to P1, not P3
     });
+
+    // Test localStorage cleanup error handling (line 42)
+    it('should handle localStorage cleanup errors gracefully', () => {
+      // Mock localStorage to throw an error
+      vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+        throw new Error('localStorage error');
+      });
+
+      render(<TodoEditor {...mockProps} />);
+      
+      // Component should render successfully despite localStorage errors
+      expect(screen.getAllByText('Test Todo')[0]).toBeInTheDocument();
+      
+      // Restore original implementation
+      vi.restoreAllMocks();
+    });
+
+    // Test no selected todo state (lines 47-58)
+    it('should render "no task selected" state when selectedTodo is null', () => {
+      render(<TodoEditor {...mockProps} selectedTodo={null} />);
+      
+      expect(screen.getByText('No Task Selected')).toBeInTheDocument();
+      expect(screen.getByText('Select a task from the sidebar to view and edit it')).toBeInTheDocument();
+      
+      // Should show the document icon (just verify the empty state renders)
+      expect(screen.getByText('No Task Selected')).toBeInTheDocument();
+    });
+
+    // Test unknown createdAt fallback (line 109)
+    it('should show "Unknown" when createdAt is missing', () => {
+      const todoWithoutDate = {
+        ...mockTodo,
+        createdAt: null
+      };
+
+      render(<TodoEditor {...mockProps} selectedTodo={todoWithoutDate} />);
+      
+      expect(screen.getByText(/Unknown/)).toBeInTheDocument();
+    });
+
+    // Test archive toggle condition (line 136)
+    it('should show "Unarchive" button when todo is archived', () => {
+      const archivedTodo = {
+        ...mockTodo,
+        isArchived: true
+      };
+
+      render(<TodoEditor {...mockProps} selectedTodo={archivedTodo} />);
+      
+      expect(screen.getByText('Unarchive')).toBeInTheDocument();
+      expect(screen.queryByText('Archive')).not.toBeInTheDocument();
+    });
+
+    it('should show "Archive" button when todo is not archived', () => {
+      const unarchivedTodo = {
+        ...mockTodo,
+        isArchived: false
+      };
+
+      render(<TodoEditor {...mockProps} selectedTodo={unarchivedTodo} />);
+      
+      expect(screen.getByText('Archive')).toBeInTheDocument();
+      expect(screen.queryByText('Unarchive')).not.toBeInTheDocument();
+    });
   });
 });
