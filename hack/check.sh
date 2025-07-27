@@ -110,8 +110,19 @@ if [ $OVERALL_SUCCESS -eq 0 ]; then
     echo "🎉 Overall Result: ALL CHECKS PASSED"
     echo "File is ready for commit!"
 else
-    echo "💥 Overall Result: SOME CHECKS FAILED"
-    echo "Please fix the issues before committing."
+    echo "🚨 CRITICAL: CHECKS FAILED - IMMEDIATE ACTION REQUIRED"
+    echo ""
+    echo "❌ YOU MUST FIX ALL ISSUES ABOVE BEFORE PROCEEDING ❌"
+    echo "   → TypeScript errors prevent compilation"
+    echo "   → ESLint warnings are treated as failures in this project"
+    echo "   → Zero tolerance policy - ALL issues must be resolved"
+    echo ""
+    echo "🔧 Quick fixes for common issues:"
+    echo "   → react-hooks/exhaustive-deps: Add missing dependencies"
+    echo "   → @typescript-eslint/no-unused-vars: Remove or prefix with _"
+    echo "   → testing-library warnings: Use proper Testing Library methods"
+    echo ""
+    echo "⚠️  PostToolUse Hook will BLOCK further work until this is resolved!"
 fi
 
 echo "=================================================="

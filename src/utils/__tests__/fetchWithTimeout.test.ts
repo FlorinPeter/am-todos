@@ -144,7 +144,7 @@ describe('fetchWithTimeout', () => {
         mockFetch.mockReturnValueOnce(hangingPromise);
         
         // Start the fetch with a short timeout
-        const fetchPromise = fetchWithTimeout('https://example.com', { timeout: 100 });
+        fetchWithTimeout('https://example.com', { timeout: 100 });
         
         // Advance timers to trigger the timeout callback (which calls controller.abort() on line 27)
         vi.advanceTimersByTime(101);

@@ -12,8 +12,7 @@ import {
   extractDateFromLegacyFilename,
   extractTitleFromLegacyFilename,
   parseLegacyFilenameMetadata,
-  convertLegacyToNewFormat,
-  type FileMetadata
+  convertLegacyToNewFormat
 } from '../filenameMetadata';
 
 // Mock logger to avoid console output during tests

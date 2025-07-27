@@ -1,7 +1,6 @@
 ---
 name: coverage-agent
 description: "Expert test coverage analysis and improvement specialist for the Agentic Markdown Todos project"
-tools: ["Bash", "Read", "Grep", "Glob", "Edit", "MultiEdit"]
 ---
 
 # Coverage Analysis Expert
@@ -59,6 +58,7 @@ npm test [specific-file]                    # Test individual files
 2. **Avoid for Efficiency**:
    - Complex UI components (high setup overhead, low ROI)
    - Files <50% coverage (require architectural changes)
+   - **App.tsx** (main application component - DO NOT improve coverage)
 
 ### Implementation Workflow
 1. **Initial Analysis**: Run coverage and identify target files
@@ -106,6 +106,11 @@ testCases.forEach(({ input, expected }) => {
 - Organize tests within files: Core Functionality → Error Handling → Edge Cases
 
 ## Critical Guidelines
+
+### File Exclusions
+- **NEVER improve coverage on App.tsx** - This is the main application component with complex routing and setup
+- App.tsx should be excluded from all coverage improvement efforts
+- Focus on utility functions, services, and smaller components instead
 
 ### PostToolUse Hook Compliance
 - Be aware of the active PostToolUse hook that runs after code modifications

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, parseMarkdownWithMetadata, stringifyMarkdownWithMetadata, validatePriority } from '../markdown';
+import { preprocessMarkdownCheckboxes, updateContentWithCheckboxStates, CheckboxData } from '../checkboxPreprocessor';
 import { TodoFrontmatter } from '../../types';
 import * as filenameMetadata from '../filenameMetadata';
 import logger from '../logger';
@@ -677,6 +678,329 @@ tags:
       expect(result.priority).toBeUndefined(); // legacyData.priority is undefined (line 101)
       expect(result.isArchived).toBe(false);
       expect(result.frontmatter).toEqual({ tags: [] });
+    });
+  });
+
+  describe('Checkbox Preprocessor', () => {
+    describe('preprocessMarkdownCheckboxes', () => {
+      it('should handle empty or invalid content', () => {
+        expect(preprocessMarkdownCheckboxes('')).toEqual({
+          processedContent: '',
+          checkboxRegistry: []
+        });
+        
+        expect(preprocessMarkdownCheckboxes(null as any)).toEqual({
+          processedContent: '',
+          checkboxRegistry: []
+        });
+        
+        expect(preprocessMarkdownCheckboxes(undefined as any)).toEqual({
+          processedContent: '',
+          checkboxRegistry: []
+        });
+        
+        expect(preprocessMarkdownCheckboxes(123 as any)).toEqual({
+          processedContent: '',
+          checkboxRegistry: []
+        });
+      });
+
+      it('should process basic checkbox syntax', () => {
+        const content = `# Task List
+- [ ] Unchecked task
+- [x] Checked task  
+- [X] Checked task uppercase`;
+
+        const result = preprocessMarkdownCheckboxes(content);
+
+        expect(result.checkboxRegistry).toHaveLength(3);
+        expect(result.checkboxRegistry[0]).toEqual({
+          line: 1,
+          char: 2,
+          content: 'Unchecked task',
+          isChecked: false,
+          cleanContent: 'unchecked task'
+        });
+        expect(result.checkboxRegistry[1]).toEqual({
+          line: 2,
+          char: 2,
+          content: 'Checked task',
+          isChecked: true,
+          cleanContent: 'checked task'
+        });
+        expect(result.checkboxRegistry[2]).toEqual({
+          line: 3,
+          char: 2,
+          content: 'Checked task uppercase',
+          isChecked: true,
+          cleanContent: 'checked task uppercase'
+        });
+      });
+
+      it('should handle complex checkbox content with special characters', () => {
+        const content = `- [ ] Task with "quotes" and symbols @#$%
+- [x] Task with <html> tags & ampersands
+- [ ] Task with multiple    spaces
+- [X] Task with punctuation: commas, periods. etc!`;
+
+        const result = preprocessMarkdownCheckboxes(content);
+
+        expect(result.checkboxRegistry).toHaveLength(4);
+        expect(result.checkboxRegistry[0].cleanContent).toBe('task with quotes and symbols');
+        // The regex removes non-word and non-space characters, resulting in double spaces
+        expect(result.checkboxRegistry[1].cleanContent).toBe('task with html tags  ampersands');
+        // Multiple spaces are preserved in cleanContent
+        expect(result.checkboxRegistry[2].cleanContent).toBe('task with multiple    spaces');
+        expect(result.checkboxRegistry[3].cleanContent).toBe('task with punctuation commas periods etc');
+      });
+
+      it('should handle mixed content with and without checkboxes', () => {
+        const content = `# Header
+Regular paragraph text
+- [ ] First checkbox
+More text here
+- [x] Second checkbox
+- Regular bullet point (no checkbox)
+- [ ] Third checkbox`;
+
+        const result = preprocessMarkdownCheckboxes(content);
+
+        expect(result.checkboxRegistry).toHaveLength(3);
+        expect(result.processedContent).toContain('XCHECKBOXX0XENDX');
+        expect(result.processedContent).toContain('XCHECKBOXX1XENDX');
+        expect(result.processedContent).toContain('XCHECKBOXX2XENDX');
+        expect(result.processedContent).toContain('- Regular bullet point (no checkbox)');
+      });
+
+      it('should handle indented checkboxes with different spacing', () => {
+        const content = `  - [ ] Indented with 2 spaces
+    - [x] Indented with 4 spaces
+\t- [ ] Indented with tab
+- [ ] No indentation`;
+
+        const result = preprocessMarkdownCheckboxes(content);
+
+        expect(result.checkboxRegistry).toHaveLength(4);
+        expect(result.checkboxRegistry[0].char).toBe(4); // 2 spaces + "- "
+        expect(result.checkboxRegistry[1].char).toBe(6); // 4 spaces + "- "
+        expect(result.checkboxRegistry[2].char).toBe(3); // tab + "- "
+        expect(result.checkboxRegistry[3].char).toBe(2); // "- "
+      });
+
+      it('should create unique tokens for each checkbox', () => {
+        const content = `- [ ] First
+- [ ] Second
+- [ ] Third`;
+
+        const result = preprocessMarkdownCheckboxes(content);
+
+        expect(result.processedContent).toContain('XCHECKBOXX0XENDX');
+        expect(result.processedContent).toContain('XCHECKBOXX1XENDX');
+        expect(result.processedContent).toContain('XCHECKBOXX2XENDX');
+      });
+
+      it('should handle empty checkbox content', () => {
+        const content = `- [ ] 
+- [x]
+- [ ]   `;
+
+        const result = preprocessMarkdownCheckboxes(content);
+
+        expect(result.checkboxRegistry).toHaveLength(3);
+        expect(result.checkboxRegistry[0].content).toBe('');
+        expect(result.checkboxRegistry[1].content).toBe('');
+        expect(result.checkboxRegistry[2].content).toBe('');
+      });
+    });
+
+    describe('updateContentWithCheckboxStates', () => {
+      it('should handle empty or invalid content', () => {
+        const registry: CheckboxData[] = [];
+        
+        expect(updateContentWithCheckboxStates('', registry)).toBe('');
+        expect(updateContentWithCheckboxStates(null as any, registry)).toBe('');
+        expect(updateContentWithCheckboxStates(undefined as any, registry)).toBe('');
+        expect(updateContentWithCheckboxStates(123 as any, registry)).toBe('');
+      });
+
+      it('should update checkbox states based on registry', () => {
+        const originalContent = `# Tasks
+- [ ] Task 1
+- [x] Task 2
+- [ ] Task 3`;
+
+        const registry: CheckboxData[] = [
+          { line: 1, char: 2, content: 'Task 1', isChecked: true, cleanContent: 'task 1' },
+          { line: 2, char: 2, content: 'Task 2', isChecked: false, cleanContent: 'task 2' },
+          { line: 3, char: 2, content: 'Task 3', isChecked: true, cleanContent: 'task 3' }
+        ];
+
+        const result = updateContentWithCheckboxStates(originalContent, registry);
+
+        expect(result).toBe(`# Tasks
+- [x] Task 1
+- [ ] Task 2
+- [x] Task 3`);
+      });
+
+      it('should handle registry entries with invalid line numbers', () => {
+        const originalContent = `- [ ] Valid task`;
+
+        const registry: CheckboxData[] = [
+          { line: 0, char: 2, content: 'Valid task', isChecked: true, cleanContent: 'valid task' },
+          { line: 5, char: 2, content: 'Invalid line', isChecked: true, cleanContent: 'invalid line' }, // Out of bounds
+          { line: -1, char: 2, content: 'Negative line', isChecked: true, cleanContent: 'negative line' } // Negative index
+        ];
+
+        const result = updateContentWithCheckboxStates(originalContent, registry);
+
+        expect(result).toBe(`- [x] Valid task`);
+      });
+
+      it('should handle registry entries with invalid character positions', () => {
+        const originalContent = `- [ ] Test task`;
+
+        const registry: CheckboxData[] = [
+          { line: 0, char: -5, content: 'Test task', isChecked: true, cleanContent: 'test task' }, // Negative char
+          { line: 0, char: 1000, content: 'Test task', isChecked: true, cleanContent: 'test task' } // Out of bounds char
+        ];
+
+        const result = updateContentWithCheckboxStates(originalContent, registry);
+
+        expect(result).toBe(`- [x] Test task`); // Should still update since char check is >= 0
+      });
+
+      it('should handle lines that do not match checkbox pattern', () => {
+        const originalContent = `# Header
+Regular text
+- [ ] Valid checkbox`;
+
+        const registry: CheckboxData[] = [
+          { line: 0, char: 0, content: 'Header', isChecked: true, cleanContent: 'header' }, // Not a checkbox line
+          { line: 1, char: 0, content: 'Regular text', isChecked: true, cleanContent: 'regular text' }, // Not a checkbox line  
+          { line: 2, char: 2, content: 'Valid checkbox', isChecked: true, cleanContent: 'valid checkbox' }
+        ];
+
+        const result = updateContentWithCheckboxStates(originalContent, registry);
+
+        expect(result).toBe(`# Header
+Regular text
+- [x] Valid checkbox`);
+      });
+
+      it('should preserve original formatting and indentation', () => {
+        const originalContent = `  - [ ] Indented task
+    - [x] More indented
+\t- [ ] Tab indented`;
+
+        const registry: CheckboxData[] = [
+          { line: 0, char: 4, content: 'Indented task', isChecked: true, cleanContent: 'indented task' },
+          { line: 1, char: 6, content: 'More indented', isChecked: false, cleanContent: 'more indented' },
+          { line: 2, char: 3, content: 'Tab indented', isChecked: true, cleanContent: 'tab indented' }
+        ];
+
+        const result = updateContentWithCheckboxStates(originalContent, registry);
+
+        expect(result).toBe(`  - [x] Indented task
+    - [ ] More indented
+\t- [x] Tab indented`);
+      });
+
+      it('should handle both uppercase and lowercase checkbox states correctly', () => {
+        const originalContent = `- [ ] Task 1
+- [X] Task 2`;
+
+        const registry: CheckboxData[] = [
+          { line: 0, char: 2, content: 'Task 1', isChecked: true, cleanContent: 'task 1' },
+          { line: 1, char: 2, content: 'Task 2', isChecked: false, cleanContent: 'task 2' }
+        ];
+
+        const result = updateContentWithCheckboxStates(originalContent, registry);
+
+        expect(result).toBe(`- [x] Task 1
+- [ ] Task 2`);
+      });
+
+      it('should handle empty registry gracefully', () => {
+        const originalContent = `- [ ] Task 1
+- [x] Task 2`;
+
+        const result = updateContentWithCheckboxStates(originalContent, []);
+
+        expect(result).toBe(originalContent); // Should remain unchanged
+      });
+    });
+
+    describe('Integration: Full preprocessing and updating workflow', () => {
+      it('should maintain consistency through preprocess -> update cycle', () => {
+        const originalContent = `# Project Tasks
+- [ ] Setup database
+- [x] Create user interface
+- [ ] Write tests
+- [x] Deploy to production`;
+
+        // Preprocess the content
+        const preprocessResult = preprocessMarkdownCheckboxes(originalContent);
+        
+        // Modify some checkbox states
+        preprocessResult.checkboxRegistry[0].isChecked = true; // Setup database -> checked
+        preprocessResult.checkboxRegistry[2].isChecked = true; // Write tests -> checked
+
+        // Update the content with new states
+        const updatedContent = updateContentWithCheckboxStates(originalContent, preprocessResult.checkboxRegistry);
+
+        expect(updatedContent).toBe(`# Project Tasks
+- [x] Setup database
+- [x] Create user interface
+- [x] Write tests
+- [x] Deploy to production`);
+      });
+
+      it('should handle complex mixed content with edge cases', () => {
+        const originalContent = `# Complex Document
+
+## Regular Section
+This is a paragraph with no checkboxes.
+
+### Task Section
+- [ ] Task with "quotes" and symbols @#$%
+  - [ ] Nested task (indented)
+- [x] Completed task
+- Regular bullet point
+- [ ] Another task
+
+## More Content
+Another paragraph here.
+
+- [X] Final task with uppercase X`;
+
+        const preprocessResult = preprocessMarkdownCheckboxes(originalContent);
+        
+        // Counting manually: line 6, 7, 8, 10, 15 = 5 checkboxes total
+        expect(preprocessResult.checkboxRegistry).toHaveLength(5);
+        
+        // Toggle all states
+        preprocessResult.checkboxRegistry.forEach(checkbox => {
+          checkbox.isChecked = !checkbox.isChecked;
+        });
+
+        const updatedContent = updateContentWithCheckboxStates(originalContent, preprocessResult.checkboxRegistry);
+
+        // Verify the non-checkbox content is preserved and checkbox states are toggled
+        expect(updatedContent).toContain('# Complex Document');
+        expect(updatedContent).toContain('## Regular Section');
+        expect(updatedContent).toContain('This is a paragraph with no checkboxes.');
+        expect(updatedContent).toContain('- Regular bullet point');
+        expect(updatedContent).toContain('## More Content');
+        expect(updatedContent).toContain('Another paragraph here.');
+        
+        // Verify checkbox states were toggled
+        expect(updatedContent).toContain('- [x] Task with "quotes" and symbols @#$%');
+        expect(updatedContent).toContain('  - [x] Nested task (indented)');
+        expect(updatedContent).toContain('- [ ] Completed task');
+        expect(updatedContent).toContain('- [x] Another task');
+        expect(updatedContent).toContain('- [ ] Final task with uppercase X');
+      });
     });
   });
 });

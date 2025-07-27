@@ -65,7 +65,8 @@ describe('PrioritySelector', () => {
       />
     );
 
-    const priorityButton = screen.getByTitle('P3 - Medium');
+    // Verify the priority button is rendered
+    expect(screen.getByTitle('P3 - Medium')).toBeInTheDocument();
     
     // Initially dropdown should be invisible (we can test this by checking for CSS classes)
     // Since we can't easily test CSS hover states in JSDOM, we focus on structure

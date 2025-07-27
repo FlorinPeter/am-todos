@@ -502,6 +502,7 @@ describe('emojiExtension', () => {
         
         expect(result).toBeNull(); // Should return null when no popular matches found
       });
+
     });
   });
 });

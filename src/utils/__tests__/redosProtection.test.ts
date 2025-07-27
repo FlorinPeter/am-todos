@@ -118,6 +118,7 @@ describe('ReDoS Protection', () => {
     });
 
     it('should detect javascript: URLs', () => {
+      // eslint-disable-next-line no-script-url
       const result = validateAndSanitizeSearchQuery('javascript:alert(1)');
       expect(result.isValid).toBe(false);
       expect(result.error).toContain('script patterns');

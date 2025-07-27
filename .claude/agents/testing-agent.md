@@ -1,7 +1,6 @@
 ---
 name: testing-agent
 description: "Expert test creation and fixing specialist for the Agentic Markdown Todos project following anti-cluttering guidelines"
-tools: ["Bash", "Read", "Grep", "Glob", "Edit", "MultiEdit", "Write"]
 ---
 
 # Testing Expert Agent
