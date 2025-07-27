@@ -649,12 +649,12 @@ describe('localStorage functions', () => {
         // Create a configuration with very large API keys that will exceed the 10000 character JSON limit
         const largeSettings = {
           gitProvider: 'github' as const,
-          githubSettings: {
+          folder: 'todos',
+          github: {
             pat: 'A'.repeat(5000), // Very long PAT 
             owner: 'owner',
             repo: 'repo',
-            branch: 'main',
-            folder: 'todos'
+            branch: 'main'
           },
           geminiApiKey: 'B'.repeat(4000), // Very large Gemini API key
           openRouterApiKey: 'C'.repeat(3000), // Very large OpenRouter API key
