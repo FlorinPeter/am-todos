@@ -43,10 +43,10 @@ if [ -n "$file_path" ] && [ "$file_path" != "null" ] && [ "$file_path" != "empty
                 
                 # CRITICAL: Exit with the actual check result to enforce error correction
                 if [ $exit_code -ne 0 ]; then
-                    echo "🚨 CRITICAL: PostToolUse Hook FAILED - You MUST fix all errors and warnings before proceeding!" >&2
-                    echo "   → Run: ./hack/check.sh $file_path" >&2
+                    echo "🚨 CRITICAL: PostToolUse Hook FAILED - YOU MUST fix all errors and warnings before proceeding!" >&2
+                    echo "   → Run: ./hack/check.sh $(basename "$file_path")" >&2
                     echo "   → Fix ALL issues shown above" >&2
-                    echo "   → The LLM must address every error and warning immediately" >&2
+                    echo "   → YOU must address every error and warning immediately" >&2
                     exit 1
                 fi
                 exit 0
