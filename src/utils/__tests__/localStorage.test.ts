@@ -642,6 +642,35 @@ describe('localStorage functions', () => {
         global.btoa = originalBtoa;
         loggerSpy.mockRestore();
       });
+
+      it('should return empty string when configuration is too large for URL encoding (lines 240-241)', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        
+        // Create a configuration with very large API keys that will exceed the 10000 character JSON limit
+        const largeSettings = {
+          gitProvider: 'github' as const,
+          githubSettings: {
+            pat: 'A'.repeat(5000), // Very long PAT 
+            owner: 'owner',
+            repo: 'repo',
+            branch: 'main',
+            folder: 'todos'
+          },
+          geminiApiKey: 'B'.repeat(4000), // Very large Gemini API key
+          openRouterApiKey: 'C'.repeat(3000), // Very large OpenRouter API key
+          aiModel: 'D'.repeat(500) // Additional content
+        };
+        
+        const url = encodeSettingsToUrl(largeSettings);
+        
+        expect(url).toBe(''); // Should return empty string when size limit exceeded
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error encoding settings to URL',
+          expect.any(Error)
+        );
+        
+        loggerSpy.mockRestore();
+      });
     });
 
     describe('decodeSettingsFromUrl', () => {
@@ -1747,6 +1776,31 @@ describe('localStorage functions', () => {
         
         const encoded = btoa(JSON.stringify(largeConfig));
         
+        const result = decodeSettingsFromUrl(encoded);
+        
+        expect(result).toBeNull();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error decoding settings from URL',
+          expect.any(Error)
+        );
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('should reject decoded configurations that exceed 15000 character limit (lines 267-268)', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        
+        // Create a configuration that when decoded will exceed 15000 characters
+        const largeConfig = {
+          gk: 'A'.repeat(14000), // Very large Gemini API key
+          ok: 'B'.repeat(2000)   // Additional content to exceed 15000 chars
+        };
+        
+        // Verify the decoded JSON will be large enough
+        const jsonString = JSON.stringify(largeConfig);
+        expect(jsonString.length).toBeGreaterThan(15000);
+        
+        const encoded = btoa(jsonString);
         const result = decodeSettingsFromUrl(encoded);
         
         expect(result).toBeNull();
