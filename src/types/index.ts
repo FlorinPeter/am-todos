@@ -83,3 +83,34 @@ export interface CommitMessageResponseWithFallback {
   message: string;
   description?: string;
 }
+
+/**
+ * New todo creation data interface
+ * Used in: NewTodoInput, App.tsx handleGoalSubmit
+ */
+export interface NewTodoData {
+  title: string;
+  description?: string;
+  template?: string;
+}
+
+/**
+ * Todo template interface for guided AI generation
+ * Used in: NewTodoInput, server templates system
+ */
+export interface TodoTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: 'general' | 'project' | 'bugfix' | 'feature' | 'research' | 'personal';
+  systemPrompt: string;
+}
+
+/**
+ * AI generation response with title and content
+ * Used in: aiService generateInitialPlan for structured JSON responses
+ */
+export interface PlanGenerationResponse {
+  title: string;
+  content: string;
+}

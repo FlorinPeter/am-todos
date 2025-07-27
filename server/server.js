@@ -640,16 +640,103 @@ app.post('/api/ai', async (req, res) => {
 
     switch (action) {
       case 'generateInitialPlan':
-        systemInstruction = `You are an expert project manager. Your task is to create a high-level, editable markdown template for a goal. Keep it simple and user-friendly - the user should be able to easily edit and expand on it.
+        // Template-specific system prompts
+        const templates = {
+          general: `You are an expert project manager. Your task is to create a high-level, editable markdown template for a goal. Keep it simple and user-friendly - the user should be able to easily edit and expand on it.
 
 Rules:
-1. Create a brief description of the goal
-2. Add 3-5 high-level checkboxes using - [ ] format
-3. Keep each checkbox item concise and general (not overly detailed)
-4. Use simple GitHub Flavored Markdown
-5. Make it easy for the user to edit and add their own details
-6. Focus on major phases or key areas rather than micro-tasks`;
-        prompt = `Create a simple, high-level markdown template for this goal: ${payload.goal}`;
+1. Return ONLY a JSON object with this exact structure: {"title": "extracted goal title", "content": "markdown checklist content"}
+2. Create a brief description of the goal in the content
+3. Add 3-5 high-level checkboxes using - [ ] format
+4. Keep each checkbox item concise and general (not overly detailed)
+5. Use simple GitHub Flavored Markdown in the content
+6. Make it easy for the user to edit and add their own details
+7. Focus on major phases or key areas rather than micro-tasks
+8. Extract a clean, descriptive title from the goal (remove articles like "a", "the" and clean up the text)`,
+
+          project: `You are an expert project manager specializing in comprehensive project planning. Create a structured project plan that covers all major phases of execution.
+
+Rules:
+1. Return ONLY a JSON object with this exact structure: {"title": "extracted project title", "content": "markdown checklist content"}
+2. Include a brief project overview and objectives
+3. Organize tasks into clear phases: Planning, Design/Development, Testing, Deployment, Post-Launch
+4. Use - [ ] format for all actionable items
+5. Include milestone checkpoints and deliverables
+6. Focus on high-level activities that can be broken down later
+7. Consider dependencies between phases
+8. Extract a professional project title from the goal`,
+
+          bugfix: `You are an expert software engineer specializing in bug investigation and resolution. Create a systematic debugging workflow.
+
+Rules:
+1. Return ONLY a JSON object with this exact structure: {"title": "extracted bug title", "content": "markdown checklist content"}
+2. Start with problem analysis and reproduction steps
+3. Include investigation tasks: logs review, environment check, code analysis
+4. Add debugging and testing phases
+5. Include fix verification and regression testing
+6. Use - [ ] format for all diagnostic and fix steps
+7. Focus on systematic troubleshooting methodology
+8. Extract a clear bug description for the title`,
+
+          feature: `You are an expert software engineer specializing in feature development. Create a comprehensive feature development plan.
+
+Rules:
+1. Return ONLY a JSON object with this exact structure: {"title": "extracted feature title", "content": "markdown checklist content"}
+2. Include requirements analysis and design phase
+3. Cover implementation, testing, and documentation tasks
+4. Add code review and quality assurance steps
+5. Include deployment and rollout considerations
+6. Use - [ ] format for all development tasks
+7. Focus on software development lifecycle phases
+8. Extract a clear feature name for the title`,
+
+          research: `You are an expert researcher who creates systematic investigation plans. Create a structured research methodology.
+
+Rules:
+1. Return ONLY a JSON object with this exact structure: {"title": "extracted research topic", "content": "markdown checklist content"}
+2. Include research objectives and scope definition
+3. Add information gathering and source analysis tasks
+4. Include synthesis and documentation phases
+5. Add validation and fact-checking steps
+6. Use - [ ] format for all research activities
+7. Focus on systematic investigation methodology
+8. Extract a clear research topic for the title`,
+
+          personal: `You are an expert personal productivity coach. Create a motivating and achievable personal goal plan.
+
+Rules:
+1. Return ONLY a JSON object with this exact structure: {"title": "extracted goal title", "content": "markdown checklist content"}
+2. Include goal clarification and motivation
+3. Break down into manageable, actionable steps
+4. Add progress tracking and milestone celebration
+5. Include reflection and adjustment phases
+6. Use - [ ] format for all action items
+7. Focus on personal development and achievement
+8. Extract an inspiring goal title`
+        };
+
+        // Use template-specific system instruction or default to general
+        const templateId = payload.template || 'general';
+        systemInstruction = templates[templateId] || templates.general;
+        
+        // Build prompt with goal and optional description
+        let promptParts = [];
+        if (payload.title) {
+          promptParts.push(`Title: ${payload.title}`);
+        }
+        if (payload.goal) {
+          promptParts.push(`Goal: ${payload.goal}`);
+        }
+        if (payload.description) {
+          promptParts.push(`Additional context: ${payload.description}`);
+        }
+        
+        const promptContent = promptParts.length > 0 ? promptParts.join('\n') : payload.goal || payload.title;
+        prompt = `Create a ${templateId === 'general' ? 'simple, high-level' : templateId + '-focused'} markdown template for this:
+
+${promptContent}
+
+Please return a JSON object with the title and markdown content:`;
         break;
       case 'generateCommitMessage':
         systemInstruction = `You are an expert at writing conventional commit messages. Given a description of a change, return a JSON object with a conventional commit message and description of what was generated.
@@ -694,8 +781,8 @@ Please return a JSON object with the updated markdown content and description of
       const genAI = new GoogleGenerativeAI(apiKey);
       const geminiModel = genAI.getGenerativeModel({ model: model || "gemini-2.5-flash" });
       
-      // Use JSON mode for processChatMessage and generateCommitMessage to get structured output
-      const config = (action === 'processChatMessage' || action === 'generateCommitMessage') ? {
+      // Use JSON mode for processChatMessage, generateCommitMessage, and generateInitialPlan to get structured output
+      const config = (action === 'processChatMessage' || action === 'generateCommitMessage' || action === 'generateInitialPlan') ? {
         generationConfig: { responseMimeType: "application/json" }
       } : {};
       
@@ -723,8 +810,8 @@ Please return a JSON object with the updated markdown content and description of
             { role: 'system', content: systemInstruction },
             { role: 'user', content: prompt }
           ],
-          // Use JSON mode for processChatMessage and generateCommitMessage to get structured output
-          ...((action === 'processChatMessage' || action === 'generateCommitMessage') ? { response_format: { type: "json_object" } } : {})
+          // Use JSON mode for processChatMessage, generateCommitMessage, and generateInitialPlan to get structured output
+          ...((action === 'processChatMessage' || action === 'generateCommitMessage' || action === 'generateInitialPlan') ? { response_format: { type: "json_object" } } : {})
         })
       });
 

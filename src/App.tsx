@@ -10,7 +10,7 @@ import { generateInitialPlan, generateCommitMessage } from './services/aiService
 import { searchTodosDebounced, SearchResult } from './services/searchService';
 import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, stringifyMarkdownWithMetadata } from './utils/markdown';
 import { generateFilename } from './utils/filenameMetadata';
-import { TodoFrontmatter } from './types';
+import { TodoFrontmatter, NewTodoData } from './types';
 import logger from './utils/logger';
 
 function App() {
@@ -220,6 +220,7 @@ function App() {
         logger.log('Ignoring outdated search results for:', query);
       }
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchScope]);
 
   const handleSearchScopeChange = useCallback((scope: 'folder' | 'repo') => {
@@ -590,6 +591,7 @@ function App() {
         setTimeout(nextFetch, 100); // Small delay to prevent immediate overlaps
       }
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings, viewMode, isInitializing, isPerformingSave]);
 
   // Persist selected todo ID to localStorage with error handling
@@ -626,8 +628,8 @@ function App() {
     fetchTodosWithSettings(settingsToUse, undefined, undefined, false);
   };
 
-  const handleGoalSubmit = async (goal: string) => {
-    logger.log('Goal submitted:', goal);
+  const handleGoalSubmit = async (todoData: NewTodoData) => {
+    logger.log('Todo data submitted:', todoData);
     if (!settings) {
       logger.error('No settings available for goal submission');
       return;
@@ -641,8 +643,8 @@ function App() {
       
       // 1. Generate Initial Plan
       setCreationStep('🤖 Generating task plan with AI...');
-      logger.log('Generating initial plan...');
-      const markdownContent = await generateInitialPlan(goal);
+      logger.log('Generating initial plan with template:', todoData.template);
+      const markdownContent = await generateInitialPlan(todoData);
       logger.log('Initial plan generated:', markdownContent?.substring(0, 100) + '...');
 
       // 2. Prepare File with NEW Filename-Based Metadata
@@ -659,7 +661,7 @@ function App() {
       // 3. Generate Commit Message
       setCreationStep('💬 Generating commit message...');
       logger.log('Generating commit message...');
-      const commitResponse = await generateCommitMessage(`feat: Add new todo for "${goal}"`);
+      const commitResponse = await generateCommitMessage(`feat: Add new todo for "${todoData.title}"`);
       const commitMessage = commitResponse.message;
       logger.log('Commit message generated:', commitMessage);
       if (commitResponse.description) {
@@ -677,7 +679,7 @@ function App() {
       const folder = settings.folder || 'todos';
       
       logger.log('🚀 FILENAME METADATA: Generating new format filename');
-      const filename = generateFilename(priority, date, goal);
+      const filename = generateFilename(priority, date, todoData.title);
       const filePath = `${folder}/${filename}`;
       
       // Check for filename conflicts and generate unique filename
@@ -690,7 +692,7 @@ function App() {
         try {
           await getFileMetadata(finalFilename);
           // File exists, try next number - preserve new filename format
-          const conflictFilename = generateFilename(priority, date, `${goal} ${counter}`);
+          const conflictFilename = generateFilename(priority, date, `${todoData.title} ${counter}`);
           finalFilename = `${folder}/${conflictFilename}`;
           counter++;
           logger.log(`🔄 FILENAME CONFLICT: Trying unique filename: ${finalFilename}`);
