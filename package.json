@@ -58,7 +58,6 @@
     "build": "vite build",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:all-fast": "vitest run --config=vitest.fast.config.mjs",
     "test:basic": "vitest run src/__tests__/FeatureValidation.test.ts src/__tests__/ComponentBasics.test.tsx",
     "test:integration": "INTEGRATION_TEST=true vitest run src/services/__tests__/githubService.test.ts",
     "test:github": "INTEGRATION_TEST=true vitest run src/services/__tests__/githubService.test.ts",
@@ -68,11 +67,7 @@
     "test:last-file": "node test-last-file-deletion.js",
     "dev": "vite",
     "lint": "eslint src --ext .ts,.tsx,.js,.jsx",
-    "lint:fix": "eslint src --ext .ts,.tsx,.js,.jsx --fix",
-    "dead-code": "ts-unused-exports tsconfig.json --excludeDeclarationFiles",
-    "dead-deps": "depcheck --ignores='@types/*,vite,vitest'",
-    "dead-code:all": "npm run dead-code && npm run dead-deps",
-    "dead-code:analyze": "node scripts/analyze-dead-code.js"
+    "lint:fix": "eslint src --ext .ts,.tsx,.js,.jsx --fix"
   },
   "browserslist": {
     "production": [
@@ -96,12 +91,10 @@
     "@vitejs/plugin-react": "^4.6.0",
     "@vitest/coverage-v8": "^3.2.4",
     "@vitest/ui": "^3.2.4",
-    "depcheck": "^1.4.7",
     "eslint": "^8.57.1",
     "eslint-config-react-app": "^7.0.1",
     "happy-dom": "^18.0.1",
     "jsdom": "^26.0.0",
-    "ts-unused-exports": "^11.0.1",
     "vite": "^7.0.4",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.2.4"

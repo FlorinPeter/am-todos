@@ -398,7 +398,6 @@ githubService.errorHandling.test.ts
 npm test              # Interactive test runner (watch mode)
 npm run test:basic    # Run feature validation tests only
 npm run test:coverage # Full coverage report (same as CI)
-npm run test:all-fast # Fast test execution without coverage (24% faster)
 ```
 
 **Coverage Analysis Timeout Requirement:**
