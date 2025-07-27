@@ -27,7 +27,7 @@ const MarkdownCheckbox: React.FC<MarkdownCheckboxProps> = ({
   };
 
   return (
-    <span className="markdown-checkbox-wrapper flex items-center" style={{ marginLeft: '-24px' }}>
+    <span className="markdown-checkbox-wrapper flex items-start" style={{ marginLeft: '-24px' }}>
       <input
         type="checkbox"
         checked={isChecked}
@@ -37,6 +37,7 @@ const MarkdownCheckbox: React.FC<MarkdownCheckboxProps> = ({
         data-checkbox-content={content}
         data-checkbox-state={isChecked ? 'checked' : 'unchecked'}
         className="w-4 h-4 mr-2 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer flex-shrink-0"
+        style={{ transform: 'translateY(4px)' }}
       />
       <span className="text-gray-200 leading-normal ml-1">{content}</span>
     </span>
