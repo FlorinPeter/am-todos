@@ -17,7 +17,8 @@ export interface SearchResult {
   url: string;
   repository: string;
   text_matches: any[];
-  priority?: number;    // Enhanced search results now include priority from frontmatter
+  priority?: number;    // Enhanced search results now include priority from filename metadata
+  displayTitle?: string; // Parsed title with spaces restored from filename metadata
 }
 
 export interface SearchResponse {

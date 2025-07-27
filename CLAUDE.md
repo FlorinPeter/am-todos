@@ -32,22 +32,6 @@ This is "Agentic Markdown Todos" - an AI-powered todo application that transform
 **Hot Reload**: Both servers support automatic reloading on code changes.  
 **Proxy**: Frontend automatically forwards `/api` requests to backend.
 
-## Production Deployment
-
-> **🚀 Complete Deployment Guide**: See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions
-
-### Quick Cloud Run Deployment
-```bash
-# Prerequisites
-sudo ./hack/install-dependencies.sh
-gcloud auth login
-export GOOGLE_CLOUD_PROJECT="your-project-id"
-
-# Deploy
-export SOURCE_IMAGE="ghcr.io/your-username/am-todos:main"
-./hack/deploy-all.sh
-```
-
 ## Development vs Production Differences
 
 ### Key Configuration Changes
@@ -94,12 +78,7 @@ export SOURCE_IMAGE="ghcr.io/your-username/am-todos:main"
 ### Testing Production Locally
 To test production build locally:
 ```bash
-# Build production version
-npm run build
-
-# Start production server
-NODE_ENV=production node server/server.js
-
+./hack/restart-dev.sh
 # Access at http://localhost:3001
 ```
 
@@ -132,7 +111,9 @@ NODE_ENV=production node server/server.js
 - Stores todos as markdown files in configurable directory of your repository (defaults to `/todos`)
 - **Multi-folder support**: Organize tasks in different folders for multiple projects (e.g., `work-tasks`, `personal`, `client-alpha`)
 - Uses **fine-grained Personal Access Token** restricted to specific repository only
-- **Smart file naming**: `YYYY-MM-DD-task-slug.md` format (e.g., `2025-01-05-deploy-web-app.md`)
+- **New filename format**: `P{priority}--{date}--{title}.md` (e.g., `P1--2025-07-24--Deploy_Web_Application.md`)
+- **Legacy format support**: Backward compatibility with `YYYY-MM-DD-task-slug.md` format
+- **Performance optimization**: 99%+ reduction in API requests by encoding metadata in filenames
 - **Auto-directory creation**: Creates folder and `/archive` subfolder with `.gitkeep` if missing
 - **Delete functionality**: Complete file removal from repository with confirmation
 - **Unicode support**: Proper Base64 encoding handles special characters and emojis
@@ -162,7 +143,8 @@ NODE_ENV=production node server/server.js
 - Unified API endpoint (`/api/ai`) handles both providers with OpenAI-compatible format
 
 ### Markdown Processing
-- Files use **YAML frontmatter** for metadata (title, createdAt, priority, isArchived)
+- **Simplified frontmatter**: Only contains `tags: []` field - all other metadata encoded in filename
+- **Filename-based metadata**: Priority, date, and title extracted from new filename format
 - `react-markdown` with `remark-gfm` for GitHub-flavored markdown rendering
 - **Interactive checkboxes**: Click to toggle with real-time GitHub sync
 - **Fixed regex bug**: Proper checkbox pattern matching (`\[[ xX]\]`)
@@ -170,7 +152,14 @@ NODE_ENV=production node server/server.js
 - **Priority system**: P1 (Critical/Red) to P5 (Very Low/Gray) with color coding
 - **Archive functionality**: Toggle task visibility without deletion
 
-#### Frontmatter Schema Example:
+#### Current Frontmatter Schema:
+```yaml
+---
+tags: []
+---
+```
+
+#### Legacy Frontmatter (Backward Compatibility):
 ```yaml
 ---
 title: 'Plan a weekend trip to the mountains'
@@ -179,6 +168,10 @@ priority: 3
 isArchived: false
 ---
 ```
+
+#### Filename Format Examples:
+- **New format**: `P1--2025-07-24--Deploy_Web_Application.md` (Critical priority)
+- **Legacy format**: `2025-07-22-fix-authentication-bug.md` (Backward compatible)
 
 ### Configuration Requirements
 - **Backend**: Requires AI API keys (no `.env` file needed - keys provided via UI)
@@ -217,8 +210,8 @@ isArchived: false
 
 ## Current Status
 
-> **📊 Implementation Status: 100% Complete** - See [FEATURES.md](FEATURES.md) for detailed verification  
-> **🧪 Testing Status: 100% Coverage** - See [TESTING.md](TESTING.md) for comprehensive test documentation
+> **📊 Implementation Status: ** - See [features/implementation-evidence.md](features/implementation-evidence.md) for detailed verification  
+> **🧪 Testing Status:** - See [TESTING.md](TESTING.md) for comprehensive test documentation
 
 All core functionality is implemented and production-ready:
 - ✅ AI-powered task generation with multi-provider support
@@ -271,7 +264,7 @@ All core functionality is implemented and production-ready:
 4. AI returns markdown checklist → combined with frontmatter
 5. `generateCommitMessage()` creates conventional commit message
 6. **Auto-directory creation**: Creates `/todos` folder if missing
-7. GitHub API creates file with smart naming: `YYYY-MM-DD-task-slug.md`
+7. GitHub API creates file with new filename format: `P{priority}--{date}--{title}.md`
 8. App refreshes and auto-selects new task
 
 ### Editing Tasks with Markdown Editor
@@ -314,35 +307,91 @@ All core functionality is implemented and production-ready:
 
 ## Development Workflow
 
+## ⚠️ IMPORTANT: PostToolUse Hook Requirements
+
+**CRITICAL: This project has an active PostToolUse hook that automatically runs comprehensive code quality checks after every Edit, MultiEdit, or Write operation on TypeScript/JavaScript files.**
+
+### Hook Behavior and Scope:
+- **File Type Filtering**: Only activates for `.ts`, `.tsx`, `.js`, `.jsx` files
+- **Silent Operation**: Ignores other file types (markdown, JSON, etc.) without output
+- **Automatic Execution**: Runs immediately after any code file modification
+- **Zero Tolerance**: Treats both errors AND warnings as failures that must be fixed
+
+### Mandatory Hook Response Protocol:
+1. **PostToolUse Hook Execution**: After modifying TypeScript/JavaScript files, the hook displays:
+   ```
+   🔍 PostToolUse Hook: Running check on modified file: src/example.ts
+   ==================================================
+   📘 TypeScript Check Results - Strict type checking
+   📋 ESLint Check Results - Code quality and style validation  
+   📊 Overall Status - Pass/fail summary with actionable feedback
+   ==================================================
+   ```
+
+2. **MANDATORY: Address All Issues IMMEDIATELY**:  
+   - ❌ **TypeScript Errors**: MUST be fixed immediately - these are compilation failures
+   - ❌ **ESLint Warnings**: MUST be resolved - warnings are treated as failures
+   - ❌ **ESLint Errors**: MUST be fixed immediately - these are code quality violations
+   - ✅ **Success**: Only proceed when all checks show "✅ PASSED"
+
+3. **Zero Tolerance Policy - STOP WORK UNTIL FIXED**:
+   - **NO commits** are allowed with failing TypeScript checks
+   - **NO warnings** are acceptable - all ESLint warnings must be resolved
+   - **NO proceeding** with other work if PostToolUse shows any issues
+   - If PostToolUse shows problems, **IMMEDIATELY STOP** and fix them before continuing
+
+4. **Hook Configuration**:
+   - Location: `.claude/settings.local.json` PostToolUse configuration
+   - Script: `hack/post-edit-hook.sh` → calls `hack/check.sh`
+   - Scope: TypeScript project-wide check + ESLint file-specific check
+   - Filters: Only runs on `.ts`, `.tsx`, `.js`, `.jsx` files
+
+**🚨 CRITICAL: When you see warnings or errors in PostToolUse output:**
+1. **STOP** all other work immediately
+2. **FIX** every warning and error shown
+3. **VERIFY** by re-editing the file to trigger the hook again
+4. **ONLY PROCEED** when you see "ALL CHECKS PASSED"
+
+### Common Issues and Quick Fixes:
+- **ESLint react-hooks/exhaustive-deps**: Add missing dependencies to useCallback/useEffect arrays
+- **ESLint @typescript-eslint/no-unused-vars**: Remove or prefix with underscore unused variables
+- **TypeScript errors**: Fix type mismatches, missing properties, or incorrect types
+- **ESLint testing-library/**: Use Testing Library methods instead of direct DOM access
+
 ### Testing
 
-#### Test File Naming Convention (Semantic Clarity)
-Test files follow semantic naming to indicate their specific purpose:
+🚨 **CRITICAL: Anti-Test-Cluttering Guidelines**
 
-**Services Tests:**
-- `[service].test.ts` - Core/comprehensive functionality tests
-- `[service].delegation.test.ts` - Service delegation patterns (gitService)
-- `[service].environment.test.ts` - Environment detection logic
-- `[service].errorHandling.test.ts` - Error scenarios and fallbacks
-- `[service].conditionalLogic.test.ts` - Specific conditional branches
-- `[service].folderFiltering.test.ts` - Folder pattern matching
-- `[service].apiUrl.test.ts` - API URL generation logic
-- `[service].taskMovement.test.ts` - Task archiving/unarchiving
-- `[service].integration.test.ts` - Real API integration tests
-- `[service].validation.test.ts` - Input validation and error paths
+**This project consolidated 109 → 33 test files (69.7% reduction) while achieving 78.93% coverage. Follow these guidelines to prevent test cluttering.**
 
-**Utils Tests:**
-- `[util].test.ts` - Main functionality tests
-- `[util].urlEncoding.test.ts` - URL encoding/decoding logic
-- `[util].draft.test.ts` - Draft persistence functionality  
-- `[util].chatSession.test.ts` - Chat session management
+#### Test File Organization Rules
 
-**Component Tests:**
-- `[component].test.tsx` - Core component functionality
-- `[component].draft.test.tsx` - Draft integration features
-- `[component].strategy.test.tsx` - Rendering strategies
-- `[component].quick.test.tsx` - Focused interaction tests
-- `[component].chatPersistence.test.tsx` - Chat persistence features
+**✅ CORRECT: One Comprehensive File per Component/Service**
+```bash
+# ✅ GOOD - Consolidated approach  
+githubService.test.ts     # ALL githubService functionality (50 tests)
+MarkdownViewer.test.tsx   # ALL MarkdownViewer functionality (38 tests)
+localStorage.test.ts      # ALL localStorage functionality (102 tests)
+```
+
+**❌ WRONG: Multiple Specialized Files (NEVER DO THIS)**
+```bash
+# ❌ BAD - Causes test cluttering (this was eliminated)
+githubService.test.ts
+githubService.core.test.ts
+githubService.integration.test.ts
+githubService.errorHandling.test.ts
+[...and 10+ more files testing the same service]
+```
+
+#### Anti-Patterns to Avoid
+**NEVER create these suffixed files:**
+- `Component.draft.test.tsx` → Add to `Component.test.tsx`
+- `Component.strategy.test.tsx` → Add to `Component.test.tsx`  
+- `service.integration.test.ts` → Add to `service.test.ts`
+- `service.errorHandling.test.ts` → Add to `service.test.ts`
+
+**Rule**: If tempted to create `X.something.test.ts`, add those tests to `X.test.ts` instead.
 
 #### Local Development
 ```bash
@@ -351,6 +400,29 @@ npm run test:basic    # Run feature validation tests only
 npm run test:coverage # Full coverage report (same as CI)
 npm run test:all-fast # Fast test execution without coverage (24% faster)
 ```
+
+**Coverage Analysis Timeout Requirement:**
+When running coverage analysis for accurate results, both the Bash tool timeout and test timeout need to be configured properly:
+
+```bash
+# Use 5-minute timeout for accurate coverage measurement
+npm run test:coverage -- --testTimeout=300000
+```
+
+**IMPORTANT for Claude Code users:** When using the Bash tool to run coverage commands, set the `timeout` parameter to `300000` (5 minutes):
+```typescript
+// Example Bash tool usage for coverage
+Bash({
+  command: "npm run test:coverage",
+  timeout: 300000,  // 5 minutes in milliseconds
+  description: "Run coverage analysis with 5-minute timeout"
+})
+```
+
+This dual timeout configuration prevents:
+- Test failures due to longer-running tests (via `--testTimeout=300000`)
+- Bash tool timeouts before tests complete (via `timeout: 300000`)
+- Incomplete coverage analysis in CI/CD pipelines
 
 #### Server Tests (Backend API)
 ```bash
@@ -370,4 +442,68 @@ The GitHub Actions CI pipeline runs `npm run test:coverage` in Ubuntu with Node.
 ```bash
 ./hack/restart-dev.sh  # Restart both servers (rarely needed due to hot reload)
 ```
+
+## Coverage Improvement Guidelines
+
+### Quick Coverage Analysis
+```bash
+# Get comprehensive coverage report
+npm run test:coverage -- --testTimeout=300000
+```
+
+### Target Selection Strategy
+**Focus on high-impact targets:**
+- **85-95% coverage files**: Usually missing error paths or edge cases
+- **Utility functions**: Pure functions with clear inputs/outputs
+- **Error handling paths**: Often untested but easy to mock
+
+**Avoid for efficiency:**
+- **Complex UI components**: High setup overhead, low ROI
+- **Files <50% coverage**: Often require architectural changes
+
+### Common Coverage Patterns
+```typescript
+// Error handling
+it('should handle API errors gracefully', async () => {
+  mockFetch.mockRejectedValue(new Error('Network error'));
+  expect(await serviceFunction()).toBeNull();
+});
+
+// Edge cases
+it('should handle invalid inputs', () => {
+  expect(validateInput(null)).toBe(defaultValue);
+});
+
+// Utility function branches
+const testCases = [
+  { input: 1, expected: 'P1 - Critical' },
+  { input: 2, expected: 'P2 - High' }
+];
+testCases.forEach(({ input, expected }) => {
+  it(`should return ${expected} for input ${input}`, () => {
+    expect(getLabel(input)).toBe(expected);
+  });
+});
+```
+
+### Workflow
+1. **Test individual files**: `npm test src/path/file.test.ts -- --coverage`
+2. **Identify uncovered lines**: Focus on error paths and edge cases
+3. **Add targeted tests**: Cover missing branches systematically  
+4. **Verify improvement**: Re-run coverage to confirm gains
+
+## Performance Optimizations
+
+### Filename-Based Metadata
+- **Performance Impact**: 99%+ reduction in API requests for todo listing operations
+- **Three-tier parsing strategy**:
+  1. **New format** (`P3--2025-07-21--title.md`) → Zero API calls ⚡
+  2. **Legacy format** (`2025-07-21-title.md`) → Zero API calls (default P3 priority) ⚡
+  3. **Unknown format** → Content fetch fallback (rare case) 🐌
+- **Instant metadata availability**: Priority, date, and title extracted from filename
+- **Simplified frontmatter**: Only `tags: []` field needed for future filtering capabilities
+
+### Implementation Details
+See [features/filename-based-metadata.md](features/filename-based-metadata.md) for complete technical documentation and performance analysis.
+
 

@@ -50,7 +50,7 @@ describe('Search Service', () => {
 
     it('should handle dual-config GitHub settings', async () => {
       const mockSettings = {
-        gitProvider: 'github',
+        gitProvider: 'github' as const,
         folder: 'tasks',
         github: {
           pat: 'github-token',
@@ -59,7 +59,7 @@ describe('Search Service', () => {
         }
       };
 
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
       
       const mockResponse = {
         ok: true,
@@ -95,7 +95,7 @@ describe('Search Service', () => {
 
     it('should handle dual-config GitLab settings', async () => {
       const mockSettings = {
-        gitProvider: 'gitlab',
+        gitProvider: 'gitlab' as const,
         folder: 'work',
         gitlab: {
           token: 'gitlab-token',
@@ -104,7 +104,7 @@ describe('Search Service', () => {
         }
       };
 
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
       
       const mockResponse = {
         ok: true,
@@ -140,7 +140,8 @@ describe('Search Service', () => {
 
     it('should throw error for incomplete dual-config GitHub settings', async () => {
       const mockSettings = {
-        gitProvider: 'github',
+        gitProvider: 'github' as const,
+        folder: 'todos',
         github: {
           pat: 'token',
           owner: 'owner'
@@ -148,7 +149,7 @@ describe('Search Service', () => {
         }
       };
 
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
 
       await expect(searchTodos('test')).rejects.toThrow(
         'GitHub settings incomplete. Please configure your Personal Access Token, owner, and repository.'
@@ -157,7 +158,8 @@ describe('Search Service', () => {
 
     it('should throw error for incomplete dual-config GitLab settings', async () => {
       const mockSettings = {
-        gitProvider: 'gitlab',
+        gitProvider: 'gitlab' as const,
+        folder: 'todos',
         gitlab: {
           token: 'token',
           instanceUrl: 'https://gitlab.com'
@@ -165,7 +167,7 @@ describe('Search Service', () => {
         }
       };
 
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
 
       await expect(searchTodos('test')).rejects.toThrow(
         'GitLab settings incomplete. Please configure your Access Token, instance URL, and project ID.'
@@ -174,13 +176,14 @@ describe('Search Service', () => {
 
     it('should throw error for incomplete legacy GitHub settings', async () => {
       const mockSettings = {
-        gitProvider: 'github',
+        gitProvider: 'github' as const,
+        folder: 'todos',
         pat: 'token',
         owner: 'owner'
         // missing repo
       };
 
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
 
       await expect(searchTodos('test')).rejects.toThrow(
         'GitHub settings incomplete. Please configure your Personal Access Token, owner, and repository.'
@@ -189,13 +192,14 @@ describe('Search Service', () => {
 
     it('should throw error for incomplete legacy GitLab settings', async () => {
       const mockSettings = {
-        gitProvider: 'gitlab',
+        gitProvider: 'gitlab' as const,
+        folder: 'todos',
         token: 'token',
         instanceUrl: 'https://gitlab.com'
         // missing projectId
       };
 
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
 
       await expect(searchTodos('test')).rejects.toThrow(
         'GitLab settings incomplete. Please configure your Access Token, instance URL, and project ID.'
@@ -204,10 +208,11 @@ describe('Search Service', () => {
 
     it('should throw error for invalid git provider', async () => {
       const mockSettings = {
-        gitProvider: 'invalid'
+        gitProvider: 'invalid' as any,
+        folder: 'todos'
       };
 
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
 
       await expect(searchTodos('test')).rejects.toThrow(
         'Invalid Git provider configured. Please select GitHub or GitLab.'
@@ -216,14 +221,14 @@ describe('Search Service', () => {
 
     it('should make GitHub search request with correct parameters', async () => {
       const mockSettings = {
-        gitProvider: 'github',
+        gitProvider: 'github' as const,
         pat: 'test-token', // GitHub uses 'pat' field
         owner: 'test-owner',
         repo: 'test-repo',
         folder: 'todos'
       };
 
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
       
       const mockResponse = {
         ok: true,
@@ -269,14 +274,14 @@ describe('Search Service', () => {
 
     it('should handle GitLab settings correctly', async () => {
       const mockSettings = {
-        gitProvider: 'gitlab',
+        gitProvider: 'gitlab' as const,
         token: 'test-token', // GitLab uses 'token' field
         instanceUrl: 'https://gitlab.example.com',
         projectId: '123',
         folder: 'tasks'
       };
 
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
       
       const mockResponse = {
         ok: true,
@@ -312,14 +317,14 @@ describe('Search Service', () => {
 
     it('should handle API errors gracefully', async () => {
       const mockSettings = {
-        gitProvider: 'github',
+        gitProvider: 'github' as const,
         pat: 'test-token', // GitHub uses 'pat' field
         owner: 'test-owner',
         repo: 'test-repo',
         folder: 'todos'
       };
 
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
       
       const mockResponse = {
         ok: false,
@@ -337,14 +342,14 @@ describe('Search Service', () => {
 
     it('should handle 401 authentication errors', async () => {
       const mockSettings = {
-        gitProvider: 'github',
+        gitProvider: 'github' as const,
         pat: 'test-token',
         owner: 'test-owner',
         repo: 'test-repo',
         folder: 'todos'
       };
 
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
       
       const mockResponse = {
         ok: false,
@@ -362,14 +367,14 @@ describe('Search Service', () => {
 
     it('should handle 403 permission errors', async () => {
       const mockSettings = {
-        gitProvider: 'github',
+        gitProvider: 'github' as const,
         pat: 'test-token',
         owner: 'test-owner',
         repo: 'test-repo',
         folder: 'todos'
       };
 
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
       
       const mockResponse = {
         ok: false,
@@ -387,14 +392,14 @@ describe('Search Service', () => {
 
     it('should handle 400 bad request errors', async () => {
       const mockSettings = {
-        gitProvider: 'github',
+        gitProvider: 'github' as const,
         pat: 'test-token',
         owner: 'test-owner',
         repo: 'test-repo',
         folder: 'todos'
       };
 
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
       
       const mockResponse = {
         ok: false,
@@ -412,14 +417,14 @@ describe('Search Service', () => {
 
     it('should handle other HTTP error status codes', async () => {
       const mockSettings = {
-        gitProvider: 'github',
+        gitProvider: 'github' as const,
         pat: 'test-token',
         owner: 'test-owner',
         repo: 'test-repo',
         folder: 'todos'
       };
 
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
       
       const mockResponse = {
         ok: false,
@@ -437,14 +442,14 @@ describe('Search Service', () => {
 
     it('should handle network errors', async () => {
       const mockSettings = {
-        gitProvider: 'github',
+        gitProvider: 'github' as const,
         pat: 'test-token', // GitHub uses 'pat' field
         owner: 'test-owner',
         repo: 'test-repo',
         folder: 'todos'
       };
 
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
       
       vi.mocked(fetch).mockRejectedValue(new TypeError('Failed to fetch'));
 
@@ -472,14 +477,14 @@ describe('Search Service', () => {
 
     it('should debounce multiple rapid calls', async () => {
       const mockSettings = {
-        gitProvider: 'github',
+        gitProvider: 'github' as const,
         pat: 'test-token', // GitHub uses 'pat' field
         owner: 'test-owner',
         repo: 'test-repo',
         folder: 'todos'
       };
 
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
       
       const mockResponse = {
         ok: true,
@@ -514,14 +519,14 @@ describe('Search Service', () => {
 
     it('should handle errors in debounced search', async () => {
       const mockSettings = {
-        gitProvider: 'github',
+        gitProvider: 'github' as const,
         pat: 'test-token',
         owner: 'test-owner',
         repo: 'test-repo',
         folder: 'todos'
       };
 
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
       
       // Mock fetch to reject
       vi.mocked(fetch).mockRejectedValue(new Error('Network error'));
@@ -537,14 +542,14 @@ describe('Search Service', () => {
 
     it('should handle non-Error objects in debounced search catch', async () => {
       const mockSettings = {
-        gitProvider: 'github',
+        gitProvider: 'github' as const,
         pat: 'test-token',
         owner: 'test-owner',
         repo: 'test-repo',
         folder: 'todos'
       };
 
-      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings);
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
       
       // Mock fetch to reject with non-Error object
       vi.mocked(fetch).mockRejectedValue('String error');
@@ -607,6 +612,158 @@ describe('Search Service', () => {
     it('should handle whitespace-only queries', () => {
       const result = filterTodosLocally(mockTodos, '   ');
       expect(result).toEqual(mockTodos);
+    });
+
+    it('should handle invalid queries and return all todos (lines 247-249)', async () => {
+      // Import the redos protection module and spy on it  
+      const redosProtection = await import('../../utils/redosProtection');
+      const validateSpy = vi.spyOn(redosProtection, 'validateAndSanitizeSearchQuery')
+        .mockReturnValue({
+          isValid: false,
+          error: 'Query contains malicious patterns'
+        });
+      
+      const result = filterTodosLocally(mockTodos, 'SELECT * FROM users');
+      
+      // Should return all todos when query is invalid
+      expect(result).toEqual(mockTodos);
+      expect(validateSpy).toHaveBeenCalledWith('SELECT * FROM users');
+      
+      // Restore the spy
+      validateSpy.mockRestore();
+    });
+
+    it('should handle errors during todo filtering (lines 260-262)', () => {
+      // Create a problematic todo that will cause an error during filtering
+      const problematicTodos = [
+        {
+          id: '1',
+          title: 'Normal task',
+          content: 'Normal content'
+        },
+        {
+          id: '2',
+          // Create a getter that throws an error
+          get title() { throw new Error('Title access error'); },
+          content: 'Some content'
+        },
+        {
+          id: '3',
+          title: 'Another task',
+          // Create a getter that throws an error  
+          get content() { throw new Error('Content access error'); }
+        }
+      ];
+
+      const result = filterTodosLocally(problematicTodos, 'task');
+      
+      // Should only return todos that don't throw errors during filtering
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('1');
+    });
+  });
+
+  describe('Error Response Handling Coverage (lines 172-175, 178-179)', () => {
+    it('should handle non-JSON error response text (lines 172-175)', async () => {
+      const mockSettings = {
+        gitProvider: 'github' as const,
+        pat: 'test-token',
+        owner: 'test-owner',
+        repo: 'test-repo',
+        folder: 'todos'
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
+
+      // Mock a failed response with plain text (not JSON)
+      const mockResponse = {
+        ok: false,
+        status: 422,
+        statusText: 'Unprocessable Entity',
+        text: vi.fn().mockResolvedValue('Validation failed: Invalid query syntax'),
+        json: vi.fn().mockRejectedValue(new Error('Invalid JSON'))
+      };
+
+      vi.mocked(fetch).mockResolvedValue(mockResponse as any);
+
+      // Should use raw text when JSON parsing fails (lines 172-175)
+      await expect(searchTodos('invalid[query')).rejects.toThrow('Validation failed: Invalid query syntax');
+      
+      expect(mockResponse.text).toHaveBeenCalled();
+    });
+
+    it('should handle error when reading response fails (lines 178-179)', async () => {
+      const mockSettings = {
+        gitProvider: 'github' as const,
+        pat: 'test-token',
+        owner: 'test-owner',
+        repo: 'test-repo',
+        folder: 'todos'
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
+
+      // Mock a failed response where reading response throws an error
+      const mockResponse = {
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        text: vi.fn().mockRejectedValue(new Error('Network error reading response')),
+        json: vi.fn().mockRejectedValue(new Error('Cannot read response'))
+      };
+
+      vi.mocked(fetch).mockResolvedValue(mockResponse as any);
+
+      // Should use default error message when response reading fails (lines 178-179)
+      await expect(searchTodos('test')).rejects.toThrow('Search API error: Internal Server Error');
+      
+      expect(mockResponse.text).toHaveBeenCalled();
+    });
+
+    it('should handle empty response text with JSON parsing failure (line 174)', async () => {
+      const mockSettings = {
+        gitProvider: 'github' as const,
+        pat: 'test-token',
+        owner: 'test-owner',
+        repo: 'test-repo',
+        folder: 'todos'
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
+
+      // Mock a failed response with empty text and JSON parsing failure
+      const mockResponse = {
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        text: vi.fn().mockResolvedValue(''), // Empty response text
+        json: vi.fn().mockRejectedValue(new Error('Invalid JSON'))
+      };
+
+      vi.mocked(fetch).mockResolvedValue(mockResponse as any);
+
+      // Should fall back to default error message when text is empty (line 174 condition)
+      await expect(searchTodos('test')).rejects.toThrow('Search API error: Bad Request');
+    });
+  });
+
+  // === Coverage Improvement: Lines 119-120 ===
+  describe('Search Query Validation Coverage (lines 119-120)', () => {
+    it('should throw error for invalid search query (lines 119-120)', async () => {
+      const mockSettings = {
+        gitProvider: 'github' as const,
+        pat: 'test-token',
+        owner: 'test-owner',  
+        repo: 'test-repo',
+        folder: 'todos'
+      };
+
+      vi.mocked(localStorage.loadSettings).mockReturnValue(mockSettings as any);
+
+      // Create a search query that will be considered invalid by ReDoS protection
+      const invalidQuery = '*'.repeat(1000); // Extremely long pattern that should be invalid
+
+      await expect(searchTodos(invalidQuery)).rejects.toThrow(/Invalid search query/);
     });
   });
 });

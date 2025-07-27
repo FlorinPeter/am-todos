@@ -1,5 +1,5 @@
 import { loadSettings } from '../utils/localStorage';
-import { AIResponse, AIResponseWithFallback, CommitMessageResponse, CommitMessageResponseWithFallback } from '../types';
+import { AIResponse, AIResponseWithFallback, CommitMessageResponseWithFallback } from '../types';
 import logger from '../utils/logger';
 import { fetchJsonWithTimeout, TIMEOUT_VALUES } from '../utils/fetchWithTimeout';
 
@@ -16,7 +16,6 @@ const getApiUrl = () => {
   }
 };
 
-const AI_API_URL = getApiUrl();
 
 const getAISettings = () => {
   const settings = loadSettings();
@@ -48,10 +47,20 @@ const getAISettings = () => {
   };
 };
 
-export const generateInitialPlan = async (goal: string) => {
+export const generateInitialPlan = async (goalData: string | { title: string; description?: string; template?: string }) => {
   try {
     const aiSettings = getAISettings();
     const apiUrl = getApiUrl();
+    
+    // Handle backward compatibility - convert string to object format
+    const payload = typeof goalData === 'string' 
+      ? { goal: goalData }
+      : { 
+          title: goalData.title,
+          description: goalData.description,
+          template: goalData.template || 'general'
+        };
+
     const data = await fetchJsonWithTimeout(apiUrl, {
       method: 'POST',
       headers: {
@@ -59,7 +68,7 @@ export const generateInitialPlan = async (goal: string) => {
       },
       body: JSON.stringify({
         action: 'generateInitialPlan',
-        payload: { goal },
+        payload,
         provider: aiSettings.provider,
         apiKey: aiSettings.apiKey,
         model: aiSettings.model,
@@ -67,6 +76,23 @@ export const generateInitialPlan = async (goal: string) => {
       timeout: TIMEOUT_VALUES.AI,
     });
 
+    // Try to parse JSON response first (new structured format)
+    try {
+      const jsonResponse = JSON.parse(data.text);
+      if (jsonResponse.content && typeof jsonResponse.content === 'string') {
+        logger.log('AI Service: Successfully parsed JSON response for generateInitialPlan');
+        return jsonResponse.content;
+      }
+      if (jsonResponse.title && jsonResponse.content) {
+        logger.log('AI Service: Successfully parsed JSON response with title and content');
+        return jsonResponse.content;
+      }
+    } catch (parseError) {
+      // JSON parsing failed, fall back to plain text (backward compatibility)
+      logger.log('AI Service: JSON parsing failed, using plain text response as fallback');
+    }
+
+    // Fallback: return plain text response (backward compatibility)
     return data.text;
   } catch (error) {
     logger.error('AI Service: Network or fetch error:', error);

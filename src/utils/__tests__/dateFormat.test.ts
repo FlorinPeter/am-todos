@@ -1,4 +1,4 @@
-import { vi, describe, test, expect } from 'vitest';
+import { describe, test, expect } from 'vitest';
 import { formatDate } from '../dateFormat';
 
 describe('DateFormat', () => {

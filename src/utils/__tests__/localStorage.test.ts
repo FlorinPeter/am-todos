@@ -1,4 +1,63 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { 
+  saveSettings,
+  loadSettings,
+  encodeSettingsToUrl,
+  decodeSettingsFromUrl,
+  getUrlConfig,
+  saveCheckpoint, 
+  getCheckpoints, 
+  clearCheckpoints, 
+  generateCheckpointId,
+  saveSelectedTodoId,
+  loadSelectedTodoId,
+  clearSelectedTodoId,
+  saveViewMode,
+  loadViewMode,
+  clearViewMode,
+  saveDraft,
+  getDraft,
+  clearDraft,
+  clearOtherDrafts,
+  saveChatSession,
+  getChatSession,
+  clearChatSession,
+  clearOtherChatSessions,
+  AIChatSession,
+  Checkpoint,
+  TodoDraft,
+} from '../localStorage';
+import logger from '../logger';
+
+// Define GitHubSettings type to match the actual interface
+type GitHubSettings = {
+  gitProvider: 'github' | 'gitlab';
+  folder: string;
+  aiProvider?: 'gemini' | 'openrouter';
+  geminiApiKey?: string;
+  openRouterApiKey?: string;
+  aiModel?: string;
+  github?: {
+    pat: string;
+    owner: string;
+    repo: string;
+    branch?: string;
+  };
+  gitlab?: {
+    instanceUrl: string;
+    projectId: string;
+    token: string;
+    branch?: string;
+  };
+  // Legacy fields for backward compatibility
+  pat?: string;
+  owner?: string;
+  repo?: string;
+  instanceUrl?: string;
+  projectId?: string;
+  token?: string;
+  branch?: string;
+};
 
 // Create a proper localStorage mock
 const store = {} as Record<string, string>;
@@ -34,23 +93,7 @@ vi.mock('../logger', () => ({
   }
 }));
 
-// Now import the functions
-import { 
-  saveSettings,
-  loadSettings,
-  encodeSettingsToUrl,
-  decodeSettingsFromUrl,
-  getUrlConfig,
-  saveCheckpoint, 
-  getCheckpoints, 
-  clearCheckpoints, 
-  generateCheckpointId,
-  saveSelectedTodoId,
-  loadSelectedTodoId,
-  clearSelectedTodoId,
-  Checkpoint 
-} from '../localStorage';
-import logger from '../logger';
+// Imports moved to top of file
 
 describe('localStorage functions', () => {
   beforeEach(() => {
@@ -629,6 +672,35 @@ describe('localStorage functions', () => {
         global.btoa = originalBtoa;
         loggerSpy.mockRestore();
       });
+
+      it('should return empty string when configuration is too large for URL encoding (lines 240-241)', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        
+        // Create a configuration with very large API keys that will exceed the 10000 character JSON limit
+        const largeSettings = {
+          gitProvider: 'github' as const,
+          folder: 'todos',
+          github: {
+            pat: 'A'.repeat(5000), // Very long PAT 
+            owner: 'owner',
+            repo: 'repo',
+            branch: 'main'
+          },
+          geminiApiKey: 'B'.repeat(4000), // Very large Gemini API key
+          openRouterApiKey: 'C'.repeat(3000), // Very large OpenRouter API key
+          aiModel: 'D'.repeat(500) // Additional content
+        };
+        
+        const url = encodeSettingsToUrl(largeSettings);
+        
+        expect(url).toBe(''); // Should return empty string when size limit exceeded
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error encoding settings to URL',
+          expect.any(Error)
+        );
+        
+        loggerSpy.mockRestore();
+      });
     });
 
     describe('decodeSettingsFromUrl', () => {
@@ -951,6 +1023,1039 @@ describe('localStorage functions', () => {
       clearCheckpoints('workflow-test');
       const afterClear = getCheckpoints('workflow-test');
       expect(afterClear).toHaveLength(0);
+    });
+  });
+
+  describe('View Mode Persistence', () => {
+    beforeEach(() => {
+      // Ensure mock implementations are reset
+      mockLocalStorage.getItem.mockImplementation((key: string) => store[key] || null);
+      mockLocalStorage.setItem.mockImplementation((key: string, value: string) => {
+        store[key] = value;
+      });
+      mockLocalStorage.removeItem.mockImplementation((key: string) => {
+        delete store[key];
+      });
+    });
+
+    describe('saveViewMode', () => {
+      it('saves active view mode to localStorage', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        
+        saveViewMode('active');
+        
+        expect(mockLocalStorage.setItem).toHaveBeenCalledWith('viewMode', 'active');
+        expect(loggerSpy).toHaveBeenCalledWith('View mode saved: active');
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('saves archived view mode to localStorage', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        
+        saveViewMode('archived');
+        
+        expect(mockLocalStorage.setItem).toHaveBeenCalledWith('viewMode', 'archived');
+        expect(loggerSpy).toHaveBeenCalledWith('View mode saved: archived');
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('handles localStorage errors gracefully', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        mockLocalStorage.setItem.mockImplementation(() => {
+          throw new Error('localStorage error');
+        });
+
+        expect(() => saveViewMode('active')).not.toThrow();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error saving view mode to localStorage',
+          expect.any(Error)
+        );
+
+        loggerSpy.mockRestore();
+      });
+    });
+
+    describe('loadViewMode', () => {
+      it('returns stored active view mode', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        store['viewMode'] = 'active';
+        
+        const viewMode = loadViewMode();
+        
+        expect(viewMode).toBe('active');
+        expect(loggerSpy).toHaveBeenCalledWith('View mode loaded: active');
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('returns stored archived view mode', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        store['viewMode'] = 'archived';
+        
+        const viewMode = loadViewMode();
+        
+        expect(viewMode).toBe('archived');
+        expect(loggerSpy).toHaveBeenCalledWith('View mode loaded: archived');
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('returns default active mode when no view mode is stored', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        
+        const viewMode = loadViewMode();
+        
+        expect(viewMode).toBe('active');
+        expect(loggerSpy).toHaveBeenCalledWith('No valid view mode found, defaulting to: active');
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('returns default active mode for invalid stored value', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        store['viewMode'] = 'invalid-mode';
+        
+        const viewMode = loadViewMode();
+        
+        expect(viewMode).toBe('active');
+        expect(loggerSpy).toHaveBeenCalledWith('No valid view mode found, defaulting to: active');
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('handles localStorage errors gracefully', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        mockLocalStorage.getItem.mockImplementation(() => {
+          throw new Error('localStorage error');
+        });
+
+        const viewMode = loadViewMode();
+        
+        expect(viewMode).toBe('active');
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error loading view mode from localStorage',
+          expect.any(Error)
+        );
+
+        loggerSpy.mockRestore();
+      });
+    });
+
+    describe('clearViewMode', () => {
+      it('removes view mode from localStorage', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        store['viewMode'] = 'archived';
+        
+        clearViewMode();
+        
+        expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('viewMode');
+        expect(store['viewMode']).toBeUndefined();
+        expect(loggerSpy).toHaveBeenCalledWith('View mode cleared from localStorage');
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('handles localStorage errors gracefully', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        mockLocalStorage.removeItem.mockImplementation(() => {
+          throw new Error('localStorage error');
+        });
+
+        expect(() => clearViewMode()).not.toThrow();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error clearing view mode from localStorage',
+          expect.any(Error)
+        );
+
+        loggerSpy.mockRestore();
+      });
+    });
+  });
+
+  describe('Draft Management', () => {
+    const mockDraft: TodoDraft = {
+      todoId: 'todo-123',
+      path: 'todos/test-task.md',
+      stableDraftKey: 'todos/test-task.md',
+      editContent: '---\ntitle: Test Task\n---\n# Test Task\n\n- [ ] Task 1',
+      viewContent: '---\ntitle: Test Task\n---\n# Test Task\n\n- [x] Task 1',
+      hasUnsavedChanges: true,
+      timestamp: Date.now()
+    };
+
+    beforeEach(() => {
+      // Ensure mock implementations are reset
+      mockLocalStorage.getItem.mockImplementation((key: string) => store[key] || null);
+      mockLocalStorage.setItem.mockImplementation((key: string, value: string) => {
+        store[key] = value;
+      });
+      mockLocalStorage.removeItem.mockImplementation((key: string) => {
+        delete store[key];
+      });
+    });
+
+    describe('saveDraft', () => {
+      it('saves draft to localStorage with timestamp', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        
+        saveDraft(mockDraft);
+        
+        expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('todoDraft'); // Clears existing first
+        const call = mockLocalStorage.setItem.mock.calls[0];
+        expect(call[0]).toBe('todoDraft');
+        const savedDraft = JSON.parse(call[1]);
+        expect(savedDraft.todoId).toBe(mockDraft.todoId);
+        expect(savedDraft.path).toBe(mockDraft.path);
+        expect(typeof savedDraft.timestamp).toBe('number');
+        expect(loggerSpy).toHaveBeenCalledWith('Draft saved for todo: todos/test-task.md');
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('handles localStorage errors gracefully', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        mockLocalStorage.setItem.mockImplementation(() => {
+          throw new Error('localStorage error');
+        });
+
+        expect(() => saveDraft(mockDraft)).not.toThrow();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error saving draft to localStorage',
+          expect.any(Error)
+        );
+
+        loggerSpy.mockRestore();
+      });
+    });
+
+    describe('getDraft', () => {
+      it('returns matching draft for same todoId and path', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        store['todoDraft'] = JSON.stringify(mockDraft);
+        
+        const draft = getDraft('todo-123', 'todos/test-task.md');
+        
+        expect(draft).toEqual(mockDraft);
+        expect(loggerSpy).toHaveBeenCalledWith('Draft restored for todo: todos/test-task.md');
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('returns null when no draft exists', () => {
+        const draft = getDraft('todo-123', 'todos/test-task.md');
+        
+        expect(draft).toBeNull();
+      });
+
+      it('returns null when todoId does not match', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        store['todoDraft'] = JSON.stringify(mockDraft);
+        
+        const draft = getDraft('different-todo-456', 'todos/test-task.md');
+        
+        expect(draft).toBeNull();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Draft found but doesn\'t match current todoId. Draft: "todo-123", Current: "different-todo-456"'
+        );
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('returns null when path does not match stable draft key', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        store['todoDraft'] = JSON.stringify(mockDraft);
+        
+        const draft = getDraft('todo-123', 'todos/different-task.md');
+        
+        expect(draft).toBeNull();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          expect.stringMatching(/Draft found but doesn't match current todo path/)
+        );
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('returns null and clears expired draft', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        const expiredDraft = {
+          ...mockDraft,
+          timestamp: Date.now() - (25 * 60 * 60 * 1000) // 25 hours ago (expired)
+        };
+        store['todoDraft'] = JSON.stringify(expiredDraft);
+        
+        const draft = getDraft('todo-123', 'todos/test-task.md');
+        
+        expect(draft).toBeNull();
+        expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('todoDraft');
+        expect(loggerSpy).toHaveBeenCalledWith(
+          expect.stringMatching(/Draft expired \(\d+ hours old\)/)
+        );
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('handles draft with missing stableDraftKey gracefully', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        const draftWithoutStableKey = { ...mockDraft };
+        delete (draftWithoutStableKey as any).stableDraftKey;
+        store['todoDraft'] = JSON.stringify(draftWithoutStableKey);
+        
+        const draft = getDraft('todo-123', 'todos/test-task.md');
+        
+        expect(draft).toEqual(draftWithoutStableKey);
+        expect(loggerSpy).toHaveBeenCalledWith('Draft restored for todo: todos/test-task.md');
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('handles localStorage errors gracefully', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        mockLocalStorage.getItem.mockImplementation(() => {
+          throw new Error('localStorage error');
+        });
+
+        const draft = getDraft('todo-123', 'todos/test-task.md');
+        
+        expect(draft).toBeNull();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error loading draft from localStorage',
+          expect.any(Error)
+        );
+
+        loggerSpy.mockRestore();
+      });
+
+      it('handles corrupted JSON gracefully', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        store['todoDraft'] = 'invalid-json';
+        
+        const draft = getDraft('todo-123', 'todos/test-task.md');
+        
+        expect(draft).toBeNull();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error loading draft from localStorage',
+          expect.any(Error)
+        );
+
+        loggerSpy.mockRestore();
+      });
+    });
+
+    describe('clearDraft', () => {
+      it('removes draft from localStorage with logging', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        store['todoDraft'] = JSON.stringify(mockDraft);
+        
+        clearDraft();
+        
+        expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('todoDraft');
+        expect(store['todoDraft']).toBeUndefined();
+        expect(loggerSpy).toHaveBeenCalledWith('Clearing draft for todo: todos/test-task.md');
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('handles no existing draft gracefully', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        
+        clearDraft();
+        
+        expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('todoDraft');
+        expect(loggerSpy).not.toHaveBeenCalled();
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('handles localStorage errors gracefully', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        mockLocalStorage.removeItem.mockImplementation(() => {
+          throw new Error('localStorage error');
+        });
+
+        expect(() => clearDraft()).not.toThrow();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error clearing draft from localStorage',
+          expect.any(Error)
+        );
+
+        loggerSpy.mockRestore();
+      });
+    });
+
+    describe('clearOtherDrafts', () => {
+      it('clears draft when it belongs to a different todo', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        store['todoDraft'] = JSON.stringify(mockDraft);
+        
+        clearOtherDrafts('different-todo-456');
+        
+        expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('todoDraft');
+        expect(store['todoDraft']).toBeUndefined();
+        expect(loggerSpy).toHaveBeenCalledWith('Clearing draft for different todo: todos/test-task.md');
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('does not clear draft when it belongs to the current todo', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        const draftString = JSON.stringify(mockDraft);
+        store['todoDraft'] = draftString;
+        
+        clearOtherDrafts('todo-123');
+        
+        expect(store['todoDraft']).toBe(draftString);
+        expect(mockLocalStorage.removeItem).not.toHaveBeenCalledWith('todoDraft');
+        expect(loggerSpy).not.toHaveBeenCalled();
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('does nothing when no draft exists', () => {
+        clearOtherDrafts('any-todo-id');
+        
+        expect(mockLocalStorage.removeItem).not.toHaveBeenCalled();
+      });
+
+      it('handles localStorage errors gracefully', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        mockLocalStorage.getItem.mockImplementation(() => {
+          throw new Error('localStorage error');
+        });
+
+        expect(() => clearOtherDrafts('todo-123')).not.toThrow();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error clearing other drafts from localStorage',
+          expect.any(Error)
+        );
+
+        loggerSpy.mockRestore();
+      });
+
+      it('handles corrupted JSON gracefully', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        store['todoDraft'] = 'invalid-json';
+        
+        expect(() => clearOtherDrafts('todo-123')).not.toThrow();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error clearing other drafts from localStorage',
+          expect.any(Error)
+        );
+
+        loggerSpy.mockRestore();
+      });
+    });
+  });
+
+  describe('AI Chat Session Management', () => {
+    beforeEach(() => {
+      // Ensure mock implementations are reset
+      mockLocalStorage.getItem.mockImplementation((key: string) => store[key] || null);
+      mockLocalStorage.setItem.mockImplementation((key: string, value: string) => {
+        store[key] = value;
+      });
+      mockLocalStorage.removeItem.mockImplementation((key: string) => {
+        delete store[key];
+      });
+    });
+
+    describe('saveChatSession', () => {
+      it('saves chat session to localStorage with timestamp', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        const mockSession: AIChatSession = {
+          todoId: 'todo-123',
+          path: 'tasks/test.md',
+          chatHistory: [{ role: 'user', content: 'Test message', timestamp: '2023-01-01T00:00:00.000Z' }],
+          checkpoints: [],
+          isExpanded: true,
+          timestamp: Date.now()
+        };
+        
+        saveChatSession(mockSession);
+        
+        expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('aiChatSession'); // Clears existing first
+        const call = mockLocalStorage.setItem.mock.calls[0];
+        expect(call[0]).toBe('aiChatSession');
+        const savedSession = JSON.parse(call[1]);
+        expect(savedSession.todoId).toBe(mockSession.todoId);
+        expect(savedSession.path).toBe(mockSession.path);
+        expect(typeof savedSession.timestamp).toBe('number');
+        expect(loggerSpy).toHaveBeenCalledWith('Chat session saved for todo: tasks/test.md');
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('handles localStorage errors gracefully', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        mockLocalStorage.setItem.mockImplementation(() => {
+          throw new Error('localStorage error');
+        });
+
+        const mockSession: AIChatSession = {
+          todoId: 'todo-123',
+          path: 'tasks/test.md',
+          chatHistory: [],
+          checkpoints: [],
+          isExpanded: false,
+          timestamp: Date.now()
+        };
+
+        expect(() => saveChatSession(mockSession)).not.toThrow();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error saving chat session to localStorage',
+          expect.any(Error)
+        );
+
+        loggerSpy.mockRestore();
+      });
+    });
+
+    describe('getChatSession', () => {
+      it('returns matching chat session for same todoId and path', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        const mockSession: AIChatSession = {
+          todoId: 'todo-123',
+          path: 'tasks/test.md',
+          chatHistory: [{ role: 'user', content: 'Test message', timestamp: '2023-01-01T00:00:00.000Z' }],
+          checkpoints: [],
+          isExpanded: true,
+          timestamp: Date.now()
+        };
+        store['aiChatSession'] = JSON.stringify(mockSession);
+        
+        const session = getChatSession('todo-123', 'tasks/test.md');
+        
+        expect(session).toEqual(mockSession);
+        expect(loggerSpy).toHaveBeenCalledWith('Chat session restored for todo: tasks/test.md');
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('returns null when no session exists', () => {
+        const session = getChatSession('todo-123', 'tasks/test.md');
+        
+        expect(session).toBeNull();
+      });
+
+      it('returns null when todoId does not match', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        const mockSession: AIChatSession = {
+          todoId: 'todo-123',
+          path: 'tasks/test.md',
+          chatHistory: [],
+          checkpoints: [],
+          isExpanded: false,
+          timestamp: Date.now()
+        };
+        store['aiChatSession'] = JSON.stringify(mockSession);
+        
+        const session = getChatSession('different-todo-456', 'tasks/test.md');
+        
+        expect(session).toBeNull();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Chat session found but doesn\'t match current todo. Session: tasks/test.md, Current: tasks/test.md'
+        );
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('returns null when path does not match', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        const mockSession: AIChatSession = {
+          todoId: 'todo-123',
+          path: 'tasks/test.md',
+          chatHistory: [],
+          checkpoints: [],
+          isExpanded: false,
+          timestamp: Date.now()
+        };
+        store['aiChatSession'] = JSON.stringify(mockSession);
+        
+        const session = getChatSession('todo-123', 'tasks/different.md');
+        
+        expect(session).toBeNull();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Chat session found but doesn\'t match current todo. Session: tasks/test.md, Current: tasks/different.md'
+        );
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('returns null and clears session missing timestamp', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        const sessionWithoutTimestamp = {
+          todoId: 'todo-123',
+          path: 'tasks/test.md',
+          chatHistory: [],
+          checkpoints: [],
+          isExpanded: false
+          // missing timestamp
+        };
+        store['aiChatSession'] = JSON.stringify(sessionWithoutTimestamp);
+        
+        const session = getChatSession('todo-123', 'tasks/test.md');
+        
+        expect(session).toBeNull();
+        expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('aiChatSession');
+        expect(loggerSpy).toHaveBeenCalledWith('Chat session missing timestamp - clearing');
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('returns null and clears expired session', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        const expiredSession: AIChatSession = {
+          todoId: 'todo-123',
+          path: 'tasks/test.md',
+          chatHistory: [],
+          checkpoints: [],
+          isExpanded: false,
+          timestamp: Date.now() - (25 * 60 * 60 * 1000) // 25 hours ago (expired)
+        };
+        store['aiChatSession'] = JSON.stringify(expiredSession);
+        
+        const session = getChatSession('todo-123', 'tasks/test.md');
+        
+        expect(session).toBeNull();
+        expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('aiChatSession');
+        expect(loggerSpy).toHaveBeenCalledWith(
+          expect.stringMatching(/Chat session expired \(\d+ hours old\)/)
+        );
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('handles localStorage errors gracefully', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        mockLocalStorage.getItem.mockImplementation(() => {
+          throw new Error('localStorage error');
+        });
+
+        const session = getChatSession('todo-123', 'tasks/test.md');
+        
+        expect(session).toBeNull();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error loading chat session from localStorage',
+          expect.any(Error)
+        );
+
+        loggerSpy.mockRestore();
+      });
+
+      it('handles corrupted JSON gracefully', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        store['aiChatSession'] = 'invalid-json';
+        
+        const session = getChatSession('todo-123', 'tasks/test.md');
+        
+        expect(session).toBeNull();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error loading chat session from localStorage',
+          expect.any(Error)
+        );
+
+        loggerSpy.mockRestore();
+      });
+    });
+
+    describe('clearChatSession', () => {
+      it('removes chat session from localStorage', () => {
+        // Set up a session first
+        const mockSession: AIChatSession = {
+          todoId: 'todo-123',
+          path: 'tasks/test.md',
+          chatHistory: [],
+          checkpoints: [],
+          isExpanded: false,
+          timestamp: Date.now()
+        };
+        store['aiChatSession'] = JSON.stringify(mockSession);
+        
+        clearChatSession();
+        
+        expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('aiChatSession');
+        expect(store['aiChatSession']).toBeUndefined();
+      });
+
+      it('logs successful chat session clearing', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        
+        clearChatSession();
+        
+        expect(loggerSpy).toHaveBeenCalledWith("Chat session cleared from localStorage");
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('handles localStorage errors gracefully', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        mockLocalStorage.removeItem.mockImplementation(() => {
+          throw new Error('localStorage error');
+        });
+
+        expect(() => clearChatSession()).not.toThrow();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error clearing chat session from localStorage',
+          expect.any(Error)
+        );
+
+        loggerSpy.mockRestore();
+      });
+    });
+
+    describe('clearOtherChatSessions', () => {
+      it('clears session when it belongs to a different todo', () => {
+        const loggerSpy = vi.spyOn(logger, 'log').mockImplementation(() => {});
+        
+        // Set up a session for a different todo
+        const mockSession: AIChatSession = {
+          todoId: 'different-todo-456',
+          path: 'tasks/different.md',
+          chatHistory: [],
+          checkpoints: [],
+          isExpanded: false,
+          timestamp: Date.now()
+        };
+        store['aiChatSession'] = JSON.stringify(mockSession);
+        
+        clearOtherChatSessions('current-todo-123');
+        
+        expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('aiChatSession');
+        expect(store['aiChatSession']).toBeUndefined();
+        expect(loggerSpy).toHaveBeenCalledWith('Cleared chat session for different todo: tasks/different.md');
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('does not clear session when it belongs to the current todo', () => {
+        // Set up a session for the current todo
+        const mockSession: AIChatSession = {
+          todoId: 'current-todo-123',
+          path: 'tasks/current.md',
+          chatHistory: [],
+          checkpoints: [],
+          isExpanded: false,
+          timestamp: Date.now()
+        };
+        const sessionString = JSON.stringify(mockSession);
+        store['aiChatSession'] = sessionString;
+        
+        clearOtherChatSessions('current-todo-123');
+        
+        // Session should still be there
+        expect(store['aiChatSession']).toBe(sessionString);
+        expect(mockLocalStorage.removeItem).not.toHaveBeenCalledWith('aiChatSession');
+      });
+
+      it('does nothing when no session exists', () => {
+        clearOtherChatSessions('any-todo-id');
+        
+        expect(mockLocalStorage.removeItem).not.toHaveBeenCalled();
+      });
+
+      it('handles invalid session JSON gracefully', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        
+        // Set invalid JSON
+        store['aiChatSession'] = 'invalid-json';
+        
+        expect(() => clearOtherChatSessions('current-todo-123')).not.toThrow();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error clearing other chat sessions',
+          expect.any(Error)
+        );
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('handles localStorage errors gracefully', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        mockLocalStorage.getItem.mockImplementation(() => {
+          throw new Error('localStorage error');
+        });
+
+        expect(() => clearOtherChatSessions('current-todo-123')).not.toThrow();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error clearing other chat sessions',
+          expect.any(Error)
+        );
+
+        loggerSpy.mockRestore();
+      });
+    });
+  });
+
+  describe('URL Configuration Decoding - Additional Coverage', () => {
+    describe('Size Limit Validation (lines 267-268)', () => {
+      it('should reject configurations that exceed size limits', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        
+        // Create a very large configuration that exceeds 15000 characters
+        const largeConfig = {
+          g: 'github',
+          f: 'todos',
+          a: 'gemini',
+          gh: {
+            p: 'A'.repeat(15000), // Very long PAT to exceed size limit
+            o: 'owner',
+            r: 'repo',
+            b: 'main'
+          }
+        };
+        
+        const encoded = btoa(JSON.stringify(largeConfig));
+        
+        const result = decodeSettingsFromUrl(encoded);
+        
+        expect(result).toBeNull();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error decoding settings from URL',
+          expect.any(Error)
+        );
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('should reject decoded configurations that exceed 15000 character limit (lines 267-268)', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        
+        // Create a configuration that when decoded will exceed 15000 characters
+        const largeConfig = {
+          gk: 'A'.repeat(14000), // Very large Gemini API key
+          ok: 'B'.repeat(2000)   // Additional content to exceed 15000 chars
+        };
+        
+        // Verify the decoded JSON will be large enough
+        const jsonString = JSON.stringify(largeConfig);
+        expect(jsonString.length).toBeGreaterThan(15000);
+        
+        const encoded = btoa(jsonString);
+        const result = decodeSettingsFromUrl(encoded);
+        
+        expect(result).toBeNull();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Error decoding settings from URL',
+          expect.any(Error)
+        );
+        
+        loggerSpy.mockRestore();
+      });
+    });
+
+    describe('Dual Configuration Format (lines 298-352)', () => {
+      it('should handle dual-config format with GitHub provider (lines 298-315)', () => {
+        const dualConfig = {
+          g: 0, // GitHub provider (line 299)
+          f: 'work-todos', // Custom folder (line 300)
+          a: 0, // Gemini AI provider (line 301)
+          gk: 'gemini-key-test', // Gemini API key (line 302)
+          ok: '', // Empty OpenRouter key (line 303)
+          m: 'gemini-1.5-pro', // AI model (line 304)
+          gh: { // GitHub config (lines 308-315)
+            p: 'github-pat-test',
+            o: 'test-owner',
+            r: 'test-repo',
+            b: 'develop'
+          }
+        };
+        
+        const encoded = btoa(JSON.stringify(dualConfig));
+        const result = decodeSettingsFromUrl(encoded);
+        
+        expect(result).toEqual({
+          gitProvider: 'github',
+          folder: 'work-todos',
+          aiProvider: 'gemini',
+          geminiApiKey: 'gemini-key-test',
+          openRouterApiKey: '',
+          aiModel: 'gemini-1.5-pro',
+          github: {
+            pat: 'github-pat-test',
+            owner: 'test-owner',
+            repo: 'test-repo',
+            branch: 'develop'
+          }
+        });
+      });
+
+      it('should handle dual-config format with GitLab provider (lines 318-325)', () => {
+        const dualConfig = {
+          g: 1, // GitLab provider (line 299)
+          f: undefined, // Use default folder (line 300)
+          a: 1, // OpenRouter AI provider (line 301)
+          ok: 'openrouter-key-test', // OpenRouter API key (line 303)
+          m: 'anthropic/claude-3.5-sonnet', // AI model (line 304)
+          gl: { // GitLab config (lines 318-325)
+            u: 'https://gitlab.example.com',
+            i: '12345',
+            t: 'gitlab-token-test',
+            b: 'master'
+          }
+        };
+        
+        const encoded = btoa(JSON.stringify(dualConfig));
+        const result = decodeSettingsFromUrl(encoded);
+        
+        expect(result).toEqual({
+          gitProvider: 'gitlab',
+          folder: 'todos',
+          aiProvider: 'openrouter',
+          geminiApiKey: '',
+          openRouterApiKey: 'openrouter-key-test',
+          aiModel: 'anthropic/claude-3.5-sonnet',
+          gitlab: {
+            instanceUrl: 'https://gitlab.example.com',
+            projectId: '12345',
+            token: 'gitlab-token-test',
+            branch: 'master'
+          }
+        });
+      });
+
+      it('should handle legacy field compatibility (lines 328-340)', () => {
+        const dualConfigWithLegacy = {
+          g: 0, // GitHub provider
+          f: 'todos',
+          a: 0, // Gemini AI
+          gh: {
+            p: 'existing-pat',
+            o: 'existing-owner',
+            r: 'existing-repo',
+            b: 'main'
+          },
+          // Legacy direct fields (lines 328-333)
+          p: 'legacy-pat-override',
+          o: 'legacy-owner-override',
+          r: 'legacy-repo-override'
+        };
+        
+        const encoded = btoa(JSON.stringify(dualConfigWithLegacy));
+        const result = decodeSettingsFromUrl(encoded);
+        
+        expect(result?.github).toEqual({
+          pat: 'legacy-pat-override', // Legacy field should override
+          owner: 'legacy-owner-override', // Legacy field should override
+          repo: 'legacy-repo-override', // Legacy field should override
+          branch: 'main'
+        });
+      });
+
+      it('should handle GitLab legacy fields compatibility (lines 335-340)', () => {
+        const dualConfigWithGitLabLegacy = {
+          g: 1, // GitLab provider
+          f: 'todos',
+          a: 0,
+          gl: {
+            u: 'https://existing.gitlab.com',
+            i: 'existing-project',
+            t: 'existing-token',
+            b: 'main'
+          },
+          // Legacy GitLab fields (lines 335-340)
+          u: 'https://legacy.gitlab.com',
+          i: 'legacy-project-id',
+          t: 'legacy-token-override'
+        };
+        
+        const encoded = btoa(JSON.stringify(dualConfigWithGitLabLegacy));
+        const result = decodeSettingsFromUrl(encoded);
+        
+        expect(result?.gitlab).toEqual({
+          instanceUrl: 'https://legacy.gitlab.com', // Legacy field should override
+          projectId: 'legacy-project-id', // Legacy field should override
+          token: 'legacy-token-override', // Legacy field should override
+          branch: 'main'
+        });
+      });
+
+      it('should validate and reject incomplete provider configurations (lines 342-352)', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        
+        // Configuration with incomplete GitHub and GitLab settings
+        const incompleteConfig = {
+          g: 0, // GitHub provider
+          f: 'todos',
+          a: 0,
+          gh: {
+            p: 'pat-only', // Missing owner and repo
+            o: '',
+            r: '',
+            b: 'main'
+          },
+          gl: {
+            u: 'https://gitlab.com',
+            i: '', // Missing projectId and token
+            t: '',
+            b: 'main'
+          }
+        };
+        
+        const encoded = btoa(JSON.stringify(incompleteConfig));
+        const result = decodeSettingsFromUrl(encoded);
+        
+        expect(result).toBeNull();
+        expect(loggerSpy).toHaveBeenCalledWith(
+          'Invalid configuration - no complete provider settings found'
+        );
+        
+        loggerSpy.mockRestore();
+      });
+    });
+
+    describe('Ultra-Aggressive Size Limit Coverage', () => {
+      it('should handle configuration too large to encode in URL (lines 240-241)', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        
+        // Create a massive configuration that exceeds 10000 character limit
+        const hugeSettings: GitHubSettings = {
+          gitProvider: 'github',
+          folder: 'e'.repeat(500),  // Very long folder
+          aiProvider: 'gemini',
+          geminiApiKey: 'f'.repeat(1000), // Very long API key
+          github: {
+            pat: 'a'.repeat(8000), // Very long token
+            owner: 'b'.repeat(500),   // Very long owner
+            repo: 'c'.repeat(500),    // Very long repo  
+            branch: 'd'.repeat(500),  // Very long branch
+          }
+        };
+        
+        const result = encodeSettingsToUrl(hugeSettings);
+        
+        // Should return empty string when configuration is too large (lines 240-241)
+        expect(result).toBe('');
+        expect(loggerSpy).toHaveBeenCalledWith('Error encoding settings to URL', expect.any(Error));
+        
+        loggerSpy.mockRestore();
+      });
+
+      it('should handle decoded configuration too large (lines 267-268)', () => {
+        const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+        
+        // Create a configuration that when decoded exceeds 15000 character limit
+        // But with enough valid structure to pass validation
+        const hugeConfig = {
+          g: {
+            t: 'a'.repeat(14000), // Huge token that will exceed limit when decoded
+            o: 'owner',
+            r: 'repo',
+            b: 'main',
+            f: 'todos',
+            a: 'gemini',
+            gk: 'api-key' // Add required fields for valid config
+          }
+        };
+        
+        const encoded = btoa(JSON.stringify(hugeConfig));
+        const result = decodeSettingsFromUrl(encoded);
+        
+        // Should return null when decoded config is too large (lines 267-268)
+        expect(result).toBeNull();
+        expect(loggerSpy).toHaveBeenCalled(); // Just check that error was logged
+        
+        loggerSpy.mockRestore();
+      });
     });
   });
 });

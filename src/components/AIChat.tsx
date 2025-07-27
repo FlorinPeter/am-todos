@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { saveCheckpoint, getCheckpoints, clearCheckpoints, generateCheckpointId, Checkpoint, saveChatSession, getChatSession, clearChatSession, AIChatSession } from '../utils/localStorage';
+import { generateCheckpointId, Checkpoint, saveChatSession, getChatSession, AIChatSession } from '../utils/localStorage';
 import { ChatMessage, AIResponseWithFallback } from '../types';
 import logger from '../utils/logger';
 
@@ -138,8 +138,12 @@ const AIChat: React.FC<AIChatProps> = ({
       };
 
       const finalLocalHistory = [...newLocalHistory, assistantMessage];
-      setLocalChatHistory(finalLocalHistory);
-      onContentUpdate(response.content);
+      
+      // Only update state if component is mounted and window is available
+      if (isMountedRef.current && typeof window !== 'undefined') {
+        setLocalChatHistory(finalLocalHistory);
+        onContentUpdate(response.content);
+      }
     } catch (error) {
       logger.error('Error processing chat message:', error);
       
@@ -167,7 +171,11 @@ const AIChat: React.FC<AIChatProps> = ({
         content: errorContent,
         timestamp: new Date().toISOString()
       };
-      setLocalChatHistory([...newLocalHistory, errorMessage]);
+      
+      // Only update chat history if component is mounted and window is available
+      if (isMountedRef.current && typeof window !== 'undefined') {
+        setLocalChatHistory([...newLocalHistory, errorMessage]);
+      }
     } finally {
       // Always clear processing flag and loading state to prevent stuck UI
       const wasProcessing = isProcessingRef.current;
@@ -175,7 +183,8 @@ const AIChat: React.FC<AIChatProps> = ({
       
       // Always clear loading state if we were processing to prevent stuck UI
       // Only skip if component is unmounted AND we weren't processing
-      if (isMountedRef.current || wasProcessing) {
+      // Also check if we're in a test environment where window might not be defined
+      if ((isMountedRef.current || wasProcessing) && typeof window !== 'undefined') {
         setIsLoading(false);
       }
     }

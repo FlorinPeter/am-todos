@@ -1,5 +1,9 @@
 import logger from '../utils/logger';
 import { fetchWithTimeout, TIMEOUT_VALUES } from '../utils/fetchWithTimeout';
+import { parseRateLimitError, showRateLimitNotification } from '../utils/rateLimitHandler';
+import { parseFilenameMetadata, parseLegacyFilenameMetadata, generateFilename } from '../utils/filenameMetadata';
+import { parseMarkdownWithMetadata, stringifyMarkdownWithMetadata } from '../utils/markdown';
+import { Todo } from '../types';
 
 // Always use relative URLs - let infrastructure handle routing
 // Development: Vite proxy routes /api/* to localhost:3001/api/*
@@ -7,6 +11,65 @@ import { fetchWithTimeout, TIMEOUT_VALUES } from '../utils/fetchWithTimeout';
 const BACKEND_URL = '';
 
 logger.log('GitHub Service using relative URLs for all environments');
+
+// Request deduplication and caching system
+interface CacheEntry {
+  promise: Promise<any>;
+  timestamp: number;
+  data?: any;
+}
+
+// In-flight request cache to prevent duplicate simultaneous requests
+const inFlightRequests = new Map<string, Promise<any>>();
+
+// Response cache with TTL for frequently accessed data
+const responseCache = new Map<string, CacheEntry>();
+
+// Cache TTL settings (in milliseconds)
+const CACHE_TTL = {
+  LIST_FILES: 30000,      // 30 seconds for file listings
+  LIST_FOLDERS: 60000,    // 1 minute for folder discovery
+  FILE_CONTENT: 10000,    // 10 seconds for file content
+  DEFAULT: 5000           // 5 seconds default
+};
+
+// Generate cache key from request parameters
+const getCacheKey = (path: string, method: string, owner?: string, repo?: string) => {
+  const keyData = { path, method, owner, repo };
+  return JSON.stringify(keyData);
+};
+
+// Get cache TTL based on request type
+const getCacheTTL = (path: string): number => {
+  if (path.includes('/contents/')) return CACHE_TTL.FILE_CONTENT;
+  if (path.includes('/repos/') && path.endsWith('/contents')) return CACHE_TTL.LIST_FILES;
+  if (path.includes('/repos/') && !path.includes('/contents/')) return CACHE_TTL.LIST_FOLDERS;
+  return CACHE_TTL.DEFAULT;
+};
+
+// Check if cached response is still valid
+const isCacheValid = (entry: CacheEntry, ttl: number): boolean => {
+  return Date.now() - entry.timestamp < ttl;
+};
+
+// Invalidate cache entries based on pattern matching
+const invalidateCache = (pattern: string) => {
+  const keysToDelete: string[] = [];
+  
+  for (const [key] of responseCache.entries()) {
+    if (key.includes(pattern)) {
+      keysToDelete.push(key);
+    }
+  }
+  
+  for (const key of keysToDelete) {
+    responseCache.delete(key);
+  }
+  
+  if (keysToDelete.length > 0) {
+    logger.log('GitHub cache invalidated:', keysToDelete.length, 'entries for pattern:', pattern);
+  }
+};
 
 
 interface GitHubFile {
@@ -18,6 +81,71 @@ interface GitHubFile {
 }
 
 const makeGitHubRequest = async (path: string, method = 'GET', headers = {}, body?: any, owner?: string, repo?: string) => {
+  const cacheKey = getCacheKey(path, method, owner, repo);
+  const ttl = getCacheTTL(path);
+  
+  // Check for valid cached response (for read operations only)
+  const isReadOperation = method === 'GET';
+  if (isReadOperation && responseCache.has(cacheKey)) {
+    const cachedEntry = responseCache.get(cacheKey)!;
+    if (isCacheValid(cachedEntry, ttl)) {
+      logger.log('GitHub request served from cache:', path);
+      // Return a mock response with cached data
+      return {
+        ok: true,
+        status: 200,
+        json: async () => cachedEntry.data
+      } as Response;
+    } else {
+      // Remove expired cache entry
+      responseCache.delete(cacheKey);
+    }
+  }
+  
+  // Check for in-flight request
+  if (inFlightRequests.has(cacheKey)) {
+    logger.log('GitHub request deduplicated (in-flight):', path);
+    const inFlightResponse = await inFlightRequests.get(cacheKey)!;
+    return inFlightResponse;
+  }
+  
+  // Create new request promise
+  const requestPromise = makeActualGitHubRequest(path, method, headers, body, owner, repo);
+  
+  // Store in-flight request
+  inFlightRequests.set(cacheKey, requestPromise);
+  
+  try {
+    const response = await requestPromise;
+    
+    // Cache successful read operations (only if response is JSON)
+    if (isReadOperation && response.ok) {
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        try {
+          const responseData = await response.clone().json();
+          responseCache.set(cacheKey, {
+            promise: requestPromise,
+            timestamp: Date.now(),
+            data: responseData
+          });
+        } catch (jsonError) {
+          logger.error('Failed to parse JSON response for caching, skipping cache:', jsonError);
+          // Continue without caching - this is not a critical error
+        }
+      } else {
+        logger.log('Skipping cache for non-JSON response:', contentType);
+      }
+    }
+    
+    return response;
+  } finally {
+    // Remove from in-flight cache
+    inFlightRequests.delete(cacheKey);
+  }
+};
+
+const makeActualGitHubRequest = async (path: string, method = 'GET', headers = {}, body?: any, owner?: string, repo?: string) => {
   const proxyUrl = `${BACKEND_URL}/api/github`;
   logger.log('Making proxy request to:', proxyUrl);
   logger.log('Proxy request data:', { path, method, headers: Object.keys(headers), owner, repo });
@@ -43,12 +171,53 @@ const makeGitHubRequest = async (path: string, method = 'GET', headers = {}, bod
   if (!response.ok) {
     const errorText = await response.text();
     logger.error('Proxy error:', errorText);
-    throw new Error(`GitHub API proxy error: ${response.statusText} - ${errorText}`);
+    
+    const error = new Error(`GitHub API proxy error: ${response.statusText} - ${errorText}`);
+    
+    // Check for rate limit errors and show user-friendly message
+    const rateLimitInfo = parseRateLimitError(error, 'github');
+    if (rateLimitInfo.isRateLimited) {
+      showRateLimitNotification(rateLimitInfo);
+    }
+    
+    throw error;
   }
   
   return response;
 };
 
+/**
+ * Create a new todo with filename-based metadata
+ */
+export const createTodo = async (
+  token: string,
+  owner: string,
+  repo: string,
+  title: string,
+  content: string,
+  priority: number = 3,
+  folder: string = 'todos'
+) => {
+  logger.log('🆕 Creating todo with filename metadata:', { title, priority, folder });
+  
+  const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+  const filename = generateFilename(priority, date, title);
+  const path = `${folder}/${filename}`;
+  
+  // Create content with minimal frontmatter
+  const frontmatter = { tags: [] };
+  const fullContent = stringifyMarkdownWithMetadata(frontmatter, content);
+  
+  const commitMessage = `feat: Add new todo "${title}" (Priority ${priority})`;
+  
+  logger.log('✅ NEW FORMAT: Creating file with metadata in filename:', filename);
+  
+  return createOrUpdateTodo(token, owner, repo, path, fullContent, commitMessage);
+};
+
+/**
+ * Legacy function for updating existing todos (kept for backward compatibility)
+ */
 export const createOrUpdateTodo = async (
   token: string,
   owner: string,
@@ -102,6 +271,20 @@ export const createOrUpdateTodo = async (
 
   const result = await response.json();
   logger.log('GitHub response:', result);
+  
+  // Invalidate relevant caches after successful write
+  const pathParts = path.split('/');
+  const folder = pathParts[0];
+  invalidateCache(`"path":"/repos/${owner}/${repo}/contents/${folder}"`);
+  invalidateCache(`"path":"/repos/${owner}/${repo}/contents/${path}"`);
+  invalidateCache(`"path":"/repos/${owner}/${repo}/contents"`);
+  
+  // Also invalidate parent directory cache if file is in a subdirectory
+  if (pathParts.length > 2) {
+    const parentDir = pathParts.slice(0, -1).join('/');
+    invalidateCache(`"path":"/repos/${owner}/${repo}/contents/${parentDir}"`);
+  }
+  
   return result;
 };
 
@@ -141,28 +324,22 @@ export const ensureTodosDirectory = async (token: string, owner: string, repo: s
   return ensureDirectory(token, owner, repo, 'todos', commitMessage);
 };
 
-export const getTodos = async (token: string, owner: string, repo: string, folder: string = 'todos', includeArchived = false) => {
+export const getTodos = async (token: string, owner: string, repo: string, folder: string = 'todos', includeArchived = false): Promise<Todo[]> => {
   const apiPath = includeArchived ? `/repos/${owner}/${repo}/contents/${folder}/archive` : `/repos/${owner}/${repo}/contents/${folder}`;
   const headers = { 
     Authorization: `token ${token}`,
     'Cache-Control': 'no-cache',
     'Pragma': 'no-cache'
   };
-  logger.log('Fetching todos from:', apiPath);
+  logger.log('🚀 PERFORMANCE BOOST: Fetching todos from:', apiPath);
   
   try {
-    logger.log('Making fetch request with headers:', JSON.stringify(headers, null, 2));
-    logger.log('Fetch path:', apiPath);
-    
     const response = await makeGitHubRequest(apiPath, 'GET', headers, undefined, owner, repo);
-
-    logger.log('Response received:', response.status, response.statusText);
-    logger.log('Response headers:', JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2));
 
     if (!response.ok) {
       if (response.status === 404) {
         logger.log('todos/ directory not found, returning empty array');
-        return []; // Directory doesn't exist, return empty array
+        return [];
       }
       const errorText = await response.text();
       logger.error('GitHub API error response:', errorText);
@@ -170,46 +347,108 @@ export const getTodos = async (token: string, owner: string, repo: string, folde
     }
 
     const files: GitHubFile[] = await response.json();
-    logger.log('Raw files from GitHub:', files.length);
-    logger.log('All files:', files.map(f => ({ name: f.name, type: f.type, path: f.path })));
+    logger.log('🚀 MASSIVE PERFORMANCE IMPROVEMENT: Got', files.length, 'files with NO individual requests!');
     
-    // Filter out .gitkeep file and any non-markdown files
-    const todoFiles = files.filter(file => 
+    // Filter markdown files
+    const markdownFiles = files.filter(file => 
       file.name !== '.gitkeep' && 
       file.name.endsWith('.md')
     );
-    logger.log('Filtered todo files:', todoFiles.length);
-    logger.log('Todo files:', todoFiles.map(f => ({ name: f.name, path: f.path })));
-    return todoFiles;
+    
+    logger.log('Processing', markdownFiles.length, 'markdown files');
+    
+    // 🚀 PERFORMANCE OPTIMIZED: Parse metadata from filenames - minimal API calls!
+    const todos: Todo[] = [];
+    
+    for (const file of markdownFiles) {
+      // Try new format first (P{priority}--{date}--{title}.md)
+      const newFormatMetadata = parseFilenameMetadata(file.name);
+      
+      if (newFormatMetadata) {
+        // ✅ New format: ALL metadata from filename - ZERO additional API calls!
+        logger.log('✅ NEW FORMAT: GitHub metadata from filename only:', file.name);
+        
+        const todo: Todo = {
+          id: file.sha,
+          title: newFormatMetadata.displayTitle,
+          content: '', // Will be loaded on-demand only when editing
+          frontmatter: { tags: [] }, // Default tags, loaded on-demand when editing
+          path: file.path,
+          sha: file.sha,
+          priority: newFormatMetadata.priority,
+          createdAt: newFormatMetadata.date + 'T00:00:00.000Z',
+          isArchived: includeArchived
+        };
+        
+        todos.push(todo);
+      } else {
+        // Try legacy format with performance optimization (YYYY-MM-DD-title.md)
+        const legacyMetadata = parseLegacyFilenameMetadata(file.name);
+        
+        if (legacyMetadata) {
+          // ✅ Legacy format with performance optimization - NO content fetch needed!
+          logger.log('🚀 LEGACY OPTIMIZED: GitHub metadata from legacy filename without content fetch:', file.name);
+          
+          const todo: Todo = {
+            id: file.sha,
+            title: legacyMetadata.displayTitle,
+            content: '', // Will be loaded on-demand only when editing
+            frontmatter: { tags: [] }, // Default tags, loaded on-demand when editing
+            path: file.path,
+            sha: file.sha,
+            priority: legacyMetadata.priority, // Default P3 for legacy files
+            createdAt: legacyMetadata.date + 'T00:00:00.000Z',
+            isArchived: includeArchived
+          };
+          
+          todos.push(todo);
+        } else {
+          // 🔄 Fallback: Unknown format - needs content fetch (rare case)
+          logger.log('⚠️ UNKNOWN FORMAT: Fetching GitHub content for metadata:', file.name);
+          
+          try {
+            const content = await getFileContent(token, owner, repo, file.path);
+            const parsed = parseMarkdownWithMetadata(content, file.name, includeArchived);
+            
+            const todo: Todo = {
+              id: file.sha,
+              title: parsed.title,
+              content, // Already fetched for unknown format files
+              frontmatter: parsed.frontmatter,
+              path: file.path,
+              sha: file.sha,
+              priority: parsed.priority ?? 3,
+              createdAt: parsed.createdAt,
+              isArchived: includeArchived
+            };
+            
+            todos.push(todo);
+          } catch (error) {
+            logger.error('Error processing unknown format GitHub file:', file.name, error);
+            // Continue processing other files
+          }
+        }
+      }
+    }
+    
+    logger.log('🎉 PERFORMANCE SUCCESS: Processed', todos.length, 'todos with minimal API calls!');
+    return todos;
+    
   } catch (error) {
     logger.error('Error fetching todos:', error);
     // Handle network errors more gracefully
     if (error instanceof TypeError && (error.message.includes('fetch') || error.message.includes('Load failed'))) {
       logger.log('Network error detected, retrying once...');
       try {
-        // Wait a bit and retry once
         await new Promise(resolve => setTimeout(resolve, 1000));
-        const retryResponse = await makeGitHubRequest(apiPath, 'GET', headers, undefined, owner, repo);
-        if (!retryResponse.ok) {
-          if (retryResponse.status === 404) {
-            logger.log('todos/ directory not found after retry, returning empty array');
-            return [];
-          }
-          const errorText = await retryResponse.text();
-          throw new Error(`GitHub API error: ${retryResponse.statusText} - ${errorText}`);
-        }
-        const files: GitHubFile[] = await retryResponse.json();
-        const todoFiles = files.filter(file => 
-          file.name !== '.gitkeep' && 
-          file.name.endsWith('.md')
-        );
-        return todoFiles;
+        // Recursive retry with same performance benefits
+        return await getTodos(token, owner, repo, folder, includeArchived);
       } catch (retryError) {
         logger.error('Retry also failed:', retryError);
         return [];
       }
     }
-    throw error;
+    return [];
   }
 };
 
@@ -366,6 +605,20 @@ export const deleteFile = async (
   const response = await makeGitHubRequest(apiPath, 'DELETE', headers, requestBody, owner, repo);
   
   logger.log('File deleted successfully:', path);
+  
+  // Invalidate relevant caches after successful deletion
+  const pathParts = path.split('/');
+  const folder = pathParts[0];
+  invalidateCache(`"path":"/repos/${owner}/${repo}/contents/${folder}"`);
+  invalidateCache(`"path":"/repos/${owner}/${repo}/contents/${path}"`);
+  invalidateCache(`"path":"/repos/${owner}/${repo}/contents"`);
+  
+  // Also invalidate parent directory cache if file is in a subdirectory
+  if (pathParts.length > 2) {
+    const parentDir = pathParts.slice(0, -1).join('/');
+    invalidateCache(`"path":"/repos/${owner}/${repo}/contents/${parentDir}"`);
+  }
+  
   return await response.json();
 };
 
@@ -442,7 +695,7 @@ export const createProjectFolder = async (
   folderName: string
 ): Promise<void> => {
   // Validate folder name
-  if (!folderName || !folderName.match(/^[a-zA-Z][a-zA-Z0-9_-]*$/)) {
+  if (!folderName?.match(/^[a-zA-Z][a-zA-Z0-9_-]*$/)) {
     throw new Error('Invalid folder name. Use letters, numbers, underscores, and hyphens only.');
   }
   

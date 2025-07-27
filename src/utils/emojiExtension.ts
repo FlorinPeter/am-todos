@@ -1,8 +1,7 @@
 // Working emoji autocompletion extension for CodeMirror 6
 import { Extension } from '@codemirror/state';
-import { ViewPlugin, EditorView } from '@codemirror/view';
-import { autocompletion, completionKeymap, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
-import { get, search } from 'node-emoji';
+import { autocompletion, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
+import { search } from 'node-emoji';
 
 // Define popular emojis as a static list
 const popularEmojis = [
@@ -48,7 +47,7 @@ const popularEmojis = [
 ];
 
 // Create a completion source function
-function emojiCompletions(context: CompletionContext): CompletionResult | null {
+export function emojiCompletions(context: CompletionContext): CompletionResult | null {
   const word = context.matchBefore(/:[a-zA-Z0-9_+-]*$/);
   if (!word) return null;
   if (word.from === word.to && !context.explicit) return null;
@@ -89,7 +88,7 @@ function emojiCompletions(context: CompletionContext): CompletionResult | null {
       try {
         const searchResults = search(query);
         searchMatches = searchResults.slice(0, 50).map(result => ({
-          label: `:${result.key}:`,
+          label: `:${result.name}:`,
           detail: result.emoji,
           apply: result.emoji,
           type: 'variable'

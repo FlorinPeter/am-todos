@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import MarkdownViewer from './MarkdownViewer';
 import { formatDate } from '../utils/dateFormat';
 import { clearOtherDrafts, clearOtherChatSessions } from '../utils/localStorage';
-import { Todo, ChatMessage } from '../types';
+import { Todo } from '../types';
 
 interface TodoEditorProps {
   selectedTodo: Todo | null;
-  onTodoUpdate: (id: string, newContent: string, newChatHistory?: ChatMessage[]) => void;
+  onTodoUpdate: (id: string, newContent: string, filePath?: string) => void;
   onTitleUpdate: (id: string, newTitle: string) => void;
   onPriorityUpdate: (id: string, newPriority: number) => void;
   onArchiveToggle: (id: string) => void;
@@ -16,16 +16,6 @@ interface TodoEditorProps {
   repo?: string;
 }
 
-const getPriorityLabel = (priority: number): string => {
-  switch (priority) {
-    case 1: return 'P1 - Critical';
-    case 2: return 'P2 - High';
-    case 3: return 'P3 - Medium';
-    case 4: return 'P4 - Low';
-    case 5: return 'P5 - Very Low';
-    default: return 'P3 - Medium';
-  }
-};
 
 const TodoEditor: React.FC<TodoEditorProps> = ({ 
   selectedTodo, 
@@ -51,7 +41,7 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
         // Silently handle localStorage errors - cleanup is not critical
       }
     }
-  }, [selectedTodo?.id]);
+  }, [selectedTodo?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!selectedTodo) {
     return (
@@ -68,12 +58,12 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
   }
 
   const handleTitleEdit = () => {
-    setTitleInput(selectedTodo.frontmatter?.title || selectedTodo.title);
+    setTitleInput(selectedTodo.title);
     setIsEditingTitle(true);
   };
 
   const handleTitleSave = () => {
-    if (titleInput.trim() && titleInput !== selectedTodo.frontmatter?.title) {
+    if (titleInput.trim() && titleInput !== selectedTodo.title) {
       onTitleUpdate(selectedTodo.id, titleInput.trim());
     }
     setIsEditingTitle(false);
@@ -105,13 +95,21 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
                 autoFocus
               />
             ) : (
-              <h1 
-                className="text-lg sm:text-xl font-bold text-white cursor-pointer hover:text-blue-400 transition-colors"
-                onClick={handleTitleEdit}
-                title="Click to edit title"
-              >
-                {selectedTodo.frontmatter?.title || selectedTodo.title}
-              </h1>
+              <div>
+                <h1 
+                  className="text-lg sm:text-xl font-bold text-white cursor-pointer hover:text-blue-400 transition-colors"
+                  onClick={handleTitleEdit}
+                  title="Click to edit title"
+                >
+                  {selectedTodo.title}
+                </h1>
+                <div className="text-xs text-gray-500 mt-1">
+                  {selectedTodo.path ? selectedTodo.path.split('/').pop() : 'Unknown'} • Created: {selectedTodo.createdAt ? 
+                    formatDate(selectedTodo.createdAt) : 
+                    'Unknown'
+                  }
+                </div>
+              </div>
             )}
           </div>
 
@@ -119,7 +117,7 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
           <div className="flex items-center space-x-2 sm:space-x-3 flex-wrap">
             {/* Priority Selector */}
             <select
-              value={selectedTodo.frontmatter?.priority || 3}
+              value={selectedTodo.priority || 3}
               onChange={(e) => onPriorityUpdate(selectedTodo.id, parseInt(e.target.value))}
               className="bg-gray-700 text-white px-2 py-1 text-sm rounded border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
@@ -134,12 +132,12 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
             <button
               onClick={() => onArchiveToggle(selectedTodo.id)}
               className={`px-2 py-1 rounded text-xs sm:text-sm font-medium transition-colors ${
-                selectedTodo.frontmatter?.isArchived
+                selectedTodo.isArchived
                   ? 'bg-green-600 text-white hover:bg-green-700'
                   : 'bg-gray-600 text-white hover:bg-gray-700'
               }`}
             >
-              {selectedTodo.frontmatter?.isArchived ? 'Unarchive' : 'Archive'}
+              {selectedTodo.isArchived ? 'Unarchive' : 'Archive'}
             </button>
 
             {/* Delete Button */}
@@ -154,28 +152,15 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
             </button>
           </div>
         </div>
-
-        {/* Metadata */}
-        <div className="flex flex-col sm:flex-row sm:items-center text-xs sm:text-sm text-gray-400 space-y-1 sm:space-y-0 sm:space-x-4">
-          <span>Created: {selectedTodo.frontmatter?.createdAt ? 
-            formatDate(selectedTodo.frontmatter.createdAt) : 
-            'Unknown'
-          }</span>
-          <span>File: {selectedTodo.path ? selectedTodo.path.split('/').pop() : 'Unknown'}</span>
-          <span className="hidden sm:inline">Priority: {getPriorityLabel(selectedTodo.frontmatter?.priority || 3)}</span>
-          {selectedTodo.frontmatter?.chatHistory?.length > 0 && (
-            <span>Chat: {selectedTodo.frontmatter.chatHistory.length} messages</span>
-          )}
-        </div>
       </div>
 
       {/* Content */}
       <div className="flex-1 p-2 sm:p-4 overflow-auto">
         <MarkdownViewer
           content={selectedTodo.content}
-          chatHistory={selectedTodo.frontmatter?.chatHistory || []}
-          onMarkdownChange={(newContent) => onTodoUpdate(selectedTodo.id, newContent)}
-          onChatHistoryChange={(newChatHistory) => onTodoUpdate(selectedTodo.id, selectedTodo.content, newChatHistory)}
+          chatHistory={[]}
+          onMarkdownChange={(newContent) => onTodoUpdate(selectedTodo.id, newContent, selectedTodo.path)}
+          onChatHistoryChange={() => {}}
           filePath={selectedTodo.path}
           taskId={selectedTodo.id}
           todoId={selectedTodo.id}

@@ -4,31 +4,92 @@ import TodoSidebar from './components/TodoSidebar';
 import TodoEditor from './components/TodoEditor';
 import GitSettings from './components/GitSettings';
 import ProjectManager from './components/ProjectManager';
-import { loadSettings, getUrlConfig, saveSettings, saveSelectedTodoId, loadSelectedTodoId, clearSelectedTodoId } from './utils/localStorage';
+import { loadSettings, getUrlConfig, saveSettings, saveSelectedTodoId, loadSelectedTodoId, clearSelectedTodoId, clearDraft, saveViewMode, loadViewMode, ViewMode } from './utils/localStorage';
 import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDirectory, moveTaskToArchive, moveTaskFromArchive, deleteFile } from './services/gitService';
 import { generateInitialPlan, generateCommitMessage } from './services/aiService';
 import { searchTodosDebounced, SearchResult } from './services/searchService';
-import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter } from './utils/markdown';
-import { TodoFrontmatter, Todo, ChatMessage } from './types';
+import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, stringifyMarkdownWithMetadata } from './utils/markdown';
+import { generateFilename } from './utils/filenameMetadata';
+import { TodoFrontmatter, NewTodoData } from './types';
 import logger from './utils/logger';
 
 function App() {
   const [settings, setSettings] = useState(loadSettings());
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [initializationStep, setInitializationStep] = useState('Loading configuration...');
 
   useEffect(() => {
-    // Check for URL configuration first
-    const urlConfig = getUrlConfig();
-    if (urlConfig) {
-      // Auto-configure from URL and save to localStorage
-      saveSettings(urlConfig);
-      setSettings(urlConfig);
-      // Remove the config parameter from URL without page reload
-      const url = new URL(window.location.href);
-      url.searchParams.delete('config');
-      window.history.replaceState({}, '', url.toString());
-    } else {
-      setSettings(loadSettings());
-    }
+    // Enhanced initialization sequence with detailed logging and error handling
+    const initializeApp = async () => {
+      try {
+        logger.log('=== APP INITIALIZATION STARTED ===');
+        
+        setInitializationStep('Checking URL configuration...');
+        logger.log('Step 1: Checking for URL configuration');
+        
+        // Check for URL configuration first
+        let urlConfig = null;
+        try {
+          urlConfig = getUrlConfig();
+        } catch (urlError) {
+          logger.error('Error parsing URL configuration:', urlError);
+          setInitializationStep('URL configuration error, loading saved settings...');
+        }
+        
+        if (urlConfig) {
+          try {
+            setInitializationStep('Loading configuration from URL...');
+            logger.log('Step 1a: URL configuration found, applying settings');
+            
+            // Auto-configure from URL and save to localStorage
+            saveSettings(urlConfig);
+            setSettings(urlConfig);
+            
+            // Remove the config parameter from URL without page reload
+            const url = new URL(window.location.href);
+            url.searchParams.delete('config');
+            window.history.replaceState({}, '', url.toString());
+            
+            logger.log('Step 1b: URL configuration applied and URL cleaned');
+          } catch (urlApplyError) {
+            logger.error('Error applying URL configuration:', urlApplyError);
+            setInitializationStep('URL application failed, loading saved settings...');
+            // Fallback to localStorage settings
+            setSettings(loadSettings());
+          }
+        } else {
+          setInitializationStep('Loading saved configuration...');
+          logger.log('Step 1a: No URL configuration, loading from localStorage');
+          try {
+            setSettings(loadSettings());
+          } catch (settingsError) {
+            logger.error('Error loading settings from localStorage:', settingsError);
+            setInitializationStep('Settings load failed, using defaults...');
+            setSettings(null); // Will show setup screen
+          }
+        }
+        
+        setInitializationStep('Initializing view mode...');
+        logger.log('Step 2: View mode initialization completed via useState');
+        
+        setInitializationStep('Ready for todo loading...');
+        logger.log('Step 3: Initialization sequence completed, ready for todo fetching');
+        
+        setIsInitializing(false);
+        setInitializationStep('');
+        logger.log('=== APP INITIALIZATION COMPLETED ===');
+      } catch (initError) {
+        logger.error('Critical error during app initialization:', initError);
+        setInitializationStep('Initialization failed, please refresh the page');
+        
+        // Still complete initialization to prevent infinite loading
+        setIsInitializing(false);
+        setSettings(null); // Show setup screen as fallback
+        logger.log('=== APP INITIALIZATION COMPLETED (WITH ERRORS) ===');
+      }
+    };
+    
+    initializeApp();
   }, []);
 
   
@@ -43,7 +104,18 @@ function App() {
   const [deletionStep, setDeletionStep] = useState('');
   const [isSavingTask, setIsSavingTask] = useState(false);
   const [saveStep, setSaveStep] = useState('');
-  const [viewMode, setViewMode] = useState<'active' | 'archived'>('active');
+  
+  // Initialize view mode with error handling for corrupted localStorage
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    try {
+      const savedViewMode = loadViewMode();
+      logger.log('View mode initialization:', savedViewMode);
+      return savedViewMode;
+    } catch (error) {
+      logger.error('View mode initialization failed, defaulting to active:', error);
+      return 'active';
+    }
+  });
   const [allTodos, setAllTodos] = useState<any[]>([]);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -54,17 +126,35 @@ function App() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searchScope, setSearchScope] = useState<'folder' | 'repo'>('folder');
   const currentSearchIdRef = useRef<string>('');
+  
+  
+  // Save operation guard to prevent duplicate saves
+  const activeSaveOperationsRef = useRef<Set<string>>(new Set());
+  // Debounce timer for save operations to handle React StrictMode
+  const saveDebounceTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  // Guard to prevent view mode useEffect from triggering during save operations
+  const [isPerformingSave, setIsPerformingSave] = useState(false);
+  
+  // Deduplication for consolidated fetch to prevent rapid successive calls
+  const lastFetchParamsRef = useRef<string>('');
+  
+  // Global fetch lock to prevent overlapping fetch operations
+  const fetchInProgressRef = useRef<boolean>(false);
+  const fetchQueueRef = useRef<Array<() => void>>([]);
+  const manualViewModeChangeRef = useRef(false); // Track manual tab clicks to prevent smart restoration
 
-  const getProviderName = () => {
+  const getProviderName = useCallback(() => {
     const provider = settings?.gitProvider || 'github';
     return provider === 'github' ? 'GitHub' : 'GitLab';
-  };
+  }, [settings]);
+
+
 
   const handleSettingsSaved = () => {
     const newSettings = loadSettings();
     setSettings(newSettings);
     setShowSettings(false); // Close the settings modal
-    fetchTodos(); // Fetch todos after settings are saved
+    // Don't fetch here - let the consolidated useEffect handle it
   };
 
   // Search handlers
@@ -76,6 +166,31 @@ function App() {
       setSearchResults([]);
       setIsSearching(false);
       currentSearchIdRef.current = '';
+      
+      // Check if currently selected todo is archived to determine correct view
+      // Look in both todos array and search results to find selected todo
+      const currentSelectedTodo = todos.find(todo => todo.id === selectedTodoId) ||
+                                 searchResults.find(result => {
+                                   const generatedId = `search-${result.path.replace(/[/\s]/g, '-')}`;
+                                   return selectedTodoId?.startsWith(generatedId) || result.sha === selectedTodoId;
+                                 });
+      
+      const isCurrentTodoArchived = currentSelectedTodo?.isArchived || 
+                                   currentSelectedTodo?.path?.includes('/archive/');
+      
+      // Switch to appropriate view mode based on selected todo
+      if (isCurrentTodoArchived && viewMode !== 'archived') {
+        logger.log('🔄 Switching to archived view after search clear - selected todo is archived');
+        manualViewModeChangeRef.current = true;
+        setViewMode('archived');
+      } else if (!isCurrentTodoArchived && viewMode !== 'active') {
+        logger.log('🔄 Switching to active view after search clear - selected todo is active');
+        manualViewModeChangeRef.current = true;
+        setViewMode('active');
+      }
+      
+      // Refresh todos when search is cleared to ensure consistent state
+      fetchTodos();
       return;
     }
 
@@ -105,6 +220,7 @@ function App() {
         logger.log('Ignoring outdated search results for:', query);
       }
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchScope]);
 
   const handleSearchScopeChange = useCallback((scope: 'folder' | 'repo') => {
@@ -146,11 +262,9 @@ function App() {
     }
   }, [searchQuery, searchScope]);
 
-  const fetchTodosWithSettings = useCallback(async (useSettings?: any, useViewMode?: 'active' | 'archived', preserveTodoPath?: string) => {
+  const fetchTodosWithSettings = useCallback(async (useSettings?: any, useViewMode?: 'active' | 'archived', preserveTodoPath?: string, allowSmartRestore = false) => {
     const currentSettings = useSettings || settings;
     const currentViewMode = useViewMode || viewMode;
-    logger.log('Fetching todos with settings...', currentSettings ? 'Settings available' : 'No settings');
-    logger.log('Current folder:', currentSettings?.folder || 'todos');
     
     if (!currentSettings) {
       logger.log('No settings, skipping fetch');
@@ -177,10 +291,11 @@ function App() {
       logger.log('Active files retrieved:', activeFiles.length, 'files');
       logger.log('Archived files retrieved:', archivedFiles.length, 'files');
       
-      const allFiles = [...activeFiles, ...archivedFiles];
-      logger.log('Total files:', allFiles.length);
+      // 🚀 PERFORMANCE SUCCESS: Use optimized todos directly (no additional processing needed!)
+      const fetchedTodos = [...activeFiles, ...archivedFiles];
+      logger.log('🎉 OPTIMIZED RESULTS: Total todos with filename metadata:', fetchedTodos.length);
       
-      if (allFiles.length === 0) {
+      if (fetchedTodos.length === 0) {
         logger.log('No todo files found, setting empty arrays');
         setAllTodos([]);
         setTodos([]);
@@ -189,39 +304,41 @@ function App() {
         return;
       }
       
-      const fetchedTodos = await Promise.all(
-        allFiles.map(async (file: any) => {
-          logger.log('Processing file:', file.name, 'path:', file.path);
-          const content = await getFileContent(file.path);
-          logger.log('File content length:', content.length);
-          const { frontmatter, markdownContent } = parseMarkdownWithFrontmatter(content);
-          logger.log('Parsed frontmatter:', frontmatter);
-          const todo = {
-            id: file.sha, // Using SHA as a unique ID for now
-            title: frontmatter?.title || file.name,
-            content: markdownContent,
-            frontmatter: frontmatter,
-            path: file.path,
-            sha: file.sha,
-          };
-          logger.log('Created todo object:', { id: todo.id, title: todo.title, path: todo.path });
-          return todo;
-        })
-      );
-      logger.log('All todos processed:', fetchedTodos.length);
+      logger.log('✅ ZERO ADDITIONAL API CALLS: Using optimized todos directly');
       logger.log('Final todos array:', fetchedTodos.map((t: any) => ({ id: t.id, title: t.title, path: t.path })));
       
       // Store all todos and filter based on current view mode
       setAllTodos(fetchedTodos);
-      const filteredTodos = currentViewMode === 'archived' 
-        ? fetchedTodos.filter((todo: any) => todo.path.includes('/archive/'))
-        : fetchedTodos.filter((todo: any) => !todo.path.includes('/archive/'));
       
-      logger.log(`Filtered todos for ${currentViewMode} view:`, filteredTodos.length);
+      logger.log('=== TODO FILTERING LOGIC ===');
+      logger.log('Current view mode for filtering:', currentViewMode);
+      logger.log('Total fetched todos:', fetchedTodos.length);
+      logger.log('Sample todo paths:', fetchedTodos.slice(0, 3).map(t => t.path));
+      
+      const filteredTodos = currentViewMode === 'archived' 
+        ? fetchedTodos.filter((todo: any) => {
+            const isArchived = todo.path.includes('/archive/');
+            if (isArchived) logger.log('Archived todo found:', todo.path);
+            return isArchived;
+          })
+        : fetchedTodos.filter((todo: any) => {
+            const isActive = !todo.path.includes('/archive/');
+            if (isActive) logger.log('Active todo found:', todo.path);
+            return isActive;
+          });
+      
+      logger.log(`=== FILTERING RESULTS ===`);
+      logger.log(`View mode: ${currentViewMode}`);
+      logger.log(`Filtered todos count: ${filteredTodos.length}`);
+      logger.log('Filtered todo paths:', filteredTodos.map(t => t.path));
+      
       setTodos(filteredTodos);
       
       // Auto-select logic with preserve path support and localStorage persistence
+      logger.log('=== TODO SELECTION LOGIC ===');
+      logger.log('Starting todo selection logic for view mode:', currentViewMode);
       setSelectedTodoId(currentSelectedId => {
+        logger.log('Current selected todo ID:', currentSelectedId);
         // If we're trying to preserve a specific todo path, find it first
         if (preserveTodoPath) {
           const preservedTodo = filteredTodos.find((todo: any) => todo.path === preserveTodoPath);
@@ -234,17 +351,90 @@ function App() {
         // Check if current selection still exists in the filtered todos
         const currentTodoExists = filteredTodos.some((todo: any) => todo.id === currentSelectedId);
         if (currentTodoExists) {
-          logger.log('Keeping current selection:', filteredTodos.find((todo: any) => todo.id === currentSelectedId)?.title);
+          const currentTodo = filteredTodos.find((todo: any) => todo.id === currentSelectedId);
+          logger.log('Current todo exists in filtered list - keeping selection:', currentTodo?.title);
           return currentSelectedId;
+        } else {
+          logger.log('Current todo does not exist in filtered list - need new selection');
         }
         
-        // If current selection doesn't exist, try to restore from localStorage
+        // If current selection doesn't exist, try to restore from localStorage with cross-view search
+        // Only perform smart restoration when explicitly allowed (during app initialization)
         const persistedTodoId = loadSelectedTodoId();
-        if (persistedTodoId && filteredTodos.length > 0) {
+        if (persistedTodoId && fetchedTodos.length > 0 && allowSmartRestore) {
+          try {
+            // Search in ALL todos, not just filtered ones, to handle cross-view restoration
+            const persistedTodo = fetchedTodos.find((todo: any) => todo.id === persistedTodoId);
+            if (persistedTodo) {
+              // Validate todo has required properties to prevent errors
+              if (!persistedTodo.path || typeof persistedTodo.path !== 'string') {
+                logger.error('Smart restoration: Invalid todo path detected', { todoId: persistedTodoId, path: persistedTodo.path });
+                clearSelectedTodoId(); // Clear invalid selection
+                return null;
+              }
+              
+              // Check if todo is in a different view mode than current
+              const isPersistedTodoArchived = persistedTodo.path.includes('/archive/');
+              const currentViewIsArchived = currentViewMode === 'archived';
+              
+              if (isPersistedTodoArchived !== currentViewIsArchived) {
+                // Todo is in different view mode - need to switch automatically
+                const correctViewMode = isPersistedTodoArchived ? 'archived' : 'active';
+                logger.log(`Smart restoration: Switching view mode from ${currentViewMode} to ${correctViewMode} to restore todo:`, persistedTodo.title);
+                
+                try {
+                  // Update view mode state and re-filter todos to match the correct view
+                  setViewMode(correctViewMode);
+                  const correctFilteredTodos = correctViewMode === 'archived' 
+                    ? fetchedTodos.filter((todo: any) => todo.path?.includes('/archive/'))
+                    : fetchedTodos.filter((todo: any) => todo.path && !todo.path.includes('/archive/'));
+                  
+                  // Validate filtered todos before setting
+                  if (correctFilteredTodos.length === 0) {
+                    logger.warn(`Smart restoration: No todos found in ${correctViewMode} view after filtering`);
+                  }
+                  
+                  // Update todos to the correct view
+                  setTodos(correctFilteredTodos);
+                  
+                  logger.log('Smart restoration completed: View mode switched and todos updated. Restored todo:', persistedTodo.title);
+                  return persistedTodoId;
+                } catch (viewSwitchError) {
+                  logger.error('Smart restoration: Error during view mode switch', viewSwitchError);
+                  // Fallback: stay in current view but don't restore selection
+                  return null;
+                }
+              } else {
+                // Todo is in correct view mode, just restore it normally
+                logger.log('Restored todo from localStorage (same view):', persistedTodo.title);
+                return persistedTodoId;
+              }
+            } else {
+              // Persisted todo not found in fetched todos - it may have been deleted
+              logger.log('Smart restoration: Persisted todo not found in current todos, clearing selection', { persistedTodoId });
+              clearSelectedTodoId(); // Clean up stale selection
+            }
+          } catch (restorationError) {
+            logger.error('Smart restoration: Error during todo restoration', {
+              error: restorationError,
+              persistedTodoId,
+              fetchedTodosCount: fetchedTodos.length
+            });
+            // Clear potentially corrupted selection
+            clearSelectedTodoId();
+          }
+        } else if (persistedTodoId && fetchedTodos.length === 0) {
+          // Edge case: have persisted ID but no todos loaded
+          logger.log('Smart restoration: Persisted todo exists but no todos loaded, keeping selection for next fetch');
+        } else if (persistedTodoId && fetchedTodos.length > 0 && !allowSmartRestore) {
+          // Smart restoration disabled - only restore if todo is in current view mode
+          logger.log('Smart restoration disabled: Checking for todo in current view only');
           const persistedTodo = filteredTodos.find((todo: any) => todo.id === persistedTodoId);
           if (persistedTodo) {
-            logger.log('Restored todo from localStorage:', persistedTodo.title);
+            logger.log('Restored todo from localStorage (current view only):', persistedTodo.title);
             return persistedTodoId;
+          } else {
+            logger.log('Persisted todo not in current view mode, will not restore to avoid view switching');
           }
         }
         
@@ -252,34 +442,181 @@ function App() {
         if (filteredTodos.length > 0) {
           const firstTodo = filteredTodos[0];
           logger.log('Auto-selected first todo:', firstTodo.title);
+          logger.log('Final selection result: first todo from filtered list');
           return firstTodo.id;
         }
         
+        logger.log('No todos available for selection - returning null');
         return null;
+      });
+      
+      logger.log('=== FETCH TODOS WITH SETTINGS COMPLETED ===');
+      logger.log('Final state summary:', {
+        allTodosCount: fetchedTodos.length,
+        filteredTodosCount: filteredTodos.length,
+        viewMode: currentViewMode,
+        allowSmartRestore: allowSmartRestore
       });
       
     } catch (error) {
       logger.error('Error fetching todos:', error);
       logger.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+      
+      // Enhanced error handling with specific error types
+      if (error instanceof Error) {
+        if (error.message.includes('Network Error') || error.message.includes('fetch')) {
+          logger.error('Network connectivity issue detected during todo fetch');
+        } else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+          logger.error('Authentication issue detected - PAT may be invalid or expired');
+        } else if (error.message.includes('404') || error.message.includes('Not Found')) {
+          logger.error('Repository or folder not found - may need to check settings');
+        } else if (error.message.includes('403') || error.message.includes('Forbidden')) {
+          logger.error('Permission issue detected - PAT may lack required permissions');
+        }
+      }
+      
+      // Set empty state but preserve selected todo ID in case of network issues
       setTodos([]);
       setAllTodos([]);
+      // Don't clear selectedTodoId here - network issues shouldn't lose user's context
     }
   }, [settings, viewMode]);
 
-  const fetchTodos = useCallback(async (preserveTodoPath?: string) => {
-    await fetchTodosWithSettings(undefined, undefined, preserveTodoPath);
+  const fetchTodos = useCallback(async (preserveTodoPath?: string, allowSmartRestore = false, explicitViewMode?: 'active' | 'archived') => {
+    await fetchTodosWithSettings(undefined, explicitViewMode, preserveTodoPath, allowSmartRestore);
   }, [fetchTodosWithSettings]);
 
+  // Consolidated fetch effect with proper guards to prevent cascading requests
   useEffect(() => {
-    if (settings) {
-      fetchTodos();
+    const effectId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // **DEBUG LOGGING** - Track every useEffect trigger
+    logger.log('🎯 CONSOLIDATED FETCH EFFECT TRIGGERED (ViewMode Change):', {
+      effectId,
+      isPerformingSave,
+      hasSettings: !!settings,
+      isInitializing,
+      provider: settings?.gitProvider,
+      folder: settings?.folder,
+      viewMode,
+      dependencies: {
+        settings: !!settings,
+        viewMode,
+        isInitializing,
+        isPerformingSave
+      }
+    });
+    
+    // CRITICAL: Don't trigger during save operations to prevent race conditions
+    if (isPerformingSave) {
+      logger.log('⏸️ FETCH SKIPPED: Save operation in progress', { effectId });
+      return;
     }
-  }, [fetchTodos, settings]);
+    
+    // Only proceed if we have settings and initialization is complete
+    if (!settings || isInitializing) {
+      if (settings && isInitializing) {
+        logger.log('⏸️ FETCH SKIPPED: Initialization in progress', { effectId });
+      } else if (!isInitializing) {
+        logger.log('⏸️ FETCH SKIPPED: No settings available', { effectId });
+      }
+      return;
+    }
+    
+    // Create fetch parameters fingerprint for deduplication
+    const fetchParams = JSON.stringify({
+      provider: settings.gitProvider,
+      folder: settings.folder,
+      viewMode: viewMode,
+      instanceUrl: settings.instanceUrl,
+      projectId: settings.projectId,
+      owner: settings.owner,
+      repo: settings.repo
+    });
+    
+    // Skip if we just performed the same fetch
+    if (lastFetchParamsRef.current === fetchParams) {
+      logger.log('⏸️ FETCH SKIPPED: Duplicate parameters detected', {
+        effectId,
+        fetchParams: fetchParams.substring(0, 100) + '...'
+      });
+      return;
+    }
+    
+    // **GLOBAL FETCH LOCK** - Prevent overlapping fetch operations
+    if (fetchInProgressRef.current) {
+      logger.log('⏸️ FETCH SKIPPED: Another fetch already in progress', {
+        effectId,
+        queueLength: fetchQueueRef.current.length
+      });
+      
+      // Queue this fetch for later
+      fetchQueueRef.current.push(() => {
+        logger.log('🔄 QUEUED FETCH EXECUTING:', { effectId });
+        lastFetchParamsRef.current = fetchParams;
+        fetchTodosWithSettings(settings, viewMode, undefined, true);
+      });
+      return;
+    }
+    
+    // Set fetch lock
+    fetchInProgressRef.current = true;
+    lastFetchParamsRef.current = fetchParams;
+    
+    logger.log('🚀 === CONSOLIDATED TODO FETCH STARTED ===', {
+      effectId,
+      provider: settings.gitProvider,
+      folder: settings.folder,
+      viewMode: viewMode,
+      fetchParams: fetchParams.substring(0, 100) + '...'
+    });
+    
+    // Use fetchTodosWithSettings - disable smart restoration for manual tab clicks
+    const allowSmartRestore = !manualViewModeChangeRef.current;
+    const fetchPromise = fetchTodosWithSettings(settings, viewMode, undefined, allowSmartRestore);
+    
+    // Handle fetch completion and queue processing
+    fetchPromise.finally(() => {
+      fetchInProgressRef.current = false;
+      manualViewModeChangeRef.current = false; // Reset manual change flag
+      
+      logger.log('🏁 FETCH COMPLETED, processing queue:', {
+        effectId,
+        queueLength: fetchQueueRef.current.length
+      });
+      
+      // Process next queued fetch if any
+      if (fetchQueueRef.current.length > 0) {
+        const nextFetch = fetchQueueRef.current.shift()!;
+        setTimeout(nextFetch, 100); // Small delay to prevent immediate overlaps
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings, viewMode, isInitializing, isPerformingSave]);
 
-  // Persist selected todo ID to localStorage
+  // Persist selected todo ID to localStorage with error handling
   useEffect(() => {
-    saveSelectedTodoId(selectedTodoId);
+    try {
+      saveSelectedTodoId(selectedTodoId);
+      if (selectedTodoId) {
+        logger.log('Selected todo ID persisted successfully:', selectedTodoId);
+      }
+    } catch (error) {
+      logger.error('Failed to persist selected todo ID to localStorage:', error);
+      // Continue execution - persistence failure shouldn't break the app
+    }
   }, [selectedTodoId]);
+
+  // Persist view mode to localStorage with error handling
+  useEffect(() => {
+    try {
+      saveViewMode(viewMode);
+      logger.log('🔄 View mode changed and persisted successfully:', viewMode);
+    } catch (error) {
+      logger.error('Failed to persist view mode to localStorage:', error);
+      // Continue execution - persistence failure shouldn't break the app
+    }
+  }, [viewMode]);
 
   const handleProjectChanged = (newSettings?: any) => {
     const settingsToUse = newSettings || loadSettings();
@@ -287,12 +624,12 @@ function App() {
     setSelectedTodoId(null); // Clear selection when switching projects
     clearSelectedTodoId(); // Clear persisted selection since it's a different project
     
-    // Fetch todos immediately with the new settings
-    fetchTodosWithSettings(settingsToUse);
+    // Fetch todos immediately with the new settings (no smart restoration - this is a user action)
+    fetchTodosWithSettings(settingsToUse, undefined, undefined, false);
   };
 
-  const handleGoalSubmit = async (goal: string) => {
-    logger.log('Goal submitted:', goal);
+  const handleGoalSubmit = async (todoData: NewTodoData) => {
+    logger.log('Todo data submitted:', todoData);
     if (!settings) {
       logger.error('No settings available for goal submission');
       return;
@@ -306,26 +643,25 @@ function App() {
       
       // 1. Generate Initial Plan
       setCreationStep('🤖 Generating task plan with AI...');
-      logger.log('Generating initial plan...');
-      const markdownContent = await generateInitialPlan(goal);
+      logger.log('Generating initial plan with template:', todoData.template);
+      const markdownContent = await generateInitialPlan(todoData);
       logger.log('Initial plan generated:', markdownContent?.substring(0, 100) + '...');
 
-      // 2. Prepare File with Frontmatter
+      // 2. Prepare File with NEW Filename-Based Metadata
       setCreationStep('📝 Preparing task content...');
+      logger.log('🆕 NEW FORMAT: Using filename-based metadata approach');
+      
+      // Create minimal frontmatter (only tags)
       const newTodoFrontmatter: TodoFrontmatter = {
-        title: goal,
-        createdAt: new Date().toISOString(),
-        priority: 3,
-        isArchived: false,
-        chatHistory: [],
+        tags: [], // Only tags remain in frontmatter
       };
-      const fullContent = stringifyMarkdownWithFrontmatter(newTodoFrontmatter, markdownContent);
-      logger.log('Full content prepared, length:', fullContent.length);
+      const fullContent = stringifyMarkdownWithMetadata(newTodoFrontmatter, markdownContent);
+      logger.log('🚀 PERFORMANCE: Content prepared with minimal frontmatter, length:', fullContent.length);
 
       // 3. Generate Commit Message
       setCreationStep('💬 Generating commit message...');
       logger.log('Generating commit message...');
-      const commitResponse = await generateCommitMessage(`feat: Add new todo for "${goal}"`);
+      const commitResponse = await generateCommitMessage(`feat: Add new todo for "${todoData.title}"`);
       const commitMessage = commitResponse.message;
       logger.log('Commit message generated:', commitMessage);
       if (commitResponse.description) {
@@ -337,41 +673,32 @@ function App() {
       logger.log('Ensuring directory exists...');
       await ensureDirectory(settings.folder || 'todos');
       
-      const createSlug = (title: string) => {
-        return title
-          .toLowerCase()
-          .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-          .replace(/\s+/g, '-') // Replace spaces with hyphens
-          .replace(/-+/g, '-') // Replace multiple hyphens with single
-          .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
-          .trim()
-          .substring(0, 50); // Limit length
-      };
-      
-      const slug = createSlug(goal);
-      const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      // 🆕 NEW APPROACH: Generate filename with metadata encoding
+      const priority = 3; // Default priority for new todos
+      const date = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
       const folder = settings.folder || 'todos';
+      
+      logger.log('🚀 FILENAME METADATA: Generating new format filename');
+      const filename = generateFilename(priority, date, todoData.title);
+      const filePath = `${folder}/${filename}`;
       
       // Check for filename conflicts and generate unique filename
       setCreationStep('🔍 Checking for filename conflicts...');
-      let filename = `${folder}/${timestamp}-${slug}.md`;
-      let finalFilename = filename;
+      let finalFilename = filePath;
       
       // Check if file already exists and generate unique name if needed
       let counter = 1;
       while (true) {
         try {
           await getFileMetadata(finalFilename);
-          // File exists, try next number
-          const pathParts = filename.split('.');
-          const extension = pathParts.pop();
-          const basePath = pathParts.join('.');
-          finalFilename = `${basePath}-${counter}.${extension}`;
+          // File exists, try next number - preserve new filename format
+          const conflictFilename = generateFilename(priority, date, `${todoData.title} ${counter}`);
+          finalFilename = `${folder}/${conflictFilename}`;
           counter++;
-          logger.log(`File conflict detected, trying: ${finalFilename}`);
+          logger.log(`🔄 FILENAME CONFLICT: Trying unique filename: ${finalFilename}`);
         } catch (error) {
           // File doesn't exist, we can use this filename
-          logger.log(`Using filename: ${finalFilename}`);
+          logger.log(`✅ NEW FORMAT: Using filename: ${finalFilename}`);
           break;
         }
       }
@@ -409,19 +736,59 @@ function App() {
     }
   };
 
-  const handleTodoUpdate = async (id: string, newContent: string, newChatHistory?: any[]) => {
+  // Internal function that performs the actual save operation
+  const performTodoUpdate = useCallback(async (id: string, newContent: string, newChatHistory?: any[], filePath?: string) => {
     if (!settings) return;
     
+    // First try to find the todo to get stable identifiers
+    let todoToUpdate = todos.find(todo => todo.id === id);
+    
+    // Fallback: if todo not found by volatile ID, try finding by file path
+    if (!todoToUpdate && filePath) {
+      todoToUpdate = todos.find(todo => todo.path === filePath);
+      if (todoToUpdate) {
+        logger.log('App: Todo found by fallback path lookup', { 
+          originalId: id, 
+          foundId: todoToUpdate.id, 
+          path: filePath 
+        });
+      }
+    }
+    
+    if (!todoToUpdate) {
+      logger.error("Todo not found for update:", { 
+        id, 
+        filePath, 
+        availableIds: todos.map(t => t.id),
+        availablePaths: todos.map(t => t.path)
+      });
+      return;
+    }
+    
+    // Use stable file path for save operation guards
+    const stablePath = todoToUpdate.path;
+    
+    // CRITICAL: Prevent double execution using stable path identifier
+    if (activeSaveOperationsRef.current.has(stablePath)) {
+      logger.log('App: Save operation already in progress - BLOCKED', { 
+        id, 
+        path: stablePath,
+        activeOperations: [...activeSaveOperationsRef.current],
+        reason: 'Duplicate execution prevention (using stable path)'
+      });
+      return;
+    }
+    
     try {
+      // Mark this path as having an active save operation
+      activeSaveOperationsRef.current.add(stablePath);
+      
+      // CRITICAL: Set save operation guard to prevent useEffect interference
+      setIsPerformingSave(true);
+      
+      // Update per-todo save tracking (still use ID for UI state)
       setIsSavingTask(true);
       setSaveStep('🔍 Preparing to save...');
-      logger.log('App: handleTodoUpdate called with id:', id, 'content length:', newContent.length);
-      
-      const todoToUpdate = todos.find(todo => todo.id === id);
-      if (!todoToUpdate) {
-        logger.error("Todo not found for update:", id);
-        return;
-      }
 
       setSaveStep('📝 Preparing content...');
       
@@ -431,19 +798,17 @@ function App() {
       
       let fullContent: string;
       if (parsedFrontmatter) {
-        // Content already has frontmatter - use it with potential chat history update
-        const updatedFrontmatter = {
-          ...parsedFrontmatter,
-          ...(newChatHistory && { chatHistory: newChatHistory })
+        // Content already has frontmatter - use V2 format (tags only)
+        const v2Frontmatter = {
+          tags: Array.isArray(parsedFrontmatter.tags) ? parsedFrontmatter.tags : []
         };
-        fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, markdownContent);
+        fullContent = stringifyMarkdownWithMetadata(v2Frontmatter, markdownContent);
       } else {
-        // Content doesn't have frontmatter - add it from existing todo
-        const updatedFrontmatter = {
-          ...todoToUpdate.frontmatter,
-          ...(newChatHistory && { chatHistory: newChatHistory })
+        // Content doesn't have frontmatter - add V2 format from existing todo
+        const v2Frontmatter = {
+          tags: Array.isArray(todoToUpdate.frontmatter?.tags) ? todoToUpdate.frontmatter.tags : []
         };
-        fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, newContent);
+        fullContent = stringifyMarkdownWithMetadata(v2Frontmatter, newContent);
       }
       logger.log('App: Full content prepared, generating commit message...');
 
@@ -480,6 +845,15 @@ function App() {
           await createOrUpdateTodo(todoToUpdate.path, fullContent, commitMessage, latestSha);
           saveSuccessful = true;
           logger.log('App: Todo updated successfully');
+          
+          // Clear draft after successful save to prevent inappropriate restoration
+          try {
+            clearDraft();
+            logger.log('App: Draft cleared after successful save for path:', stablePath);
+          } catch (draftError) {
+            // Draft clearing failure shouldn't break the save operation
+            logger.error('App: Failed to clear draft after save:', draftError);
+          }
         } catch (saveError) {
           if (saveError instanceof Error && saveError.message.includes('does not match')) {
             retryCount++;
@@ -509,30 +883,90 @@ function App() {
       }
       
       setSaveStep('🔄 Refreshing task list...');
-      await fetchTodos(todoToUpdate.path); // Re-fetch and preserve selection
+      
+      // CRITICAL FIX: Explicitly pass current view mode to prevent race conditions
+      await fetchTodos(todoToUpdate.path, false, viewMode); // Re-fetch, preserve selection, and preserve view mode
       
       setSaveStep('✅ Save completed!');
+      
+      // Clear save operation guard
+      setIsPerformingSave(false);
+      
       setTimeout(() => {
         setIsSavingTask(false);
         setSaveStep('');
       }, 1000);
       
     } catch (error) {
-      logger.error("Error updating todo:", error);
+      logger.error("Error updating todo:", {
+        todoId: id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        activeOperations: [...activeSaveOperationsRef.current],
+        timestamp: new Date().toISOString()
+      });
       setSaveStep('❌ Save failed!');
+      
+      // Clear save operation guard even on error
+      setIsPerformingSave(false);
+      
       setTimeout(() => {
         setIsSavingTask(false);
         setSaveStep('');
         alert(`Failed to save changes: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }, 1000);
+    } finally {
+      // Always remove the path from active operations when done (use stable path)
+      if (todoToUpdate) {
+        activeSaveOperationsRef.current.delete(todoToUpdate.path);
+      }
+      // Clear the per-todo save state after a delay to show final status (still use ID for UI)
+      setTimeout(() => {
+      }, 1500);
     }
-  };
+  }, [settings, todos, fetchTodos, getProviderName, viewMode]);
+
+  // Debounced wrapper to handle React StrictMode double execution
+  const handleTodoUpdate = useCallback((id: string, newContent: string, filePath?: string) => {
+    // First find the todo to get stable path (same pattern as performTodoUpdate)
+    let todo = todos.find(t => t.id === id);
+    if (!todo && filePath) {
+      todo = todos.find(t => t.path === filePath);
+    }
+    
+    if (!todo) {
+      logger.error('App: handleTodoUpdate - Todo not found for debouncing', { 
+        id, 
+        filePath, 
+        availableIds: todos.map(t => t.id).slice(0, 3), // First 3 for brevity
+        availablePaths: todos.map(t => t.path).slice(0, 3)
+      });
+      return;
+    }
+    
+    const stablePath = todo.path;
+    
+    // Clear any existing debounce timer for this stable path
+    const existingTimer = saveDebounceTimersRef.current.get(stablePath);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+      logger.log('App: Cleared existing debounce timer for path:', stablePath, '- preventing duplicate execution');
+    }
+    
+    // Set new debounce timer using stable path (100ms should be enough to prevent React StrictMode double calls)
+    const newTimer = setTimeout(() => {
+      performTodoUpdate(id, newContent, undefined, stablePath);
+      saveDebounceTimersRef.current.delete(stablePath); // Clean up timer reference using stable path
+    }, 100);
+    
+    saveDebounceTimersRef.current.set(stablePath, newTimer);
+  }, [todos, performTodoUpdate]);
 
   const handlePriorityUpdate = async (id: string, newPriority: number) => {
     if (!settings) return;
     try {
       setIsSavingTask(true);
-      setSaveStep('🏷️ Updating priority...');
+      setSaveStep('🔍 Preparing to save...');
       
       const todoToUpdate = todos.find(todo => todo.id === id);
       if (!todoToUpdate) {
@@ -541,7 +975,7 @@ function App() {
         return;
       }
 
-      setSaveStep('🔄 Getting latest file version...');
+      setSaveStep('🔄 Getting latest version...');
       // Get the latest SHA to avoid conflicts (same pattern as handleTodoUpdate)
       let latestSha = todoToUpdate.sha;
       try {
@@ -553,23 +987,81 @@ function App() {
       }
 
       setSaveStep('📝 Preparing content...');
-      const updatedFrontmatter = {
-        ...todoToUpdate.frontmatter,
-        priority: newPriority
+      
+      // Generate new V2 filename with updated priority
+      const currentTitle = todoToUpdate.title;
+      const currentDate = todoToUpdate.createdAt ? todoToUpdate.createdAt.split('T')[0] : new Date().toISOString().split('T')[0];
+      
+      const folder = settings.folder || 'todos';
+      const newFilename = generateFilename(newPriority, currentDate, currentTitle);
+      const newPath = `${folder}/${newFilename}`;
+      
+      logger.log('Priority update: Generated V2 filename:', newFilename);
+      
+      const oldPath = todoToUpdate.path;
+      const needsRename = oldPath !== newPath;
+      
+      // V2 format: Only tags in frontmatter, priority is in filename
+      const v2Frontmatter = {
+        tags: Array.isArray(todoToUpdate.frontmatter?.tags) ? todoToUpdate.frontmatter.tags : []
       };
-      const fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, todoToUpdate.content);
+      const fullContent = stringifyMarkdownWithMetadata(v2Frontmatter, todoToUpdate.content);
       
       // Simple clear commit message without AI generation
       const priorityLabels = { 1: 'P1', 2: 'P2', 3: 'P3', 4: 'P4', 5: 'P5' };
       const commitMessage = `feat: Update priority to ${priorityLabels[newPriority as keyof typeof priorityLabels]} for "${todoToUpdate.title}"`;
 
-      setSaveStep(`💾 Saving to ${getProviderName()}...`);
-      await createOrUpdateTodo(todoToUpdate.path, fullContent, commitMessage, latestSha);
+      setSaveStep('🔍 Resolving filename...');
+      let finalPath = newPath;
       
-      setSaveStep('🔄 Refreshing...');
-      await fetchTodos(todoToUpdate.path); // Re-fetch and preserve selection
+      // Handle file name conflicts if renaming is needed
+      if (needsRename) {
+        let counter = 1;
+        let conflictFreePath = newPath;
+        
+        while (true) {
+          try {
+            await getFileMetadata(conflictFreePath);
+            // File exists, try next number
+            const pathParts = newPath.split('.');
+            const extension = pathParts.pop();
+            const basePath = pathParts.join('.');
+            conflictFreePath = `${basePath}-${counter}.${extension}`;
+            counter++;
+          } catch (error) {
+            // File doesn't exist, we can use this path
+            finalPath = conflictFreePath;
+            break;
+          }
+        }
+      }
+
+      setSaveStep('💾 Saving to repository...');
       
-      setSaveStep('✅ Priority updated!');
+      if (needsRename) {
+        // Create new file with updated filename
+        await createOrUpdateTodo(finalPath, fullContent, commitMessage);
+        
+        setSaveStep('🗑️ Cleaning up old file...');
+        // Delete old file with proper commit message
+        try {
+          const priorityLabels = { 1: 'P1', 2: 'P2', 3: 'P3', 4: 'P4', 5: 'P5' };
+          await deleteFile(oldPath, `feat: Remove old file after priority change to ${priorityLabels[newPriority as keyof typeof priorityLabels]}`);
+          logger.log('Priority update: Old file deleted successfully:', oldPath);
+        } catch (deleteError) {
+          logger.error('Priority update: Failed to delete old file:', deleteError);
+          // This is critical - if we can't delete old file, we have duplicates
+          throw new Error(`Failed to rename file: Could not delete old file ${oldPath}. ${deleteError instanceof Error ? deleteError.message : 'Unknown error'}`);
+        }
+      } else {
+        // No rename needed, just update the content
+        await createOrUpdateTodo(finalPath, fullContent, commitMessage, latestSha);
+      }
+      
+      setSaveStep('🔄 Refreshing task list...');
+      await fetchTodos(finalPath); // Re-fetch and preserve selection with potentially new path
+      
+      setSaveStep('✅ Priority updated successfully!');
       setTimeout(() => {
         setIsSavingTask(false);
         setSaveStep('');
@@ -577,7 +1069,7 @@ function App() {
       
     } catch (error) {
       logger.error("Error updating priority:", error);
-      setSaveStep('❌ Priority update failed!');
+      setSaveStep('❌ Update failed!');
       setTimeout(() => {
         setIsSavingTask(false);
         setSaveStep('');
@@ -590,7 +1082,7 @@ function App() {
     if (!settings) return;
     try {
       setIsSavingTask(true);
-      setSaveStep('📝 Analyzing changes... (1/6)');
+      setSaveStep('🔍 Preparing to save...');
       
       const todoToUpdate = todos.find(todo => todo.id === id);
       if (!todoToUpdate) {
@@ -606,7 +1098,7 @@ function App() {
         return;
       }
 
-      setSaveStep('🔄 Getting latest version... (2/6)');
+      setSaveStep('🔄 Getting latest version...');
       // Get the latest SHA to avoid conflicts (same pattern as handleTodoUpdate)
       let latestSha = todoToUpdate.sha;
       try {
@@ -617,34 +1109,29 @@ function App() {
         logger.log('Title update: Could not fetch latest SHA, using existing:', latestSha);
       }
 
-      setSaveStep('📝 Preparing content... (3/6)');
-      const updatedFrontmatter = {
-        ...todoToUpdate.frontmatter,
-        title: newTitle
+      setSaveStep('📝 Preparing content...');
+      // V2 format: Only tags in frontmatter, title is in filename
+      const v2Frontmatter = {
+        tags: Array.isArray(todoToUpdate.frontmatter?.tags) ? todoToUpdate.frontmatter.tags : []
       };
-      const fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, todoToUpdate.content);
+      const fullContent = stringifyMarkdownWithMetadata(v2Frontmatter, todoToUpdate.content);
       
-      // Generate new filename based on new title
-      const createSlug = (title: string) => {
-        return title
-          .toLowerCase()
-          .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-          .replace(/\s+/g, '-') // Replace spaces with hyphens
-          .replace(/-+/g, '-') // Replace multiple hyphens with single
-          .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
-          .trim()
-          .substring(0, 50); // Limit length
-      };
+      // Generate new V2 filename based on updated title
+      // Extract current metadata from todo (priority and creation date)
+      const currentPriority = todoToUpdate.priority || 3; // Default to P3 if not set
+      const currentDate = todoToUpdate.createdAt ? todoToUpdate.createdAt.split('T')[0] : new Date().toISOString().split('T')[0];
       
-      const newSlug = createSlug(newTitle);
-      const timestamp = todoToUpdate.path.match(/\d{4}-\d{2}-\d{2}/)?.[0] || new Date().toISOString().split('T')[0];
+      // Generate new V2 format filename
       const folder = settings.folder || 'todos';
-      const newPath = `${folder}/${timestamp}-${newSlug}.md`;
+      const newFilename = generateFilename(currentPriority, currentDate, newTitle);
+      const newPath = `${folder}/${newFilename}`;
+      
+      logger.log('Title update: Generated V2 filename:', newFilename);
       
       const oldPath = todoToUpdate.path;
       const needsRename = oldPath !== newPath;
       
-      setSaveStep('🔍 Resolving filename... (4/6)');
+      setSaveStep('🔍 Resolving filename...');
       let finalPath = newPath;
       
       // Handle file name conflicts if renaming is needed
@@ -670,24 +1157,31 @@ function App() {
       }
       
       if (needsRename) {
-        setSaveStep('📁 Updating files... (5/6)');
+        setSaveStep('💾 Saving to repository...');
         
         // Create new file with new name
         const commitMessage = `docs: Rename task to "${newTitle}"`;
         await createOrUpdateTodo(finalPath, fullContent, commitMessage);
         
-        // Delete old file (combine these steps visually)
-        await deleteFile(oldPath, `docs: Remove old file after renaming to "${newTitle}"`);
+        // Delete old file with proper commit message
+        try {
+          await deleteFile(oldPath, `docs: Remove old file after renaming to "${newTitle}"`);
+          logger.log('Title update: Old file deleted successfully:', oldPath);
+        } catch (deleteError) {
+          logger.error('Title update: Failed to delete old file:', deleteError);
+          // This is critical - if we can't delete old file, we have duplicates  
+          throw new Error(`Failed to rename file: Could not delete old file ${oldPath}. ${deleteError instanceof Error ? deleteError.message : 'Unknown error'}`);
+        }
         
-        setSaveStep('🔄 Refreshing list... (6/6)');
+        setSaveStep('🔄 Refreshing task list...');
         await fetchTodos(finalPath); // Re-fetch and select the new file
       } else {
         // Just update the existing file
         const commitMessage = `docs: Update title to "${newTitle}"`;
-        setSaveStep('💾 Saving changes... (5/6)');
+        setSaveStep('💾 Saving to repository...');
         await createOrUpdateTodo(todoToUpdate.path, fullContent, commitMessage, latestSha);
         
-        setSaveStep('🔄 Refreshing list... (6/6)');
+        setSaveStep('🔄 Refreshing task list...');
         await fetchTodos(todoToUpdate.path); // Re-fetch and preserve selection
       }
       
@@ -699,7 +1193,7 @@ function App() {
       
     } catch (error) {
       logger.error("Error updating title:", error);
-      setSaveStep('❌ Title update failed!');
+      setSaveStep('❌ Update failed!');
       setTimeout(() => {
         setIsSavingTask(false);
         setSaveStep('');
@@ -734,20 +1228,22 @@ function App() {
       const fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, todoToUpdate.content);
       const commitMessage = `feat: ${action} "${todoToUpdate.title}"`;
 
+      let newPath: string;
       if (isCurrentlyArchived) {
         // Move from archive to active todos
-        await moveTaskFromArchive(todoToUpdate.path, fullContent, commitMessage, settings.folder || 'todos');
+        newPath = await moveTaskFromArchive(todoToUpdate.path, fullContent, commitMessage, settings.folder || 'todos');
       } else {
         // Move from active todos to archive
-        await moveTaskToArchive(todoToUpdate.path, fullContent, commitMessage, settings.folder || 'todos');
+        newPath = await moveTaskToArchive(todoToUpdate.path, fullContent, commitMessage, settings.folder || 'todos');
       }
 
       setSaveStep('🔄 Refreshing...');
       await fetchTodos();
       
-      // Clear selection if we archived the currently selected task and we're in active view
-      if (!isCurrentlyArchived && viewMode === 'active' && selectedTodoId === id) {
-        setSelectedTodoId(null);
+      // Update selectedTodoId if the moved task is currently selected
+      if (selectedTodoId === id) {
+        setSelectedTodoId(newPath);
+        saveSelectedTodoId(newPath); // Persist the new selection
       }
       
       setSaveStep(`✅ ${action}d successfully!`);
@@ -879,36 +1375,94 @@ function App() {
   const getSaveProgressWidth = () => {
     if (!saveStep) return '0%';
     
-    // New unified title update steps (with proper percentage progression)
-    if (saveStep.includes('Analyzing changes') || saveStep.includes('(1/6)')) return '17%';
-    if (saveStep.includes('Getting latest version') || saveStep.includes('(2/6)')) return '33%';
-    if (saveStep.includes('Preparing content') && saveStep.includes('(3/6)')) return '50%';
-    if (saveStep.includes('Resolving filename') || saveStep.includes('(4/6)')) return '67%';
-    if (saveStep.includes('Updating files') || saveStep.includes('Saving changes') || saveStep.includes('(5/6)')) return '83%';
-    if (saveStep.includes('Refreshing list') || saveStep.includes('(6/6)')) return '90%';
-    if (saveStep.includes('Title updated successfully') || saveStep.includes('✅')) return '100%';
-    if (saveStep.includes('Title update failed') || saveStep.includes('❌')) return '100%';
+    // Map specific step patterns to percentages in execution order
+    if (saveStep.includes('Preparing to save')) return '15%';
+    if (saveStep.includes('Getting latest version')) return '25%';  // Title/Priority flows
+    if (saveStep.includes('Preparing content')) return '35%';
+    if (saveStep.includes('Generating commit message')) return '45%';  // Regular save flow
+    if (saveStep.includes('Getting latest file version')) return '55%';  // Regular save flow  
+    if (saveStep.includes('Resolving filename')) return '65%';  // Title/Priority flows
+    if (saveStep.includes('Saving to repository') || saveStep.includes('Saving to GitHub') || saveStep.includes('Saving to GitLab')) return '75%';
+    if (saveStep.includes('Cleaning up old file')) return '85%';  // Priority flow only
+    if (saveStep.includes('Refreshing task list') || saveStep.includes('Refreshing')) return '90%';
     
-    // Priority update steps - in chronological order
-    if (saveStep.includes('Updating priority')) return '20%';
-    if (saveStep.includes('Getting latest file version')) return '40%';
-    if (saveStep.includes('Preparing content') && !saveStep.includes('(3/6)')) return '60%';
-    if (saveStep.includes('Saving to GitHub') || saveStep.includes('Saving to GitLab')) return '80%';
-    if (saveStep.includes('Refreshing') && !saveStep.includes('(6/6)')) return '90%';
-    if (saveStep.includes('Priority updated')) return '100%';
-    if (saveStep.includes('Priority update failed')) return '100%';
+    // Success/Error states
+    if (saveStep.includes('✅') || saveStep.includes('successfully') || saveStep.includes('completed')) return '100%';
+    if (saveStep.includes('❌') || saveStep.includes('failed')) return '100%';
     
-    // Regular save steps
-    if (saveStep.includes('Preparing to save')) return '20%';
-    if (saveStep.includes('Generating commit message')) return '40%';
-    if (saveStep.includes('Refreshing task list')) return '90%';
-    if (saveStep.includes('Save completed')) return '100%';
-    if (saveStep.includes('Save failed')) return '100%';
+    // Archive operations
+    if (saveStep.includes('Processing archive')) return '20%';
+    if (saveStep.includes('ing task')) return '50%'; // Matches "archiving task" or "unarchiving task"
     
     return '0%';
   };
 
   const selectedTodo = todos.find(todo => todo.id === selectedTodoId) || null;
+
+  // On-demand content loading for selected todos
+  useEffect(() => {
+    const loadSelectedTodoContent = async () => {
+      if (!selectedTodo || !settings) {
+        return;
+      }
+
+      // Check if selected todo has empty content (needs on-demand loading)
+      if (selectedTodo.content === '') {
+        logger.log('🔄 ON-DEMAND LOADING: Selected todo has empty content, fetching:', selectedTodo.path);
+        
+        try {
+          // Fetch content on-demand
+          const content = await getFileContent(selectedTodo.path);
+          logger.log('✅ ON-DEMAND SUCCESS: Loaded content for selected todo:', selectedTodo.path);
+          
+          // Parse content to get frontmatter
+          const parsed = parseMarkdownWithFrontmatter(content);
+          
+          // Update the todo in the todos array with the loaded content
+          setTodos(prevTodos => 
+            prevTodos.map(todo => 
+              todo.id === selectedTodo.id 
+                ? {
+                    ...todo,
+                    content: parsed.markdownContent,
+                    frontmatter: parsed.frontmatter
+                  }
+                : todo
+            )
+          );
+        } catch (error) {
+          logger.error('❌ ON-DEMAND ERROR: Failed to load content for selected todo:', selectedTodo.path, error);
+          // Don't show alert to user for this - it's a background operation
+          // The todo will remain with empty content and user can try refreshing
+        }
+      } else {
+        logger.log('✅ ON-DEMAND SKIP: Selected todo already has content:', selectedTodo.path);
+      }
+    };
+
+    loadSelectedTodoContent();
+  }, [selectedTodo, settings]);
+
+  // Show initialization screen while app is starting up
+  if (isInitializing) {
+    return (
+      <div className="bg-gray-900 min-h-screen text-white flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="mb-6">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto"></div>
+          </div>
+          <div className="flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-blue-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+            <h1 className="text-2xl font-bold text-white">Agentic Markdown Todos</h1>
+          </div>
+          <p className="text-lg text-gray-300 mb-2">Initializing your task management system...</p>
+          <p className="text-sm text-blue-400">{initializationStep}</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!settings) {
     return (
@@ -1027,7 +1581,11 @@ function App() {
         <div className="px-4 pb-3">
           <div className="flex">
             <button
-              onClick={() => setViewMode('active')}
+              onClick={() => {
+                logger.log('🔘 Active tab clicked - current viewMode:', viewMode);
+                manualViewModeChangeRef.current = true; // Prevent smart restoration
+                setViewMode('active');
+              }}
               className={`px-4 py-2 text-sm font-medium transition-colors relative ${
                 viewMode === 'active'
                   ? 'text-blue-400'
@@ -1040,7 +1598,11 @@ function App() {
               )}
             </button>
             <button
-              onClick={() => setViewMode('archived')}
+              onClick={() => {
+                logger.log('📦 Archive tab clicked - current viewMode:', viewMode);
+                manualViewModeChangeRef.current = true; // Prevent smart restoration
+                setViewMode('archived');
+              }}
               className={`px-4 py-2 text-sm font-medium transition-colors relative ${
                 viewMode === 'archived'
                   ? 'text-blue-400'
@@ -1075,7 +1637,15 @@ function App() {
             selectedTodoId={selectedTodoId}
             onTodoSelect={async (id) => {
               // Check if this is a search result by looking for it in search results
-              const searchResult = searchResults.find(result => result.sha === id);
+              // Search results have generated IDs that start with "search-" or match the actual SHA
+              const searchResult = searchResults.find(result => {
+                // Match by SHA if the ID is the SHA
+                if (result.sha === id) return true;
+                
+                // Match by generated ID pattern if the todo is a search result
+                const generatedId = `search-${result.path.replace(/[/\s]/g, '-')}`;
+                return id.startsWith(generatedId);
+              });
               
               if (searchResult) {
                 // This is a search result - need to fetch the full todo content
@@ -1107,7 +1677,7 @@ function App() {
                       // This avoids React state batching issues where fetchTodos() uses old settings
                       // Use preserveTodoPath to maintain selection after refresh
                       logger.log('Refreshing todos with new project context:', todoFolder);
-                      await fetchTodosWithSettings(newSettings, viewMode, searchResult.path);
+                      await fetchTodosWithSettings(newSettings, viewMode, searchResult.path, false);
                       
                       // Clear search results since we're in new project context
                       setSearchResults([]);
@@ -1128,7 +1698,17 @@ function App() {
                   // Check if this todo is already in our todos array
                   const existingTodo = todos.find(todo => todo.path === searchResult.path);
                   if (existingTodo) {
-                    // Todo already exists, just select it
+                    // Todo already exists, switch view mode if needed and select it
+                    const isArchived = existingTodo.isArchived || existingTodo.path.includes('/archive/');
+                    if (isArchived && viewMode !== 'archived') {
+                      logger.log('🔄 Switching to archived view - existing todo is archived');
+                      manualViewModeChangeRef.current = true;
+                      setViewMode('archived');
+                    } else if (!isArchived && viewMode !== 'active') {
+                      logger.log('🔄 Switching to active view - existing todo is active');
+                      manualViewModeChangeRef.current = true;
+                      setViewMode('active');
+                    }
                     setSelectedTodoId(existingTodo.id);
                   } else {
                     // Need to fetch the full todo content
@@ -1141,12 +1721,24 @@ function App() {
                     // Create a full todo object with correct frontmatter access
                     const fullTodo = {
                       id: metadata.sha,
-                      title: parsedMarkdown.frontmatter?.title || searchResult.name.replace('.md', ''),
+                      title: (parsedMarkdown.frontmatter as any)?.title || searchResult.name.replace('.md', ''),
                       content: parsedMarkdown.markdownContent,
                       frontmatter: parsedMarkdown.frontmatter,
                       path: searchResult.path,
-                      sha: metadata.sha
+                      sha: metadata.sha,
+                      isArchived: searchResult.path.includes('/archive/')
                     };
+                    
+                    // Switch to appropriate view mode based on selected todo
+                    if (fullTodo.isArchived && viewMode !== 'archived') {
+                      logger.log('🔄 Switching to archived view - selected search result is archived');
+                      manualViewModeChangeRef.current = true;
+                      setViewMode('archived');
+                    } else if (!fullTodo.isArchived && viewMode !== 'active') {
+                      logger.log('🔄 Switching to active view - selected search result is active');
+                      manualViewModeChangeRef.current = true;
+                      setViewMode('active');
+                    }
                     
                     // Add to todos array and select it
                     setTodos(prev => [...prev, fullTodo]);

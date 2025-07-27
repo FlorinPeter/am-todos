@@ -2,7 +2,6 @@ import React from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
-import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorView, keymap } from '@codemirror/view';
 import { insertNewlineContinueMarkup, deleteMarkupBackward } from '@codemirror/lang-markdown';
 import { defaultKeymap, historyKeymap } from '@codemirror/commands';
@@ -173,9 +172,9 @@ const CodeMirrorEditor: React.FC<CodeMirrorEditorProps> = ({
   }, [onChange]);
 
   return (
-    <div className={className}>
+    <div className={className} data-testid="codemirror-editor">
       <CodeMirror
-        value={value}
+        value={value || ''}
         height={height}
         theme={customDarkTheme}
         extensions={extensions}

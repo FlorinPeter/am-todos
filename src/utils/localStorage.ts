@@ -340,8 +340,8 @@ export const decodeSettingsFromUrl = (configParam: string): GitHubSettings | nul
       }
       
       // Validate that at least one provider configuration is complete
-      const hasValidGitHub = settings.github && settings.github.pat && settings.github.owner && settings.github.repo;
-      const hasValidGitLab = settings.gitlab && settings.gitlab.instanceUrl && settings.gitlab.projectId && settings.gitlab.token;
+      const hasValidGitHub = settings.github?.pat && settings.github?.owner && settings.github?.repo;
+      const hasValidGitLab = settings.gitlab?.instanceUrl && settings.gitlab?.projectId && settings.gitlab?.token;
       
       if (!hasValidGitHub && !hasValidGitLab) {
         logger.error("Invalid configuration - no complete provider settings found");
@@ -451,10 +451,49 @@ export const clearSelectedTodoId = (): void => {
   }
 };
 
+// View Mode Persistence
+const VIEW_MODE_KEY = 'viewMode';
+export type ViewMode = 'active' | 'archived';
+
+export const saveViewMode = (viewMode: ViewMode): void => {
+  try {
+    localStorage.setItem(VIEW_MODE_KEY, viewMode);
+    logger.log(`View mode saved: ${viewMode}`);
+  } catch (error) {
+    logger.error("Error saving view mode to localStorage", error);
+  }
+};
+
+export const loadViewMode = (): ViewMode => {
+  try {
+    const savedViewMode = localStorage.getItem(VIEW_MODE_KEY);
+    if (savedViewMode === 'active' || savedViewMode === 'archived') {
+      logger.log(`View mode loaded: ${savedViewMode}`);
+      return savedViewMode;
+    }
+    // Default to 'active' if no valid view mode is stored
+    logger.log('No valid view mode found, defaulting to: active');
+    return 'active';
+  } catch (error) {
+    logger.error("Error loading view mode from localStorage", error);
+    return 'active';
+  }
+};
+
+export const clearViewMode = (): void => {
+  try {
+    localStorage.removeItem(VIEW_MODE_KEY);
+    logger.log('View mode cleared from localStorage');
+  } catch (error) {
+    logger.error("Error clearing view mode from localStorage", error);
+  }
+};
+
 // Draft Management
 export interface TodoDraft {
-  todoId: string;          // SHA-based ID for the todo
+  todoId: string;          // SHA-based ID for the todo (may change with content updates)
   path: string;            // File path for validation
+  stableDraftKey: string;  // Path-based stable key for draft persistence (doesn't change with SHA)
   editContent: string;     // The edited content (now includes frontmatter + markdown)
   viewContent: string;     // The view mode content (now includes frontmatter + markdown with checkbox states)
   hasUnsavedChanges: boolean;
@@ -463,6 +502,12 @@ export interface TodoDraft {
 
 const DRAFT_KEY = 'todoDraft';
 const DRAFT_EXPIRY_HOURS = 24; // Drafts expire after 24 hours
+
+// Generate a stable draft key from file path that doesn't change with SHA updates
+const generateStableDraftKey = (path: string): string => {
+  // Use the path as a stable identifier, normalized to handle any variations
+  return path.trim().toLowerCase();
+};
 
 export const saveDraft = (draft: TodoDraft): void => {
   try {
@@ -489,9 +534,18 @@ export const getDraft = (todoId: string, path: string): TodoDraft | null => {
     
     const draft = JSON.parse(draftString) as TodoDraft;
     
-    // Validate draft matches current todo
-    if (draft.todoId !== todoId || draft.path !== path) {
-      logger.log(`Draft found but doesn't match current todo. Draft: ${draft.path}, Current: ${path}`);
+    // Check todoId first - if it doesn't match, return null
+    if (draft.todoId !== todoId) {
+      logger.log(`Draft found but doesn't match current todoId. Draft: "${draft.todoId}", Current: "${todoId}"`);
+      return null;
+    }
+    
+    // Use stable draft key for matching instead of volatile SHA-based todoId
+    const stableDraftKey = generateStableDraftKey(path);
+    const draftStableKey = draft.stableDraftKey || generateStableDraftKey(draft.path || '');
+    
+    if (draftStableKey !== stableDraftKey) {
+      logger.log(`Draft found but doesn't match current todo path. Draft: "${draft.path}" -> "${draftStableKey}", Current: "${path}" -> "${stableDraftKey}"`);
       return null;
     }
     
