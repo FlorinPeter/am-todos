@@ -24,7 +24,6 @@ export default defineConfig({
         'src/react-app-env.d.ts',
         'vite.config.mjs',
         'vitest.config.mjs',
-        'vitest.fast.config.mjs',
         '.github/**',
         'server/**',  // Exclude server files from coverage
         'scripts/**',  // Exclude scripts folder from coverage
