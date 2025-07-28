@@ -311,16 +311,7 @@ Total Tests: 12
 scripts/
 ├── migrate-v1-to-v2.sh      # 🎯 Main migration script
 ├── test-migration-all.sh    # 🧪 Comprehensive test suite
-├── README.md               # 📖 This documentation
-└── graveyard/             # 🪦 Archived development scripts
-    ├── README.md
-    ├── focused-test.sh
-    ├── simple-test.sh
-    ├── test-comprehensive.sh
-    ├── test-migration.sh
-    ├── test-mixed-scenarios.sh
-    ├── test-rollback-safe.sh
-    └── test-rollback.sh
+└── README.md               # 📖 This documentation
 ```
 
 ## 📚 Additional Resources
