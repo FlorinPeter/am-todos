@@ -132,8 +132,8 @@ describe('GitLab Service', () => {
   describe('getTodos', () => {
     it('should fetch todos from active folder', async () => {
       const mockFiles = [
-        { name: '2023-01-01-todo1.md', path: 'todos/2023-01-01-todo1.md', sha: 'abc123', type: 'file' },
-        { name: '2023-01-02-todo2.md', path: 'todos/2023-01-02-todo2.md', sha: 'def456', type: 'file' },
+        { name: 'P1--2023-01-01--todo1.md', path: 'todos/P1--2023-01-01--todo1.md', sha: 'abc123', type: 'file' },
+        { name: 'P2--2023-01-02--todo2.md', path: 'todos/P2--2023-01-02--todo2.md', sha: 'def456', type: 'file' },
         { name: '.gitkeep', path: 'todos/.gitkeep', sha: 'ghi789', type: 'file' }
       ];
 
@@ -177,7 +177,7 @@ describe('GitLab Service', () => {
 
     it('should fetch todos from archive folder', async () => {
       const mockFiles = [
-        { name: '2023-01-03-archived-todo.md', path: 'todos/archive/2023-01-03-archived-todo.md', sha: 'xyz789', type: 'file' }
+        { name: 'P3--2023-01-03--archived_todo.md', path: 'todos/archive/P3--2023-01-03--archived_todo.md', sha: 'xyz789', type: 'file' }
       ];
 
       // Mock all potential fetch calls that the service makes

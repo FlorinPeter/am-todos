@@ -1,4 +1,5 @@
 import { loadSettings } from '../utils/localStorage';
+import type { GeneralSettings } from '../utils/localStorage';
 import logger from '../utils/logger';
 import { validateAndSanitizeSearchQuery } from '../utils/redosProtection';
 import { fetchWithTimeout, TIMEOUT_VALUES } from '../utils/fetchWithTimeout';
@@ -33,10 +34,10 @@ export interface SearchResponse {
 // Debounce utility
 let debounceTimer: number | null = null;
 
-const getGitSettings = () => {
-  const settings = loadSettings();
+const getGeneralSettings = () => {
+  const settings: GeneralSettings | null = loadSettings();
   if (!settings) {
-    throw new Error('No settings configured. Please configure your Git settings first.');
+    throw new Error('No settings configured. Please configure your general settings first.');
   }
 
   const provider = settings.gitProvider || 'github';
@@ -123,7 +124,7 @@ export const searchTodos = async (
   logger.log('Search query sanitized:', { original: query, sanitized: sanitizedQuery });
 
   try {
-    const gitSettings = getGitSettings();
+    const gitSettings = getGeneralSettings();
     const apiUrl = getApiUrl();
     logger.log('Performing search:', { query: sanitizedQuery, scope, provider: gitSettings.provider });
 

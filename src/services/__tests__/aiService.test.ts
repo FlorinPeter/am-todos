@@ -100,6 +100,88 @@ describe('AI Service - Comprehensive Coverage', () => {
       await expect(generateInitialPlan('test')).rejects.toThrow('OpenRouter API key not configured. Please add your API key in the application settings.');
     });
 
+    it('should throw error when local proxy not configured', async () => {
+      vi.mocked(loadSettings).mockReturnValue({
+        gitProvider: 'github',
+        folder: 'todos',
+        aiProvider: 'local-proxy',
+        localProxy: null
+      });
+
+      await expect(generateInitialPlan('test')).rejects.toThrow('Local proxy not configured. Please set up your local proxy in the Local AI Proxy Setup section.');
+    });
+
+    it('should throw error when local proxy credentials not configured', async () => {
+      vi.mocked(loadSettings).mockReturnValue({
+        gitProvider: 'github',
+        folder: 'todos',
+        aiProvider: 'local-proxy',
+        localProxy: {
+          endpoint: 'http://localhost:1234',
+          connectionStatus: 'disconnected',
+          isConnected: false,
+          proxyUuid: '',
+          proxyLocalToken: '',
+          userConfigured: false
+        }
+      });
+
+      await expect(generateInitialPlan('test')).rejects.toThrow('Local proxy credentials not configured. Please enter your proxy UUID and local token in Settings.');
+    });
+
+    it('should throw error when local proxy not connected', async () => {
+      vi.mocked(loadSettings).mockReturnValue({
+        gitProvider: 'github',
+        folder: 'todos',
+        aiProvider: 'local-proxy',
+        localProxy: {
+          endpoint: 'http://localhost:1234',
+          connectionStatus: 'disconnected',
+          isConnected: false,
+          proxyUuid: 'test-uuid',
+          proxyLocalToken: 'test-token',
+          userConfigured: true
+        }
+      });
+
+      await expect(generateInitialPlan('test')).rejects.toThrow('Local proxy is not connected. Please ensure your proxy is running and test the connection.');
+    });
+
+    it('should accept local proxy when properly configured and connected', async () => {
+      vi.mocked(loadSettings).mockReturnValue({
+        gitProvider: 'github',
+        folder: 'todos',
+        aiProvider: 'local-proxy',
+        localProxy: {
+          endpoint: 'http://localhost:1234',
+          connectionStatus: 'connected',
+          isConnected: true,
+          proxyUuid: 'test-uuid',
+          proxyLocalToken: 'test-token',
+          userConfigured: true
+        }
+      });
+      vi.mocked(fetchJsonWithTimeout).mockResolvedValue({ text: 'local proxy response' });
+
+      const result = await generateInitialPlan('test goal');
+
+      expect(result).toBe('local proxy response');
+      expect(fetchJsonWithTimeout).toHaveBeenCalledWith('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generateInitialPlan',
+          payload: { goal: 'test goal' },
+          provider: 'local-proxy',
+          apiKey: null,
+          model: 'local',
+          proxyUuid: 'test-uuid',
+          proxyLocalToken: 'test-token'
+        }),
+        timeout: 30000
+      });
+    });
+
     it('should throw error for invalid AI provider', async () => {
       vi.mocked(loadSettings).mockReturnValue({
         gitProvider: 'github',

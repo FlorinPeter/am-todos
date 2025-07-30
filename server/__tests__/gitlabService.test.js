@@ -1,5 +1,5 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import GitLabService from '../gitlabService.js';
+import GitLabService from '../services/gitlabService.js';
 
 // Mock fetch globally
 global.fetch = vi.fn();
@@ -498,18 +498,18 @@ describe('GitLabService', () => {
 
       expect(result).toEqual([
         {
-          sha: 'commit1',
-          message: 'feat: Add feature',
-          author: 'Test User',
-          date: '2023-01-01T00:00:00Z',
-          url: 'https://gitlab.com/user/repo/commit/commit1'
-        },
-        {
           sha: 'commit2',
           message: 'fix: Fix bug',
           author: 'Test User',
           date: '2023-01-02T00:00:00Z',
           url: 'https://gitlab.com/user/repo/commit/commit2'
+        },
+        {
+          sha: 'commit1',
+          message: 'feat: Add feature',
+          author: 'Test User',
+          date: '2023-01-01T00:00:00Z',
+          url: 'https://gitlab.com/user/repo/commit/commit1'
         }
       ]);
 

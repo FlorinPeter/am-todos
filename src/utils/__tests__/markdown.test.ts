@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, parseMarkdownWithMetadata, stringifyMarkdownWithMetadata, validatePriority } from '../markdown';
+import { parseMarkdownWithMetadata, stringifyMarkdownWithMetadata, validatePriority } from '../markdown';
 import { preprocessMarkdownCheckboxes, updateContentWithCheckboxStates, CheckboxData } from '../checkboxPreprocessor';
-import { TodoFrontmatter } from '../../types';
 import * as filenameMetadata from '../filenameMetadata';
 import logger from '../logger';
 
@@ -18,268 +17,12 @@ vi.mock('../logger', () => ({
 
 // Mock the filenameMetadata module
 vi.mock('../filenameMetadata', () => ({
-  parseFilenameMetadata: vi.fn(),
-  isNewFormatFilename: vi.fn(),
-  isLegacyFormatFilename: vi.fn(),
-  extractDateFromLegacyFilename: vi.fn(),
-  extractTitleFromLegacyFilename: vi.fn(),
+  parseFilenameMetadata: vi.fn()
 }));
 
 describe('markdown utils', () => {
-  describe('parseMarkdownWithFrontmatter', () => {
-    it('parses valid frontmatter and content', () => {
-      const input = `---
-title: 'Test Todo'
-createdAt: '2023-01-01T00:00:00.000Z'
-priority: 3
-isArchived: false
-chatHistory: []
----
-# Test Todo
 
-- [ ] Task 1
-- [x] Task 2`;
 
-      const result = parseMarkdownWithFrontmatter(input);
-
-      // In the new system, these are top-level fields
-      expect(result.title).toBe('Test Todo');
-      expect(result.createdAt).toBe('2023-01-01T00:00:00.000Z');
-      expect(result.priority).toBe(3);
-      expect(result.isArchived).toBe(false);
-      // Frontmatter now only contains tags
-      expect(result.frontmatter).toEqual({ tags: [] });
-      expect(result.markdownContent).toBe(`# Test Todo
-
-- [ ] Task 1
-- [x] Task 2`);
-    });
-
-    it('parses frontmatter with chat history', () => {
-      const input = `---
-title: 'Todo with Chat'
-createdAt: '2023-01-01T00:00:00.000Z'
-priority: 2
-isArchived: false
-chatHistory:
-  - role: 'user'
-    content: 'Add a task'
-  - role: 'assistant'
-    content: 'Task added'
----
-# Todo Content`;
-
-      const result = parseMarkdownWithFrontmatter(input);
-
-      // Chat history is no longer stored in frontmatter in the new system
-      // The new system uses simplified frontmatter with only tags
-      expect(result.frontmatter).toEqual({ tags: [] });
-      expect(result.markdownContent).toBe('# Todo Content');
-    });
-
-    it('handles content without frontmatter', () => {
-      const input = `# Regular Markdown
-
-This has no frontmatter.
-
-- [ ] Task 1`;
-
-      const result = parseMarkdownWithFrontmatter(input);
-
-      // New system always returns frontmatter object with tags
-      expect(result.frontmatter).toEqual({ tags: [] });
-      expect(result.markdownContent).toBe(input);
-    });
-
-    it('handles empty content', () => {
-      const input = '';
-
-      const result = parseMarkdownWithFrontmatter(input);
-
-      // New system always returns frontmatter object with tags
-      expect(result.frontmatter).toEqual({ tags: [] });
-      expect(result.markdownContent).toBe('');
-    });
-
-    it('handles malformed frontmatter gracefully', () => {
-      const input = `---
-title: 'Test Todo'
-invalid yaml: [unclosed bracket
-priority: 3
----
-# Content`;
-
-      // Mock logger.error to avoid noise in tests
-      const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
-
-      const result = parseMarkdownWithFrontmatter(input);
-
-      // New system always returns frontmatter object with tags even on error
-      expect(result.frontmatter).toEqual({ tags: [] });
-      expect(result.markdownContent).toBe(input);
-      expect(loggerSpy).toHaveBeenCalledWith(
-        'Error parsing YAML frontmatter:',
-        expect.any(Error)
-      );
-
-      loggerSpy.mockRestore();
-    });
-
-    it('handles frontmatter without closing delimiter', () => {
-      const input = `---
-title: 'Incomplete frontmatter'
-# This never closes`;
-
-      const result = parseMarkdownWithFrontmatter(input);
-
-      // New system always returns frontmatter object with tags
-      expect(result.frontmatter).toEqual({ tags: [] });
-      expect(result.markdownContent).toBe(input);
-    });
-
-    it('handles frontmatter with extra spaces and newlines', () => {
-      const input = `---
-title: 'Spaced Todo'
-createdAt: '2023-01-01T00:00:00.000Z'
-priority: 1
-isArchived: true
-chatHistory: []
----
-
-# Spaced Content
-
-With extra spacing.`;
-
-      const result = parseMarkdownWithFrontmatter(input);
-
-      // In the new system, these are top-level fields
-      expect(result.title).toBe('Spaced Todo');
-      expect(result.createdAt).toBe('2023-01-01T00:00:00.000Z');
-      expect(result.priority).toBe(1);
-      // isArchived defaults to false in the new system unless explicitly passed
-      expect(result.isArchived).toBe(false);
-      // Frontmatter now only contains tags
-      expect(result.frontmatter).toEqual({ tags: [] });
-      expect(result.markdownContent).toBe(`
-# Spaced Content
-
-With extra spacing.`);
-    });
-  });
-
-  describe('stringifyMarkdownWithFrontmatter', () => {
-    it('creates valid markdown with frontmatter', () => {
-      const frontmatter: TodoFrontmatter = {
-        tags: []
-      };
-      const content = `# Test Todo
-
-- [ ] Task 1
-- [x] Task 2`;
-
-      const result = stringifyMarkdownWithFrontmatter(frontmatter, content);
-
-      expect(result).toContain('---\n');
-      expect(result).toContain('tags: []\n');
-      expect(result).toContain('---\n');
-      expect(result).toContain(content);
-    });
-
-    it('handles frontmatter with tags', () => {
-      const frontmatter: TodoFrontmatter = {
-        tags: ['work', 'urgent']
-      };
-      const content = '# Chat Todo Content';
-
-      const result = stringifyMarkdownWithFrontmatter(frontmatter, content);
-
-      expect(result).toContain('tags:');
-      expect(result).toContain('- work');
-      expect(result).toContain('- urgent');
-      expect(result).toContain(content);
-    });
-
-    it('handles empty content', () => {
-      const frontmatter: TodoFrontmatter = {
-        tags: []
-      };
-
-      const result = stringifyMarkdownWithFrontmatter(frontmatter, '');
-
-      expect(result).toContain('---\n');
-      expect(result).toContain('tags: []\n');
-      expect(result.endsWith('---\n')).toBe(true);
-    });
-
-    it('preserves special characters in content', () => {
-      const frontmatter: TodoFrontmatter = {
-        tags: ['special']
-      };
-      const content = `# Special Characters
-
-- [ ] Task with "quotes"
-- [x] Task with 'single quotes'
-- [ ] Task with & ampersand
-- [ ] Task with <html> tags`;
-
-      const result = stringifyMarkdownWithFrontmatter(frontmatter, content);
-
-      expect(result).toContain(content);
-      expect(result).toContain('"quotes"');
-      expect(result).toContain("'single quotes'");
-      expect(result).toContain('& ampersand');
-      expect(result).toContain('<html>');
-    });
-  });
-
-  describe('round trip parsing', () => {
-    it('parses and stringifies back to equivalent content', () => {
-      const originalFrontmatter: TodoFrontmatter = {
-        tags: ['test', 'roundtrip']
-      };
-      const originalContent = `# Round Trip Test
-
-- [ ] Test task
-- [x] Completed task`;
-
-      // Stringify to markdown
-      const stringified = stringifyMarkdownWithFrontmatter(originalFrontmatter, originalContent);
-
-      // Parse it back
-      const parsed = parseMarkdownWithFrontmatter(stringified);
-
-      // In the new system, frontmatter only contains tags
-      expect(parsed.frontmatter).toEqual({ tags: ['test', 'roundtrip'] });
-      expect(parsed.markdownContent).toBe(originalContent);
-    });
-
-    it('handles complex frontmatter round trip', () => {
-      const complexFrontmatter: TodoFrontmatter = {
-        tags: ['complex', 'special-chars', 'test']
-      };
-      const complexContent = `# Complex Todo
-
-This todo has:
-- [ ] Multiple levels of **formatting**
-- [x] ~~Strikethrough~~ text
-- [ ] Links: [example](https://example.com)
-- [ ] Code: \`console.log("hello")\`
-
-\`\`\`javascript
-// Code block
-function test() {
-  return "complex";
-}
-\`\`\``;
-
-      const stringified = stringifyMarkdownWithFrontmatter(complexFrontmatter, complexContent);
-      const parsed = parseMarkdownWithFrontmatter(stringified);
-
-      // In the new system, frontmatter only contains tags
-      expect(parsed.frontmatter).toEqual({ tags: ['complex', 'special-chars', 'test'] });
-      expect(parsed.markdownContent).toBe(complexContent);
-    });
-  });
 
   describe('parseMarkdownWithMetadata', () => {
     beforeEach(() => {
@@ -288,7 +31,7 @@ function test() {
 
     describe('New format with filename metadata', () => {
       it('should parse new format with frontmatter and filename metadata', () => {
-        const filename = '2023-12-25-p2-christmas-tasks.md';
+        const filename = 'P2--2023-12-25--Christmas_Tasks.md';
         const content = `---
 tags: ['holiday', 'family']
 ---
@@ -299,7 +42,7 @@ tags: ['holiday', 'family']
         vi.mocked(filenameMetadata.parseFilenameMetadata).mockReturnValue({
           date: '2023-12-25',
           priority: 2,
-          title: 'Christmas Tasks',
+          title: 'Christmas_Tasks',
           displayTitle: 'Christmas Tasks',
         });
 
@@ -320,20 +63,20 @@ tags: ['holiday', 'family']
         expect(logger.log).toHaveBeenCalledWith('parseMarkdownWithMetadata: Using filename metadata', {
           date: '2023-12-25',
           priority: 2,
-          title: 'Christmas Tasks',
+          title: 'Christmas_Tasks',
           displayTitle: 'Christmas Tasks',
         });
       });
 
       it('should parse new format without frontmatter', () => {
-        const filename = '2023-12-25-p3-simple-task.md';
+        const filename = 'P3--2023-12-25--Simple_Task.md';
         const content = `# Simple Task
 Just some content without frontmatter`;
 
         vi.mocked(filenameMetadata.parseFilenameMetadata).mockReturnValue({
           date: '2023-12-25',
           priority: 3,
-          title: 'Simple Task',
+          title: 'Simple_Task',
           displayTitle: 'Simple Task',
         });
 
@@ -350,7 +93,7 @@ Just some content without frontmatter`;
       });
 
       it('should handle YAML parsing errors in new format', () => {
-        const filename = '2023-12-25-p1-invalid-yaml.md';
+        const filename = 'P1--2023-12-25--Invalid_YAML.md';
         const content = `---
 invalid: yaml: content: [
 ---
@@ -359,7 +102,7 @@ invalid: yaml: content: [
         vi.mocked(filenameMetadata.parseFilenameMetadata).mockReturnValue({
           date: '2023-12-25',
           priority: 1,
-          title: 'Invalid YAML',
+          title: 'Invalid_YAML',
           displayTitle: 'Invalid YAML',
         });
 
@@ -385,7 +128,7 @@ invalid: yaml: content: [
       });
 
       it('should handle non-array tags in frontmatter', () => {
-        const filename = '2023-12-25-p2-bad-tags.md';
+        const filename = 'P2--2023-12-25--Bad_Tags.md';
         const content = `---
 tags: 'single-tag'
 ---
@@ -394,7 +137,7 @@ tags: 'single-tag'
         vi.mocked(filenameMetadata.parseFilenameMetadata).mockReturnValue({
           date: '2023-12-25',
           priority: 2,
-          title: 'Bad Tags',
+          title: 'Bad_Tags',
           displayTitle: 'Bad Tags',
         });
 
@@ -404,143 +147,9 @@ tags: 'single-tag'
       });
     });
 
-    describe('Legacy format with partial filename metadata', () => {
-      it('should parse legacy format with frontmatter', () => {
-        const filename = '2023-12-25-legacy-task.md';
-        const content = `---
-title: 'Legacy Task'
-createdAt: '2023-12-25T10:30:00.000Z'
-priority: 4
-isArchived: false
----
-# Legacy content`;
 
-        vi.mocked(filenameMetadata.parseFilenameMetadata).mockReturnValue(null);
-        vi.mocked(filenameMetadata.isLegacyFormatFilename).mockReturnValue(true);
-        vi.mocked(filenameMetadata.extractDateFromLegacyFilename).mockReturnValue('2023-12-25');
-        vi.mocked(filenameMetadata.extractTitleFromLegacyFilename).mockReturnValue('Legacy Task');
-
-        const result = parseMarkdownWithMetadata(content, filename, false);
-
-        expect(result).toEqual({
-          title: 'Legacy Task',
-          createdAt: '2023-12-25T00:00:00.000Z',
-          priority: undefined, // legacyFrontmatter.priority is undefined because frontmatter is now { tags: [] }
-          isArchived: false,
-          frontmatter: { tags: [] },
-          markdownContent: '# Legacy content'
-        });
-
-        expect(logger.log).toHaveBeenCalledWith('parseMarkdownWithMetadata: Using legacy filename + frontmatter', filename);
-      });
-
-      it('should handle legacy format without frontmatter', () => {
-        const filename = '2023-12-25-legacy-simple.md';
-        const content = '# Simple legacy content';
-
-        vi.mocked(filenameMetadata.parseFilenameMetadata).mockReturnValue(null);
-        vi.mocked(filenameMetadata.isLegacyFormatFilename).mockReturnValue(true);
-        vi.mocked(filenameMetadata.extractDateFromLegacyFilename).mockReturnValue('2023-12-25');
-        vi.mocked(filenameMetadata.extractTitleFromLegacyFilename).mockReturnValue('Legacy Simple');
-
-        const result = parseMarkdownWithMetadata(content, filename, false);
-
-        expect(result).toEqual({
-          title: 'Legacy Simple',
-          createdAt: '2023-12-25T00:00:00.000Z',
-          priority: undefined, // legacyFrontmatter.priority is undefined because frontmatter is now { tags: [] }
-          isArchived: false,
-          frontmatter: { tags: [] },
-          markdownContent: '# Simple legacy content'
-        });
-      });
-
-      it('should handle legacy format without date extraction', () => {
-        const filename = 'legacy-no-date.md';
-        const content = '# Content without date';
-
-        vi.mocked(filenameMetadata.parseFilenameMetadata).mockReturnValue(null);
-        vi.mocked(filenameMetadata.isLegacyFormatFilename).mockReturnValue(true);
-        vi.mocked(filenameMetadata.extractDateFromLegacyFilename).mockReturnValue(null);
-        vi.mocked(filenameMetadata.extractTitleFromLegacyFilename).mockReturnValue('Legacy No Date');
-
-        const mockDate = '2023-12-25T15:30:00.000Z';
-        vi.spyOn(Date.prototype, 'toISOString').mockReturnValue(mockDate);
-
-        const result = parseMarkdownWithMetadata(content, filename, false);
-
-        expect(result).toEqual({
-          title: 'Legacy No Date',
-          createdAt: undefined, // legacyFrontmatter.createdAt is undefined because frontmatter is now { tags: [] }
-          priority: undefined, // legacyFrontmatter.priority is undefined because frontmatter is now { tags: [] }
-          isArchived: false,
-          frontmatter: { tags: [] },
-          markdownContent: '# Content without date'
-        });
-      });
-
-      it('should handle legacy format without title extraction', () => {
-        const filename = 'untitled-legacy.md';
-        const content = '# Some content';
-
-        vi.mocked(filenameMetadata.parseFilenameMetadata).mockReturnValue(null);
-        vi.mocked(filenameMetadata.isLegacyFormatFilename).mockReturnValue(true);
-        vi.mocked(filenameMetadata.extractDateFromLegacyFilename).mockReturnValue('2023-12-25');
-        vi.mocked(filenameMetadata.extractTitleFromLegacyFilename).mockReturnValue(null);
-
-        const result = parseMarkdownWithMetadata(content, filename, false);
-
-        expect(result).toEqual({
-          title: 'Untitled',
-          createdAt: '2023-12-25T00:00:00.000Z',
-          priority: undefined, // legacyFrontmatter.priority is undefined because frontmatter is now { tags: [] }
-          isArchived: false,
-          frontmatter: { tags: [] },
-          markdownContent: '# Some content'
-        });
-      });
-
-      it('should use frontmatter createdAt when no legacy date available', () => {
-        const filename = 'legacy-frontmatter-date.md';
-        const content = `---
-title: 'Task with frontmatter date'
-createdAt: '2023-12-31T23:59:59.000Z'
-priority: 2
----
-# Content`;
-
-        vi.mocked(filenameMetadata.parseFilenameMetadata).mockReturnValue(null);
-        vi.mocked(filenameMetadata.isLegacyFormatFilename).mockReturnValue(true);
-        vi.mocked(filenameMetadata.extractDateFromLegacyFilename).mockReturnValue(null);
-        vi.mocked(filenameMetadata.extractTitleFromLegacyFilename).mockReturnValue('Task with frontmatter date');
-
-        const result = parseMarkdownWithMetadata(content, filename, false);
-
-        expect(result.createdAt).toBe(undefined); // legacyFrontmatter.createdAt is undefined because frontmatter is now { tags: [] }
-      });
-
-      it('should use frontmatter title when legacy title not available', () => {
-        const filename = 'legacy-frontmatter-title.md';
-        const content = `---
-title: 'Frontmatter Title'
-createdAt: '2023-12-25T10:00:00.000Z'
-priority: 1
----
-# Content`;
-
-        vi.mocked(filenameMetadata.parseFilenameMetadata).mockReturnValue(null);
-        vi.mocked(filenameMetadata.isLegacyFormatFilename).mockReturnValue(true);
-        vi.mocked(filenameMetadata.extractDateFromLegacyFilename).mockReturnValue('2023-12-25');
-        vi.mocked(filenameMetadata.extractTitleFromLegacyFilename).mockReturnValue(null);
-
-        const result = parseMarkdownWithMetadata(content, filename, false);
-
-        expect(result.title).toBe('Untitled'); // legacyFrontmatter.title is undefined, so falls back to 'Untitled'
-      });
-    });
-
-    describe('Fallback to pure frontmatter parsing', () => {
-      it('should fallback to frontmatter parsing for unknown formats', () => {
+    describe('Non-matching format handling', () => {
+      it('should return null for unknown formats', () => {
         const filename = 'unknown-format.md';
         const content = `---
 title: 'Fallback Task'
@@ -550,20 +159,12 @@ priority: 2
 # Fallback content`;
 
         vi.mocked(filenameMetadata.parseFilenameMetadata).mockReturnValue(null);
-        vi.mocked(filenameMetadata.isLegacyFormatFilename).mockReturnValue(false);
 
         const result = parseMarkdownWithMetadata(content, filename, false);
 
-        expect(result).toEqual({
-          title: 'Fallback Task',
-          createdAt: '2023-12-25T12:00:00.000Z',
-          priority: 2,
-          isArchived: false,
-          frontmatter: { tags: [] },
-          markdownContent: '# Fallback content'
-        });
+        expect(result).toBeNull();
 
-        expect(logger.log).toHaveBeenCalledWith('parseMarkdownWithMetadata: Falling back to pure frontmatter parsing', filename);
+        expect(logger.log).toHaveBeenCalledWith('parseMarkdownWithMetadata: File does not match new format, ignoring', filename);
       });
     });
   });
@@ -644,51 +245,6 @@ tags:
     });
   });
 
-  describe('Legacy Filename Without Frontmatter Coverage (lines 108-116)', () => {
-    it('should handle legacy filename format without frontmatter (lines 108-116)', () => {
-      const filename = '2023-12-25-legacy-no-frontmatter.md';
-      const content = '# Simple legacy content without frontmatter';
-
-      // Mock the filename metadata functions to trigger legacy path
-      vi.mocked(filenameMetadata.parseFilenameMetadata).mockReturnValue(null);
-      vi.mocked(filenameMetadata.isLegacyFormatFilename).mockReturnValue(true);
-      vi.mocked(filenameMetadata.extractDateFromLegacyFilename).mockReturnValue('2023-12-25');
-      vi.mocked(filenameMetadata.extractTitleFromLegacyFilename).mockReturnValue('Legacy No Frontmatter');
-
-      const result = parseMarkdownWithMetadata(content, filename, false);
-
-      // This triggers legacy format with empty frontmatter (lines 98-105)
-      expect(result).toEqual({
-        title: 'Legacy No Frontmatter', // legacyTitle
-        createdAt: '2023-12-25T00:00:00.000Z', // legacyDate + 'T00:00:00.000Z'
-        priority: undefined, // legacyData.priority is undefined (line 101)
-        isArchived: false,
-        frontmatter: { tags: [] }, // Line 103
-        markdownContent: '# Simple legacy content without frontmatter' // Line 104
-      });
-    });
-
-
-    it('should use fallback values when legacy extraction fails (lines 109-110)', () => {
-      const filename = 'malformed-legacy.md';
-      const content = '# Content with missing metadata';
-
-      // Mock to trigger legacy path with no extracted data
-      vi.mocked(filenameMetadata.parseFilenameMetadata).mockReturnValue(null);
-      vi.mocked(filenameMetadata.isLegacyFormatFilename).mockReturnValue(true);
-      vi.mocked(filenameMetadata.extractDateFromLegacyFilename).mockReturnValue(null); // No date
-      vi.mocked(filenameMetadata.extractTitleFromLegacyFilename).mockReturnValue(null); // No title
-
-      const result = parseMarkdownWithMetadata(content, filename, false);
-
-      // Goes through if block (lines 98-105) since frontmatter object exists
-      expect(result.title).toBe('Untitled'); // legacyTitle || legacyData.title || 'Untitled' (line 99)
-      expect(result.createdAt).toBeUndefined(); // legacyDate is null, legacyData.createdAt is undefined (line 100)
-      expect(result.priority).toBeUndefined(); // legacyData.priority is undefined (line 101)
-      expect(result.isArchived).toBe(false);
-      expect(result.frontmatter).toEqual({ tags: [] });
-    });
-  });
 
   describe('Checkbox Preprocessor', () => {
     describe('preprocessMarkdownCheckboxes', () => {

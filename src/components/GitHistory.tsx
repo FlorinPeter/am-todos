@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getFileHistory, getFileAtCommit } from '../services/gitService';
-import { parseMarkdownWithFrontmatter } from '../utils/markdown';
-import { parseFilenameMetadata, parseLegacyFilenameMetadata, FileMetadata } from '../utils/filenameMetadata';
+import yaml from 'js-yaml';
+import { parseFilenameMetadata, FileMetadata } from '../utils/filenameMetadata';
 import { TodoFrontmatter } from '../types';
 
 interface GitCommit {
@@ -56,8 +56,20 @@ const GitHistory: React.FC<GitHistoryProps> = ({
       return cached.frontmatter;
     }
     
-    // Parse and cache the result
-    const { frontmatter } = parseMarkdownWithFrontmatter(content);
+    // Parse frontmatter and cache the result
+    const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+    let frontmatter: TodoFrontmatter = { tags: [] };
+    
+    if (frontmatterMatch) {
+      try {
+        const rawFrontmatter = yaml.load(frontmatterMatch[1]) as any;
+        frontmatter = {
+          tags: Array.isArray(rawFrontmatter?.tags) ? rawFrontmatter.tags : []
+        };
+      } catch (error) {
+        console.error('Error parsing frontmatter in GitHistory:', error);
+      }
+    }
     frontmatterCache.set(cacheKey, {
       frontmatter,
       timestamp: Date.now()
@@ -87,15 +99,8 @@ const GitHistory: React.FC<GitHistoryProps> = ({
     }
     
     // Extract metadata from filename
-    let metadata: FileMetadata | null;
-    
-    // Try new format first
-    metadata = parseFilenameMetadata(filePath);
-    
-    // Fall back to legacy format if new format fails
-    if (!metadata) {
-      metadata = parseLegacyFilenameMetadata(filePath);
-    }
+    // Only support new format P{priority}--{date}--{title}.md
+    const metadata = parseFilenameMetadata(filePath);
     
     // Cache the result
     metadataCache.set(cacheKey, {
@@ -122,9 +127,11 @@ const GitHistory: React.FC<GitHistoryProps> = ({
       if (commit.contentLoaded) return commit; // Already loaded
       
       try {
-        const fileData = await getFileAtCommit(filePath, commit.sha);
+        // Use the historical file path stored in the commit object, fallback to current path
+        const historicalPath = commit.filePath || filePath;
+        const fileData = await getFileAtCommit(historicalPath, commit.sha);
         const frontmatter = getCachedFrontmatter(fileData.content, commit.sha);
-        const metadata = getCachedMetadata(filePath);
+        const metadata = getCachedMetadata(historicalPath);
         
         return {
           ...commit,
@@ -191,7 +198,10 @@ const GitHistory: React.FC<GitHistoryProps> = ({
       // Enhanced: Ensure frontmatter is loaded for this commit
       await loadFrontmatterForCommit(commitSha);
       
-      const fileData = await getFileAtCommit(filePath, commitSha);
+      // Use the historical file path from the selected commit, fallback to current path
+      const selectedCommitObj = commits.find(c => c.sha === commitSha);
+      const historicalPath = selectedCommitObj?.filePath || filePath;
+      const fileData = await getFileAtCommit(historicalPath, commitSha);
       
       // Store the raw content for restoration
       setRawContent(fileData.content);
@@ -215,7 +225,8 @@ const GitHistory: React.FC<GitHistoryProps> = ({
       }
       
       // Parse and display only the markdown content (without frontmatter)
-      const { markdownContent } = parseMarkdownWithFrontmatter(fileData.content);
+      const frontmatterMatch = fileData.content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+      const markdownContent = frontmatterMatch ? frontmatterMatch[2] : fileData.content;
       setPreviewContent(markdownContent);
       
       // Auto-switch to preview on mobile after selecting a commit

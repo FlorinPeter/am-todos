@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { loadSettings, encodeSettingsToUrl } from '../utils/localStorage';
+import type { GeneralSettings } from '../utils/localStorage';
 import QRCode from 'qrcode';
 import logger from '../utils/logger';
 
@@ -24,7 +25,7 @@ const SettingsSharing: React.FC<SettingsSharingProps> = ({ isVisible, onClose })
   const generateShareUrl = async () => {
     setIsGenerating(true);
     try {
-      const settings = loadSettings();
+      const settings: GeneralSettings | null = loadSettings();
       if (!settings) {
         logger.error('No settings found to share');
         return;

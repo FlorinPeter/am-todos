@@ -22,7 +22,7 @@ describe('App Component - Basic Feature Coverage', () => {
   it('shows GitHub settings when not configured', async () => {
     render(<App />);
     await waitFor(() => {
-      // The app now shows "Application Setup" in both welcome header and GitSettings component
+      // The app now shows "Application Setup" in both welcome header and GeneralSettings component
       expect(screen.getAllByText(/application setup/i)).toHaveLength(2);
     });
   });

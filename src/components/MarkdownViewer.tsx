@@ -7,12 +7,14 @@ import MarkdownCheckbox from './MarkdownCheckbox';
 import { processChatMessage } from '../services/aiService';
 import { saveDraft, getDraft, clearDraft, TodoDraft } from '../utils/localStorage';
 import { preprocessMarkdownCheckboxes, updateContentWithCheckboxStates, CheckboxData } from '../utils/checkboxPreprocessor';
-import { ChatMessage } from '../types';
+import { ChatMessage, TodoFrontmatter } from '../types';
+import { stringifyMarkdownWithMetadata } from '../utils/markdown';
 import logger from '../utils/logger';
 
 
 interface MarkdownViewerProps {
   content: string;
+  frontmatter: TodoFrontmatter; // Add frontmatter for reconstructing complete content
   chatHistory: ChatMessage[];
   onMarkdownChange: (newContent: string) => void;
   onChatHistoryChange: (newChatHistory: ChatMessage[]) => void;
@@ -23,12 +25,13 @@ interface MarkdownViewerProps {
 
 const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ 
   content, 
+  frontmatter,
   chatHistory, 
   onMarkdownChange, 
   onChatHistoryChange,
   filePath,
   taskId,
-  todoId
+  todoId,
 }) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editContent, setEditContent] = useState(content);
@@ -145,6 +148,11 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
 
 
 
+  // Helper function to reconstruct complete content with frontmatter for AI processing
+  const reconstructCompleteContent = React.useCallback((markdownContent: string) => {
+    return stringifyMarkdownWithMetadata(frontmatter, markdownContent);
+  }, [frontmatter]);
+
   // Memoized chat message handler for performance
   const handleChatMessage = React.useCallback(async (
     message: string, 
@@ -157,22 +165,48 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
       content: msg.content
     }));
     
-    const response = await processChatMessage(message, currentContent, historyForAI);
+    // Reconstruct complete content with frontmatter
+    const completeContent = reconstructCompleteContent(currentContent);
+    const response = await processChatMessage(message, completeContent, historyForAI);
     return response;
+  }, [reconstructCompleteContent]);
+
+  // Helper function to strip frontmatter from AI responses
+  const stripFrontmatter = React.useCallback((content: string): string => {
+    // Check if content starts with frontmatter (handle both "---\n" and "--- \n")
+    if (content.startsWith('---\n') || content.startsWith('--- \n')) {
+      // Find the closing frontmatter delimiter
+      const frontmatterEndPattern = /\n---\s*\n/;
+      const match = content.match(frontmatterEndPattern);
+      if (match) {
+        // Return content after the closing frontmatter delimiter
+        const endIndex = match.index! + match[0].length;
+        return content.substring(endIndex);
+      }
+    }
+    return content;
   }, []);
 
   const handleContentUpdate = (newContent: string) => {
+    // Strip frontmatter from AI responses before updating content
+    // AI responses may include frontmatter, but the editor should only show markdown
+    const contentToUpdate = stripFrontmatter(newContent);
+    
+    if (contentToUpdate !== newContent) {
+      logger.log('AI Chat: Stripped frontmatter from AI response');
+    }
+
     if (isEditMode) {
       // In edit mode, update the edit content without saving
-      setEditContent(newContent);
-      setHasUnsavedChanges(newContent !== content);
+      setEditContent(contentToUpdate);
+      setHasUnsavedChanges(contentToUpdate !== content);
     } else {
       // In view mode, switch to edit mode and update the edit content
       // This ensures AI updates are treated as manual edits and get drafted
       setIsEditMode(true);
-      setEditContent(newContent);
-      setViewContent(newContent);
-      setHasUnsavedChanges(newContent !== content);
+      setEditContent(contentToUpdate);
+      setViewContent(contentToUpdate);
+      setHasUnsavedChanges(contentToUpdate !== content);
     }
     // No chat history saving - AI chat is now stateless
   };
@@ -410,7 +444,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
                       return children.map(extractTextFromChildren).join('');
                     }
                     if (children && typeof children === 'object') {
-                      if (children.props && children.props.children !== undefined) {
+                      if (children.props?.children !== undefined) {
                         return extractTextFromChildren(children.props.children);
                       }
                       if (children.children !== undefined) {

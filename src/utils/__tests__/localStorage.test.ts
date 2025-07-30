@@ -33,10 +33,11 @@ import logger from '../logger';
 type GitHubSettings = {
   gitProvider: 'github' | 'gitlab';
   folder: string;
-  aiProvider?: 'gemini' | 'openrouter';
+  aiProvider?: 'gemini' | 'openrouter' | 'local-proxy';
   geminiApiKey?: string;
   openRouterApiKey?: string;
   aiModel?: string;
+  mainServerToken?: string;  // New field for local proxy
   github?: {
     pat: string;
     owner: string;
@@ -48,6 +49,15 @@ type GitHubSettings = {
     projectId: string;
     token: string;
     branch?: string;
+  };
+  localProxy?: {  // New field for local proxy configuration
+    endpoint?: string;
+    isConnected?: boolean;
+    connectionStatus?: 'disconnected' | 'connecting' | 'connected' | 'error';
+    proxyUuid?: string;
+    proxyLocalToken?: string;
+    userConfigured?: boolean;
+    lastHeartbeat?: string;
   };
   // Legacy fields for backward compatibility
   pat?: string;
@@ -402,7 +412,7 @@ describe('localStorage functions', () => {
         saveSettings(mockGitHubSettings);
         
         expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
-          'githubSettings',
+          'generalSettings',
           JSON.stringify(mockGitHubSettings)
         );
       });
@@ -411,7 +421,7 @@ describe('localStorage functions', () => {
         saveSettings(mockGitLabSettings);
         
         expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
-          'githubSettings',
+          'generalSettings',
           JSON.stringify(mockGitLabSettings)
         );
       });
@@ -439,7 +449,7 @@ describe('localStorage functions', () => {
       });
 
       it('loads and returns stored GitHub settings with defaults', () => {
-        store['githubSettings'] = JSON.stringify(mockGitHubSettings);
+        store['generalSettings'] = JSON.stringify(mockGitHubSettings);
         
         const settings = loadSettings();
         expect(settings).toEqual(mockGitHubSettings);
@@ -452,7 +462,7 @@ describe('localStorage functions', () => {
           repo: 'repo'
         };
         
-        store['githubSettings'] = JSON.stringify(incompleteSettings);
+        store['generalSettings'] = JSON.stringify(incompleteSettings);
         
         const settings = loadSettings();
         expect(settings).toEqual({
@@ -479,7 +489,7 @@ describe('localStorage functions', () => {
           aiProvider: 'openrouter'
         };
         
-        store['githubSettings'] = JSON.stringify(openRouterSettings);
+        store['generalSettings'] = JSON.stringify(openRouterSettings);
         
         const settings = loadSettings();
         expect(settings?.aiModel).toBe('anthropic/claude-3.5-sonnet');
@@ -506,7 +516,7 @@ describe('localStorage functions', () => {
 
       it('handles corrupted JSON data gracefully', () => {
         const loggerSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
-        store['githubSettings'] = 'invalid json';
+        store['generalSettings'] = 'invalid json';
         
         const settings = loadSettings();
         expect(settings).toBeNull();
@@ -529,7 +539,7 @@ describe('localStorage functions', () => {
           token: 'gitlab-token'
         };
         
-        store['githubSettings'] = JSON.stringify(mixedSettings);
+        store['generalSettings'] = JSON.stringify(mixedSettings);
         
         const settings = loadSettings();
         expect(settings?.gitProvider).toBe('github');
@@ -552,7 +562,7 @@ describe('localStorage functions', () => {
           token: 'gitlab-token'
         };
         
-        store['githubSettings'] = JSON.stringify(mixedSettings);
+        store['generalSettings'] = JSON.stringify(mixedSettings);
         
         const settings = loadSettings();
         expect(settings?.gitProvider).toBe('gitlab');
@@ -573,7 +583,7 @@ describe('localStorage functions', () => {
           gitProvider: 'github'
         };
         
-        store['githubSettings'] = JSON.stringify(urlSettings);
+        store['generalSettings'] = JSON.stringify(urlSettings);
         
         const settings = loadSettings();
         expect(settings?.folder).toBe('tests');
@@ -1870,6 +1880,7 @@ describe('localStorage functions', () => {
           geminiApiKey: 'gemini-key-test',
           openRouterApiKey: '',
           aiModel: 'gemini-1.5-pro',
+          mainServerToken: '',
           github: {
             pat: 'github-pat-test',
             owner: 'test-owner',
@@ -1904,6 +1915,7 @@ describe('localStorage functions', () => {
           geminiApiKey: '',
           openRouterApiKey: 'openrouter-key-test',
           aiModel: 'anthropic/claude-3.5-sonnet',
+          mainServerToken: '',
           gitlab: {
             instanceUrl: 'https://gitlab.example.com',
             projectId: '12345',

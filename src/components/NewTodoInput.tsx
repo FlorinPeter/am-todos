@@ -112,6 +112,7 @@ const NewTodoInput: React.FC<NewTodoInputProps> = ({ onGoalSubmit, onCancel }) =
         </div>
       )}
 
+
       {/* Submit Buttons */}
       <div className="flex space-x-3 mt-6">
         <button 

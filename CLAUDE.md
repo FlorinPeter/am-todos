@@ -30,7 +30,8 @@ This is "Agentic Markdown Todos" - an AI-powered todo application that transform
 ```
 
 **Hot Reload**: Both servers support automatic reloading on code changes.  
-**Proxy**: Frontend automatically forwards `/api` requests to backend.
+**Proxy**: Frontend automatically forwards `/api` requests to backend.  
+**Local AI Proxy**: Development mode includes a test main server token for confidential todos setup.
 
 ## Development vs Production Differences
 
@@ -94,7 +95,7 @@ To test production build locally:
 
 ### File Structure Patterns
 - `src/components/`: React components
-  - `GitSettings.tsx`: Configuration interface for GitHub/GitLab PAT and repository
+  - `GeneralSettings.tsx`: Configuration interface for GitHub/GitLab PAT and repository
   - `SettingsSharing.tsx`: Configuration sharing modal with QR codes and copyable links
   - `MarkdownViewer.tsx`: Interactive markdown display with AI chat integration
   - `TodoSidebar.tsx`: Priority-sorted task list with mobile hamburger menu
@@ -182,6 +183,12 @@ isArchived: false
 - **Configuration Sharing**: Complete settings encoded in Base64 URLs for cross-device sharing
 - **Folder Support**: Defaults to 'todos' for backward compatibility, can be changed to any folder name
 - **Proxy**: Frontend configured to proxy `/api` requests to `localhost:3001`
+- **Local AI Proxy (Development)**: `hack/restart-dev.sh` includes test main server token `sk-ms-dev-12345...` for local AI proxy development
+- **Local AI Configuration**: Environment variables for proxy mode:
+  - `LOCAL_AI_TEMPERATURE`: Controls AI response randomness (default: 0.7, range: 0.0-2.0)  
+  - `LOCAL_AI_MAX_TOKENS`: Maximum response length (default: 2000)
+  - `LOCAL_AI_ENDPOINT`: Local AI service URL (e.g., `http://localhost:11434` for Ollama)
+  - `LOCAL_AI_MODEL`: Model name (e.g., `mistralai/mistral-small-3.2`)
 
 ### Technology Stack Specifics {#technology-stack-specifics}
 - **React 19.1.0** with TypeScript and hooks-based state management

@@ -128,6 +128,7 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
               <option value={5}>P5</option>
             </select>
 
+
             {/* Archive Toggle */}
             <button
               onClick={() => onArchiveToggle(selectedTodo.id)}
@@ -158,6 +159,7 @@ const TodoEditor: React.FC<TodoEditorProps> = ({
       <div className="flex-1 p-2 sm:p-4 overflow-auto">
         <MarkdownViewer
           content={selectedTodo.content}
+          frontmatter={selectedTodo.frontmatter}
           chatHistory={[]}
           onMarkdownChange={(newContent) => onTodoUpdate(selectedTodo.id, newContent, selectedTodo.path)}
           onChatHistoryChange={() => {}}

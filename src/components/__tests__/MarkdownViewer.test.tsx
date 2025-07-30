@@ -29,6 +29,7 @@ vi.mock('../../utils/logger', () => ({
 
 const mockProps = {
   content: '# Test Task\n\n- [ ] First item\n- [ ] Second item',
+  frontmatter: { tags: [] },
   chatHistory: [],
   onMarkdownChange: vi.fn(),
   onChatHistoryChange: vi.fn(),
@@ -155,6 +156,7 @@ const example = 'test';
     it('renders with minimal props', () => {
       const minimalProps = {
         content: 'Simple content',
+        frontmatter: { tags: [] },
         chatHistory: [],
         onMarkdownChange: vi.fn(),
         onChatHistoryChange: vi.fn(),
@@ -577,6 +579,7 @@ Regular content here.`;
     it('handles missing optional props gracefully', () => {
       const minimalProps = {
         content: 'Basic content',
+        frontmatter: { tags: [] },
         chatHistory: [],
         onMarkdownChange: vi.fn(),
         onChatHistoryChange: vi.fn()

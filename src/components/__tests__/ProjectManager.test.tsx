@@ -48,10 +48,12 @@ describe('ProjectManager', () => {
   it('renders for GitHub settings', () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'todos'
+      folder: 'todos',
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     });
 
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
@@ -64,10 +66,12 @@ describe('ProjectManager', () => {
   it('renders for GitLab settings', () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'gitlab',
-      instanceUrl: 'https://gitlab.com',
-      projectId: '12345',
-      token: 'token',
-      folder: 'work-tasks'
+      folder: 'work-tasks',
+      gitlab: {
+        instanceUrl: 'https://gitlab.com',
+        projectId: '12345',
+        token: 'token'
+      }
     });
 
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
@@ -79,10 +83,12 @@ describe('ProjectManager', () => {
   it('loads project folders on mount', async () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'todos'
+      folder: 'todos',
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     });
     mockListProjectFolders.mockResolvedValue(['todos', 'work-tasks', 'personal']);
 
@@ -96,10 +102,12 @@ describe('ProjectManager', () => {
   it('shows project switcher when multiple folders available', async () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'todos'
+      folder: 'todos',
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     });
     mockListProjectFolders.mockResolvedValue(['todos', 'work-tasks', 'personal']);
 
@@ -127,10 +135,12 @@ describe('ProjectManager', () => {
   it('handles project switching', async () => {
     const initialSettings = {
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'todos'
+      folder: 'todos',
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     };
     mockLoadSettings.mockReturnValue(initialSettings);
     mockListProjectFolders.mockResolvedValue(['todos', 'work-tasks']);
@@ -165,10 +175,12 @@ describe('ProjectManager', () => {
   it('opens create project modal', () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'todos'
+      folder: 'todos',
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     });
 
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
@@ -183,10 +195,12 @@ describe('ProjectManager', () => {
   it('creates new project successfully', async () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'todos'
+      folder: 'todos',
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     });
     mockListProjectFolders
       .mockResolvedValueOnce(['todos'])
@@ -216,10 +230,12 @@ describe('ProjectManager', () => {
   it('handles create project error with known error object', async () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'todos'
+      folder: 'todos',
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     });
     mockCreateProjectFolder.mockRejectedValue(new Error('Creation failed'));
 
@@ -245,10 +261,12 @@ describe('ProjectManager', () => {
   it('handles create project with unknown error type (lines 203-204)', async () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'todos'
+      folder: 'todos',
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     });
 
     // Mock createProjectFolder to throw non-Error object (unknown error)
@@ -276,10 +294,12 @@ describe('ProjectManager', () => {
   it('disables create button with empty name', () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'todos'
+      folder: 'todos',
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     });
 
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
@@ -293,10 +313,12 @@ describe('ProjectManager', () => {
   it('closes modal on close button click', () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'todos'
+      folder: 'todos',
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     });
 
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
@@ -311,10 +333,12 @@ describe('ProjectManager', () => {
   it('handles folder loading error gracefully', async () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'todos'
+      folder: 'todos',
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     });
     mockListProjectFolders.mockRejectedValue(new Error('Network error'));
 
@@ -331,10 +355,12 @@ describe('ProjectManager', () => {
   it('shows project switcher when multiple folders exist', async () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'todos'
+      folder: 'todos',
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     });
     mockListProjectFolders.mockResolvedValue(['todos', 'work-tasks', 'personal']);
 
@@ -354,10 +380,12 @@ describe('ProjectManager', () => {
   it('hides project switcher when only one folder exists', async () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'todos'
+      folder: 'todos',
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     });
     mockListProjectFolders.mockResolvedValue(['todos']); // Only one folder
 
@@ -378,10 +406,12 @@ describe('ProjectManager', () => {
   it('disables project switcher during loading', async () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'todos'
+      folder: 'todos',
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     });
     
     // Simulate delayed response
@@ -412,10 +442,12 @@ describe('ProjectManager', () => {
   it('closes modal when switching projects in modal switcher', async () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'todos'
+      folder: 'todos',
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     });
     mockListProjectFolders.mockResolvedValue(['todos', 'work-tasks']);
 
@@ -456,10 +488,12 @@ describe('ProjectManager', () => {
   it('shows mobile view correctly', () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'todos'
+      folder: 'todos',
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     });
 
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
@@ -475,10 +509,12 @@ describe('ProjectManager', () => {
   it('handles GitLab force loading', () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'gitlab',
-      instanceUrl: 'https://gitlab.com',
-      projectId: '12345',
-      token: 'token',
-      folder: 'todos'
+      folder: 'todos',
+      gitlab: {
+        instanceUrl: 'https://gitlab.com',
+        projectId: '12345',
+        token: 'token'
+      }
     });
 
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
@@ -490,10 +526,12 @@ describe('ProjectManager', () => {
   it('validates project name pattern', () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'todos'
+      folder: 'todos',
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     });
 
     render(<ProjectManager onProjectChanged={mockOnProjectChanged} />);
@@ -507,10 +545,12 @@ describe('ProjectManager', () => {
   it('handles storage change events for cross-tab updates (lines 75-78)', async () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'todos'
+      folder: 'todos',
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     });
     mockListProjectFolders.mockResolvedValue(['todos']);
 
@@ -527,16 +567,18 @@ describe('ProjectManager', () => {
     // Update mockLoadSettings to return the new folder when called again
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'work-tasks' // Changed folder
+      folder: 'work-tasks', // Changed folder
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     });
     mockListProjectFolders.mockResolvedValue(['work-tasks']);
 
     // Simulate a storage event for settings change
     const storageEvent = new StorageEvent('storage', {
-      key: 'am-todos-settings',
+      key: 'generalSettings',
       newValue: JSON.stringify({
         gitProvider: 'github',
         pat: 'token',
@@ -566,10 +608,12 @@ describe('ProjectManager', () => {
   it('ignores storage events for non-settings keys (line 75)', async () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'todos'
+      folder: 'todos',
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     });
     mockListProjectFolders.mockResolvedValue(['todos']);
 
@@ -601,10 +645,12 @@ describe('ProjectManager', () => {
   it('clears existing timeout when new settings change occurs (lines 128-130)', async () => {
     mockLoadSettings.mockReturnValue({
       gitProvider: 'github',
-      pat: 'token',
-      owner: 'user',
-      repo: 'repo',
-      folder: 'todos'
+      folder: 'todos',
+      github: {
+        pat: 'token',
+        owner: 'user',
+        repo: 'repo'
+      }
     });
     mockListProjectFolders.mockResolvedValue(['todos']);
 

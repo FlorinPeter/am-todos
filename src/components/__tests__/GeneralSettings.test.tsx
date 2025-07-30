@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import GitSettings from '../GitSettings';
+import GeneralSettings from '../GeneralSettings';
 
 // Mock localStorage
 vi.mock('../../utils/localStorage', () => ({
@@ -40,7 +40,7 @@ vi.mock('../VersionInfo', () => ({
   default: () => <div data-testid="version-info">Version Info Component</div>,
 }));
 
-describe('GitSettings - Focused Coverage Tests', () => {
+describe('GeneralSettings - Focused Coverage Tests', () => {
   const mockOnSettingsSaved = vi.fn();
   let mockLoadSettings: ReturnType<typeof vi.fn>;
   let mockSaveSettings: ReturnType<typeof vi.fn>;
@@ -98,7 +98,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
       
       mockLoadSettings.mockReturnValue(savedSettings);
 
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Verify GitLab provider is selected
       expect(screen.getByLabelText('Choose Your Git Provider')).toHaveValue('gitlab');
@@ -118,7 +118,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
     it('should use default values when no saved settings exist', () => {
       mockLoadSettings.mockReturnValue(null);
 
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Should use default values
       expect(screen.getByLabelText('Choose Your Git Provider')).toHaveValue('github');
@@ -129,7 +129,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
 
   describe('Provider switching and conditional rendering', () => {
     it('should show GitHub configuration when GitHub is selected', () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // GitHub should be selected by default
       expect(screen.getByLabelText('Choose Your Git Provider')).toHaveValue('github');
@@ -146,7 +146,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
     });
 
     it('should show GitLab configuration when GitLab is selected', () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Switch to GitLab
       const providerSelect = screen.getByLabelText('Choose Your Git Provider');
@@ -164,7 +164,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
     });
 
     it('should show Gemini configuration when Gemini is selected', () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Gemini should be selected by default
       expect(screen.getByLabelText('Google Gemini API Key')).toBeInTheDocument();
@@ -175,7 +175,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
     });
 
     it('should show OpenRouter configuration when OpenRouter is selected', () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Switch to OpenRouter
       const aiProviderSelect = screen.getByLabelText('AI Provider');
@@ -188,11 +188,33 @@ describe('GitSettings - Focused Coverage Tests', () => {
       // Should show OpenRouter-specific placeholder
       expect(screen.getByPlaceholderText('anthropic/claude-3.5-sonnet')).toBeInTheDocument();
     });
+
+    it('should show Local Proxy configuration when Local Proxy is selected', async () => {
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
+
+      // Switch to Local Proxy
+      const aiProviderSelect = screen.getByLabelText('AI Provider');
+      fireEvent.change(aiProviderSelect, { target: { value: 'local-proxy' } });
+
+      // Wait for Local Proxy fields to appear
+      await waitFor(() => {
+        expect(screen.getByText('🔐 Local AI Proxy Setup')).toBeInTheDocument();
+      });
+      
+      expect(screen.queryByLabelText('Google Gemini API Key')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('OpenRouter API Key')).not.toBeInTheDocument();
+      
+      // Should show setup instructions section
+      expect(screen.getByText('📖 Setup Instructions')).toBeInTheDocument();
+      
+      // Should show AI provider tabs
+      expect(screen.getByText('🖥️ LMStudio')).toBeInTheDocument();
+    });
   });
 
   describe('Folder loading functionality', () => {
     it('should load folders when GitHub credentials are complete', async () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Fill in GitHub credentials
       fireEvent.change(screen.getByLabelText('GitHub Personal Access Token (PAT)'), {
@@ -216,7 +238,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
     });
 
     it('should load folders when GitLab credentials are complete', async () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Switch to GitLab
       fireEvent.change(screen.getByLabelText('Choose Your Git Provider'), {
@@ -245,7 +267,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
     });
 
     it('should not load folders when GitHub credentials are incomplete', async () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Fill in only partial GitHub credentials
       fireEvent.change(screen.getByLabelText('GitHub Personal Access Token (PAT)'), {
@@ -263,7 +285,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
     });
 
     it('should not load folders when GitLab credentials are incomplete', async () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Switch to GitLab
       fireEvent.change(screen.getByLabelText('Choose Your Git Provider'), {
@@ -285,7 +307,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
     it('should handle folder loading errors gracefully', async () => {
       mockListProjectFolders.mockRejectedValue(new Error('Network error'));
 
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Fill in GitHub credentials to trigger folder loading
       fireEvent.change(screen.getByLabelText('GitHub Personal Access Token (PAT)'), {
@@ -312,7 +334,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
       });
       mockListProjectFolders.mockReturnValue(slowPromise);
 
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Fill in credentials to trigger loading
       fireEvent.change(screen.getByLabelText('GitHub Personal Access Token (PAT)'), {
@@ -344,7 +366,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
     it('should show dropdown when multiple folders are available', async () => {
       mockListProjectFolders.mockResolvedValue(['todos', 'work-tasks', 'personal']);
 
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Fill in credentials to load folders
       fireEvent.change(screen.getByLabelText('GitHub Personal Access Token (PAT)'), {
@@ -371,7 +393,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
     it('should show input field when only one folder is available', () => {
       mockListProjectFolders.mockResolvedValue(['todos']);
 
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Should show input field
       const folderInput = screen.getByDisplayValue('todos');
@@ -382,7 +404,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
 
   describe('Create folder functionality', () => {
     it('should show create folder form when "+ New Project" is clicked', () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Click the New Project button
       fireEvent.click(screen.getByText('+ New Project'));
@@ -394,7 +416,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
     });
 
     it('should hide create folder form when "Cancel" is clicked', () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Show the form
       fireEvent.click(screen.getByText('+ New Project'));
@@ -413,7 +435,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
     });
 
     it('should toggle create folder form when "+ New Project" is clicked multiple times', () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Show the form
       fireEvent.click(screen.getByText('+ New Project'));
@@ -432,7 +454,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
       mockCreateProjectFolder.mockResolvedValue(undefined);
       mockListProjectFolders.mockResolvedValue(['todos', 'new-project']);
 
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Fill in GitHub credentials first
       fireEvent.change(screen.getByLabelText('GitHub Personal Access Token (PAT)'), {
@@ -478,7 +500,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
       // Mock window.alert
       const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
 
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Fill in GitHub credentials first
       fireEvent.change(screen.getByLabelText('GitHub Personal Access Token (PAT)'), {
@@ -515,7 +537,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
     });
 
     it('should not create folder if name is empty', async () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Show create folder form
       fireEvent.click(screen.getByText('+ New Project'));
@@ -528,7 +550,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
     });
 
     it('should not create folder if GitHub credentials are incomplete', async () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Show create folder form
       fireEvent.click(screen.getByText('+ New Project'));
@@ -546,7 +568,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
     });
 
     it('should not create folder if GitLab credentials are incomplete', async () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Switch to GitLab
       fireEvent.change(screen.getByLabelText('Choose Your Git Provider'), {
@@ -576,7 +598,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
       });
       mockCreateProjectFolder.mockReturnValue(slowPromise);
 
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Fill in credentials
       fireEvent.change(screen.getByLabelText('GitHub Personal Access Token (PAT)'), {
@@ -617,7 +639,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
 
   describe('Settings sharing modal', () => {
     it('should show settings sharing modal when "Share Config" is clicked', () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Click Share Config button
       fireEvent.click(screen.getByText('Share Config'));
@@ -627,7 +649,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
     });
 
     it('should hide settings sharing modal when closed', () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Show modal
       fireEvent.click(screen.getByText('Share Config'));
@@ -643,7 +665,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
 
   describe('Form submission', () => {
     it('should save settings and call onSettingsSaved when form is submitted', () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Fill in some settings
       fireEvent.change(screen.getByLabelText('GitHub Personal Access Token (PAT)'), {
@@ -663,7 +685,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
       const submitButton = screen.getByText('Save Settings');
       fireEvent.click(submitButton);
 
-      // Should save settings in dual-config format
+      // Should save settings in dual-config format with local proxy
       expect(mockSaveSettings).toHaveBeenCalledWith({
         gitProvider: 'github',
         folder: 'todos',
@@ -671,6 +693,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
         aiProvider: 'gemini',
         openRouterApiKey: '',
         aiModel: '',
+        mainServerToken: '',
         github: {
           pat: 'test-token',
           owner: 'testowner',
@@ -682,13 +705,22 @@ describe('GitSettings - Focused Coverage Tests', () => {
           projectId: '',
           token: '',
           branch: 'main'
+        },
+        localProxy: {
+          endpoint: 'http://localhost:1234',
+          isConnected: false,
+          connectionStatus: 'disconnected',
+          proxyUuid: '',
+          proxyLocalToken: '',
+          userConfigured: false,
+          lastHeartbeat: undefined
         }
       });
       expect(mockOnSettingsSaved).toHaveBeenCalled();
     });
 
     it('should save only GitLab fields when GitLab provider is selected', () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Switch to GitLab provider
       fireEvent.change(screen.getByLabelText('Choose Your Git Provider'), {
@@ -720,7 +752,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
       const submitButton = screen.getByText('Save Settings');
       fireEvent.click(submitButton);
 
-      // Should save settings in dual-config format
+      // Should save settings in dual-config format with local proxy
       expect(mockSaveSettings).toHaveBeenCalledWith({
         gitProvider: 'gitlab',
         folder: 'work-tasks',
@@ -728,6 +760,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
         aiProvider: 'gemini',
         openRouterApiKey: '',
         aiModel: '',
+        mainServerToken: '',
         github: {
           pat: '',
           owner: '',
@@ -739,6 +772,15 @@ describe('GitSettings - Focused Coverage Tests', () => {
           projectId: '12345',
           token: 'gitlab-token',
           branch: 'main'
+        },
+        localProxy: {
+          endpoint: 'http://localhost:1234',
+          isConnected: false,
+          connectionStatus: 'disconnected',
+          proxyUuid: '',
+          proxyLocalToken: '',
+          userConfigured: false,
+          lastHeartbeat: undefined
         }
       });
       expect(mockOnSettingsSaved).toHaveBeenCalled();
@@ -747,7 +789,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
 
   describe('Required field validation', () => {
     it('should set required attribute for GitHub fields when GitHub is selected', () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // GitHub fields should be required
       expect(screen.getByLabelText('GitHub Personal Access Token (PAT)')).toHaveAttribute('required');
@@ -756,7 +798,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
     });
 
     it('should set required attribute for GitLab fields when GitLab is selected', () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Switch to GitLab
       fireEvent.change(screen.getByLabelText('Choose Your Git Provider'), {
@@ -770,14 +812,14 @@ describe('GitSettings - Focused Coverage Tests', () => {
     });
 
     it('should set required attribute for Gemini API key when Gemini is selected', () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Gemini API key should be required
       expect(screen.getByLabelText('Google Gemini API Key')).toHaveAttribute('required');
     });
 
     it('should set required attribute for OpenRouter API key when OpenRouter is selected', () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Switch to OpenRouter
       fireEvent.change(screen.getByLabelText('AI Provider'), {
@@ -791,7 +833,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
 
   describe('Version info integration', () => {
     it('should render VersionInfo component', () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       expect(screen.getByTestId('version-info')).toBeInTheDocument();
     });
@@ -799,7 +841,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
 
   describe('Reset functionality', () => {
     it('should render Reset All button', () => {
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       const resetButton = screen.getByRole('button', { name: /reset all/i });
       expect(resetButton).toBeInTheDocument();
@@ -829,7 +871,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
         }
       });
 
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Verify initial state has loaded settings (GitHub fields should be visible)
       expect(screen.getByDisplayValue('test-token')).toBeInTheDocument();
@@ -883,7 +925,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
         }
       });
 
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Verify GitLab fields are populated
       expect(screen.getByDisplayValue('https://gitlab.example.com')).toBeInTheDocument();
@@ -925,7 +967,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
         }
       });
 
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Verify GitHub fields are populated
       expect(screen.getByDisplayValue('github-token')).toBeInTheDocument();
@@ -957,7 +999,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
         repo: 'legacy-repo'
       });
 
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Verify legacy GitHub fields are loaded (exercises lines 53-56)
       expect(screen.getByDisplayValue('legacy-pat')).toBeInTheDocument();
@@ -977,7 +1019,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
         token: 'legacy-gitlab-token'
       });
 
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Verify legacy GitLab fields are loaded (exercises lines 65-68)
       expect(screen.getByDisplayValue('https://legacy.gitlab.com')).toBeInTheDocument();
@@ -990,7 +1032,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
   describe('Branch Coverage for Early Returns (lines 81-82, 110, 114)', () => {
     it('should not load folders when GitHub credentials are missing (line 81-82)', async () => {
       // Test the early return in loadFolders for incomplete GitHub credentials
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Fill in only PAT and owner, but missing repo (triggers line 81-82)
       fireEvent.change(screen.getByLabelText('GitHub Personal Access Token (PAT)'), {
@@ -1008,7 +1050,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
 
     it('should not load folders when GitLab credentials are missing (line 82)', async () => {
       // Test the early return in loadFolders for incomplete GitLab credentials
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Switch to GitLab
       fireEvent.change(screen.getByLabelText('Choose Your Git Provider'), {
@@ -1031,7 +1073,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
 
     it('should not create folder when GitHub credentials are missing (line 114)', async () => {
       // Test the early return in handleCreateFolder for incomplete GitHub credentials
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Show create folder form
       fireEvent.click(screen.getByText('+ New Project'));
@@ -1056,7 +1098,7 @@ describe('GitSettings - Focused Coverage Tests', () => {
 
     it('should not create folder when GitLab credentials are missing (line 114)', async () => {
       // Test the early return in handleCreateFolder for incomplete GitLab credentials  
-      render(<GitSettings onSettingsSaved={mockOnSettingsSaved} />);
+      render(<GeneralSettings onSettingsSaved={mockOnSettingsSaved} />);
 
       // Switch to GitLab
       fireEvent.change(screen.getByLabelText('Choose Your Git Provider'), {
