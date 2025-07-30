@@ -225,6 +225,9 @@ fi
 if [ -n "$GIT_TAG" ]; then
   ENV_VARS_ARRAY+=("GIT_TAG=$GIT_TAG")
 fi
+if [ -n "$MAIN_SERVER_TOKEN" ]; then
+  ENV_VARS_ARRAY+=("MAIN_SERVER_TOKEN=$MAIN_SERVER_TOKEN")
+fi
 
 # Build environment variables string with proper escaping for gcloud
 # Use custom delimiter to handle commas in values
