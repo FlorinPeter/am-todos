@@ -87,17 +87,19 @@ async function processLocalProxyRequest(req, res) {
     // Store the HTTP response object for later use when proxy responds
     activeClients.set(clientId, res);
     
-    // Set timeout for local proxy response (30 seconds)
+    // Set timeout for local proxy response (configurable, default 4 minutes for AI operations)
+    const proxyTimeoutMs = parseInt(process.env.PROXY_AI_TIMEOUT_MS || '240000', 10);
     const timeoutId = setTimeout(() => {
       if (activeClients.has(clientId)) {
-        logger.warn('⏰ User proxy response timeout for client:', clientId, 'User proxy:', proxyUuid);
+        logger.warn('⏰ User proxy response timeout for client:', clientId, 'User proxy:', proxyUuid, 'Timeout:', proxyTimeoutMs + 'ms');
         res.status(504).json({ 
-          error: 'Your proxy did not respond in time. Check your local AI service status and proxy connection.',
-          userProxyId: proxyUuid
+          error: `Your proxy did not respond within ${proxyTimeoutMs / 1000} seconds. Check your local AI service status and proxy connection.`,
+          userProxyId: proxyUuid,
+          timeoutMs: proxyTimeoutMs
         });
         activeClients.delete(clientId);
       }
-    }, 30000);
+    }, proxyTimeoutMs);
     
     // Clean up timeout when response is received
     res.on('finish', () => {

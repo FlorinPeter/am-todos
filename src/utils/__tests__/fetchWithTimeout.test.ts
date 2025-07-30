@@ -437,7 +437,7 @@ describe('TIMEOUT_VALUES', () => {
     expect(TIMEOUT_VALUES.FAST).toBe(10000);
     expect(TIMEOUT_VALUES.NORMAL).toBe(30000);
     expect(TIMEOUT_VALUES.SLOW).toBe(60000);
-    expect(TIMEOUT_VALUES.AI).toBe(120000);
+    expect(TIMEOUT_VALUES.AI).toBe(240000);
   });
 
   it('should have timeout values in ascending order', () => {

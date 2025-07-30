@@ -189,6 +189,10 @@ isArchived: false
   - `LOCAL_AI_MAX_TOKENS`: Maximum response length (default: 2000)
   - `LOCAL_AI_ENDPOINT`: Local AI service URL (e.g., `http://localhost:11434` for Ollama)
   - `LOCAL_AI_MODEL`: Model name (e.g., `mistralai/mistral-small-3.2`)
+- **Timeout Configuration**: Configurable timeout values for different deployment scenarios:
+  - `PROXY_AI_TIMEOUT_MS`: Server-side timeout for local proxy AI requests (default: 240000ms / 4 minutes)
+  - Frontend AI timeout: 240,000ms (4 minutes) for all AI operations including proxy mode
+  - Other timeouts: FAST (10s), NORMAL (30s), SLOW (60s) remain unchanged
 
 ### Technology Stack Specifics {#technology-stack-specifics}
 - **React 19.1.0** with TypeScript and hooks-based state management

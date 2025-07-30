@@ -81,5 +81,5 @@ export const TIMEOUT_VALUES = {
   FAST: 10000,    // 10 seconds for fast operations
   NORMAL: 30000,  // 30 seconds for normal operations
   SLOW: 60000,    // 60 seconds for slow operations like file uploads
-  AI: 120000      // 2 minutes for AI API calls which can be slow
+  AI: 240000      // 4 minutes for AI API calls which can be slow (especially in proxy mode)
 } as const;
