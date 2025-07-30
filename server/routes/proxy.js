@@ -1,6 +1,5 @@
 import express from 'express';
 import logger from '../logger.js';
-import { mainServerTokenAuth } from '../middleware/auth.js';
 import { 
   activeProxies, 
   proxyCredentials, 
@@ -10,8 +9,8 @@ import {
 
 const router = express.Router();
 
-// Get main server token for local proxy setup (development: open, production: protected)
-router.get('/api/main-server-token', mainServerTokenAuth, (req, res) => {
+// Get main server token for local proxy setup (public endpoint - users need this for proxy configuration)
+router.get('/api/main-server-token', (req, res) => {
   const mainServerToken = process.env.MAIN_SERVER_TOKEN;
   
   if (!mainServerToken) {
