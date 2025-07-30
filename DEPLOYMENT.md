@@ -16,6 +16,9 @@ export GOOGLE_CLOUD_PROJECT="your-project-id"
 export SOURCE_IMAGE="ghcr.io/florinpeter/am-todos:latest"
 export CUSTOM_DOMAIN="your-domain.com"
 
+# Optional: For Local AI Proxy support
+export MAIN_SERVER_TOKEN="sk-ms-prod-$(openssl rand -hex 32)"
+
 # Deploy with automatic security configuration
 ./hack/deploy-all.sh
 ```
@@ -86,6 +89,33 @@ export DISABLE_METHOD_VALIDATION="false"       # HTTP method restrictions
 ./hack/deploy-all.sh
 ```
 
+#### **Local AI Proxy Configuration**
+```bash
+# Deploy with Local AI Proxy support for data sovereignty
+export GOOGLE_CLOUD_PROJECT="your-project-id"
+export SOURCE_IMAGE="ghcr.io/florinpeter/am-todos:v2.1.0"
+export CUSTOM_DOMAIN="your-domain.com"
+
+# Generate secure main server token for proxy authentication
+export MAIN_SERVER_TOKEN="sk-ms-prod-$(openssl rand -hex 32)"
+
+# Optional: Enhanced security for proxy environments
+export AI_RATE_LIMIT_MAX_REQUESTS="100"        # Higher AI limits for local processing
+export CORS_ORIGINS="https://your-domain.com"  # Restrict to your domain
+
+./hack/deploy-all.sh
+
+# Save your main server token for local proxy setup
+echo "🔐 Main Server Token: $MAIN_SERVER_TOKEN"
+echo "📋 Use this token when configuring your local AI proxy"
+```
+
+**🏠 Local AI Proxy Benefits:**
+- **Complete Data Sovereignty**: All AI processing happens locally
+- **Cost Control**: Eliminate external AI API costs
+- **Enterprise Compliance**: Meet strict data governance requirements
+- **Custom Models**: Use your own fine-tuned AI models
+
 #### **Post-Deployment Security Verification**
 ```bash
 # Check security configuration in logs
@@ -134,6 +164,28 @@ docker run -d \
   ghcr.io/florinpeter/am-todos:latest
 ```
 
+#### **Docker with Local AI Proxy Support**
+```bash
+# Run with Local AI Proxy authentication support
+docker run -d \
+  --name am-todos \
+  -p 3001:3001 \
+  -e NODE_ENV=production \
+  -e CORS_ORIGINS="https://your-domain.com" \
+  -e MAIN_SERVER_TOKEN="sk-ms-prod-$(openssl rand -hex 32)" \
+  -e AI_RATE_LIMIT_MAX_REQUESTS=100 \
+  -e ADMIN_TOKEN="$(openssl rand -base64 32)" \
+  --read-only \
+  --cap-drop=ALL \
+  --user 1001:1001 \
+  --restart unless-stopped \
+  ghcr.io/florinpeter/am-todos:latest
+
+# Display the tokens for setup
+echo "🔐 Main Server Token for Local Proxy: sk-ms-prod-..."
+echo "📋 Save this token for your local AI proxy configuration"
+```
+
 #### **Docker Compose with Security**
 ```yaml
 version: '3.8'
@@ -148,6 +200,8 @@ services:
       - RATE_LIMIT_MAX_REQUESTS=100
       - AI_RATE_LIMIT_MAX_REQUESTS=20
       - LOG_ALL_REQUESTS=true
+      # Optional: For Local AI Proxy support
+      - MAIN_SERVER_TOKEN=sk-ms-prod-YOUR_SECURE_TOKEN_HERE
     read_only: true
     cap_drop:
       - ALL
@@ -158,6 +212,22 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+```
+
+**📝 Docker Compose Local AI Proxy Setup:**
+```bash
+# Generate secure token for docker-compose
+MAIN_TOKEN="sk-ms-prod-$(openssl rand -hex 32)"
+echo "MAIN_SERVER_TOKEN=$MAIN_TOKEN" >> .env
+
+# Update docker-compose.yml to use .env file
+echo "env_file: ['.env']" >> docker-compose.yml
+
+# Deploy with Local AI Proxy support
+docker-compose up -d
+
+# Display token for local proxy configuration
+echo "🔐 Main Server Token: $MAIN_TOKEN"
 ```
 
 ### 3. Kubernetes Deployment
@@ -202,6 +272,12 @@ spec:
             secretKeyRef:
               name: am-todos-secrets
               key: admin-token
+        # Optional: For Local AI Proxy support
+        - name: MAIN_SERVER_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: am-todos-secrets
+              key: main-server-token
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
@@ -242,7 +318,9 @@ metadata:
   name: am-todos-secrets
 type: Opaque
 data:
-  admin-token: <base64-encoded-token>
+  admin-token: <base64-encoded-admin-token>
+  # Optional: For Local AI Proxy support
+  main-server-token: <base64-encoded-main-server-token>
 ---
 apiVersion: v1
 kind: Service
@@ -289,6 +367,123 @@ railway up
 
 ---
 
+## 🏠 Local AI Proxy Setup Guide
+
+After deploying your main application with `MAIN_SERVER_TOKEN`, you can set up local AI proxies for complete data sovereignty.
+
+### **🔐 Main Server Token Usage**
+
+The `MAIN_SERVER_TOKEN` you set during deployment is used to authenticate local AI proxy connections. This token enables:
+
+- **Secure WebSocket Authentication**: Each local proxy authenticates with your main server
+- **User-Specific Routing**: Multiple users can have their own local proxies  
+- **Complete AI Independence**: Process all AI requests locally without external dependencies
+
+### **📋 Local Proxy Deployment**
+
+#### **Step 1: Deploy Your Main Application**
+```bash
+# Deploy with Local AI Proxy support
+export GOOGLE_CLOUD_PROJECT="your-project-id"
+export SOURCE_IMAGE="ghcr.io/florinpeter/am-todos:v2.1.0"
+export CUSTOM_DOMAIN="your-domain.com"
+export MAIN_SERVER_TOKEN="sk-ms-prod-$(openssl rand -hex 32)"
+
+./hack/deploy-all.sh
+
+# Save your token for step 2
+echo "Main Server Token: $MAIN_SERVER_TOKEN"
+```
+
+#### **Step 2: Deploy Local AI Proxy**
+```bash
+# LMStudio Configuration (port 1234)
+docker run -d --name am_todos_proxy \
+  -v ./proxy-config:/config \
+  -e LOCAL_PROXY_MODE=true \
+  -e MAIN_SERVER_TOKEN="<your-main-server-token-from-step-1>" \
+  -e MAIN_SERVER_URL="wss://your-domain.com/proxy-ws" \
+  -e LOCAL_AI_ENDPOINT="http://host.docker.internal:1234" \
+  -e LOCAL_AI_MODEL="mistralai/mistral-small-3.2" \
+  ghcr.io/florinpeter/am-todos:latest
+
+# Ollama Configuration (port 11434)  
+docker run -d --name am_todos_proxy \
+  -v ./proxy-config:/config \
+  -e LOCAL_PROXY_MODE=true \
+  -e MAIN_SERVER_TOKEN="<your-main-server-token-from-step-1>" \
+  -e MAIN_SERVER_URL="wss://your-domain.com/proxy-ws" \
+  -e LOCAL_AI_ENDPOINT="http://host.docker.internal:11434" \
+  -e LOCAL_AI_MODEL="llama2" \
+  ghcr.io/florinpeter/am-todos:latest
+```
+
+#### **Step 3: Configure Frontend**
+```bash
+# Get proxy credentials
+cat proxy-config/settings.json
+
+# Example output:
+# {
+#   "uuid": "550e8400-e29b-41d4-a716-446655440000",
+#   "localToken": "a1b2c3d4e5f6789012345678901234567890"
+# }
+```
+
+1. **Open your deployed app**: https://your-domain.com
+2. **Go to Settings**: Click the gear icon
+3. **Select AI Provider**: Choose "Local Proxy"
+4. **Enter Credentials**: 
+   - Proxy UUID: Copy from `settings.json`
+   - Local Token: Copy from `settings.json`
+5. **Test Connection**: Click "Test Connection" to verify
+6. **Save Settings**: Your app now processes all AI requests locally!
+
+### **🔍 Connection Verification**
+
+#### **Check Proxy Status**
+```bash
+# View proxy logs
+docker logs am_todos_proxy
+
+# Check proxy configuration
+cat proxy-config/settings.json
+
+# Test WebSocket connection
+curl -I wss://your-domain.com/proxy-ws
+```
+
+#### **Frontend Status Indicators**
+- **✅ Connected**: Green indicator with "Connected" status
+- **🔄 Connecting**: Yellow indicator with "Connecting..." status  
+- **❌ Disconnected**: Red indicator with error details
+- **⚠️ Error**: Orange indicator with troubleshooting guidance
+
+### **🛠️ Troubleshooting Local AI Proxy**
+
+#### **Common Issues**
+1. **Connection Failed**: Check `MAIN_SERVER_TOKEN` matches deployment
+2. **WebSocket Error**: Verify `MAIN_SERVER_URL` uses `wss://` for HTTPS domains
+3. **AI Processing Failed**: Ensure local AI service (LMStudio/Ollama) is running
+4. **Credentials Invalid**: Regenerate proxy by deleting `proxy-config/settings.json`
+
+#### **Debug Commands**
+```bash
+# Test local AI endpoint
+curl http://localhost:1234/v1/models  # LMStudio
+curl http://localhost:11434/api/tags   # Ollama
+
+# Reset proxy configuration
+docker stop am_todos_proxy
+rm -rf proxy-config/
+docker start am_todos_proxy
+
+# View detailed proxy logs
+docker logs -f am_todos_proxy --tail 100
+```
+
+---
+
 ## 🔧 Environment Variables
 
 ### **Core Application**
@@ -310,6 +505,11 @@ railway up
 | `DISABLE_SECURITY_LOGGING` | `false` | Disable security request logging |
 | `LOG_ALL_REQUESTS` | `false` | Log all requests (not just security-relevant) |
 | `DISABLE_METHOD_VALIDATION` | `false` | Disable HTTP method restrictions |
+
+### **Local AI Proxy Configuration**
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MAIN_SERVER_TOKEN` | None | Token for local AI proxy authentication (required for Local Proxy AI provider) |
 
 ### **Rate Limiting**
 | Variable | Default | Description |
