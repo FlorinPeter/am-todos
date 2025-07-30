@@ -2,6 +2,7 @@
 // This service provides a unified interface for both Git providers
 
 import { loadSettings } from '../utils/localStorage';
+import type { GeneralSettings } from '../utils/localStorage';
 import * as githubService from './githubService';
 import * as gitlabService from './gitlabService';
 import logger from '../utils/logger';
@@ -27,7 +28,7 @@ export interface GitSettings {
  * Get the current git settings and validate them
  */
 export const getGitSettings = (): GitSettings => {
-  const settings = loadSettings();
+  const settings: GeneralSettings | null = loadSettings();
   if (!settings) {
     throw new Error('No settings configured. Please configure your Git provider in the application settings.');
   }

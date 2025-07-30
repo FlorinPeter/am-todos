@@ -44,7 +44,7 @@ describe('Search Service', () => {
       vi.mocked(localStorage.loadSettings).mockReturnValue(null);
 
       await expect(searchTodos('test')).rejects.toThrow(
-        'No settings configured. Please configure your Git settings first.'
+        'No settings configured. Please configure your general settings first.'
       );
     });
 

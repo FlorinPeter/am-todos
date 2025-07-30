@@ -64,10 +64,14 @@ COPY --from=backend-builder /app/server/node_modules ./server/node_modules
 # Copy frontend build
 COPY --from=frontend-builder --chown=nextjs:nodejs /app/build ./build
 
-# Copy server source
+# Copy server source (modular structure)
 COPY --chown=nextjs:nodejs server/server.js ./server/
-COPY --chown=nextjs:nodejs server/gitlabService.js ./server/
 COPY --chown=nextjs:nodejs server/logger.js ./server/
+COPY --chown=nextjs:nodejs server/config/ ./server/config/
+COPY --chown=nextjs:nodejs server/middleware/ ./server/middleware/
+COPY --chown=nextjs:nodejs server/routes/ ./server/routes/
+COPY --chown=nextjs:nodejs server/services/ ./server/services/
+COPY --chown=nextjs:nodejs server/websocket/ ./server/websocket/
 COPY --chown=nextjs:nodejs server/utils/ ./server/utils/
 
 # Re-declare build args for runtime stage

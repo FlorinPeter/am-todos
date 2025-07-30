@@ -1,20 +1,22 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import yaml from 'js-yaml';
 import NewTodoInput from './components/NewTodoInput';
 import TodoSidebar from './components/TodoSidebar';
 import TodoEditor from './components/TodoEditor';
-import GitSettings from './components/GitSettings';
+import GeneralSettingsComponent from './components/GeneralSettings';
 import ProjectManager from './components/ProjectManager';
 import { loadSettings, getUrlConfig, saveSettings, saveSelectedTodoId, loadSelectedTodoId, clearSelectedTodoId, clearDraft, saveViewMode, loadViewMode, ViewMode } from './utils/localStorage';
+import type { GeneralSettings } from './utils/localStorage';
 import { getTodos, getFileContent, getFileMetadata, createOrUpdateTodo, ensureDirectory, moveTaskToArchive, moveTaskFromArchive, deleteFile } from './services/gitService';
 import { generateInitialPlan, generateCommitMessage } from './services/aiService';
 import { searchTodosDebounced, SearchResult } from './services/searchService';
-import { parseMarkdownWithFrontmatter, stringifyMarkdownWithFrontmatter, stringifyMarkdownWithMetadata } from './utils/markdown';
+import { stringifyMarkdownWithMetadata } from './utils/markdown';
 import { generateFilename } from './utils/filenameMetadata';
 import { TodoFrontmatter, NewTodoData } from './types';
 import logger from './utils/logger';
 
 function App() {
-  const [settings, setSettings] = useState(loadSettings());
+  const [settings, setSettings] = useState<GeneralSettings | null>(loadSettings());
   const [isInitializing, setIsInitializing] = useState(true);
   const [initializationStep, setInitializationStep] = useState('Loading configuration...');
 
@@ -661,7 +663,7 @@ function App() {
       // 3. Generate Commit Message
       setCreationStep('💬 Generating commit message...');
       logger.log('Generating commit message...');
-      const commitResponse = await generateCommitMessage(`feat: Add new todo for "${todoData.title}"`);
+      const commitResponse = await generateCommitMessage(`feat: Add new todo for "${todoData.title}"`, fullContent);
       const commitMessage = commitResponse.message;
       logger.log('Commit message generated:', commitMessage);
       if (commitResponse.description) {
@@ -792,28 +794,37 @@ function App() {
 
       setSaveStep('📝 Preparing content...');
       
-      // FIXED: Handle content that may already include frontmatter
-      // Parse the newContent to check if it already contains frontmatter
-      const { frontmatter: parsedFrontmatter, markdownContent } = parseMarkdownWithFrontmatter(newContent);
+      // Handle content that may already include frontmatter
+      const frontmatterMatch = newContent.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
       
       let fullContent: string;
-      if (parsedFrontmatter) {
-        // Content already has frontmatter - use V2 format (tags only)
-        const v2Frontmatter = {
-          tags: Array.isArray(parsedFrontmatter.tags) ? parsedFrontmatter.tags : []
-        };
-        fullContent = stringifyMarkdownWithMetadata(v2Frontmatter, markdownContent);
+      if (frontmatterMatch) {
+        // Content already has frontmatter - extract and preserve V2 format (tags only)
+        try {
+          const rawFrontmatter = yaml.load(frontmatterMatch[1]) as any;
+          const v2Frontmatter = {
+            tags: Array.isArray(rawFrontmatter?.tags) ? rawFrontmatter.tags : [],
+          };
+          fullContent = stringifyMarkdownWithMetadata(v2Frontmatter, frontmatterMatch[2]);
+        } catch (error) {
+          logger.error('Error parsing frontmatter during update:', error);
+          // Fallback: use existing todo frontmatter
+          const v2Frontmatter = {
+            tags: Array.isArray(todoToUpdate.frontmatter?.tags) ? todoToUpdate.frontmatter.tags : [],
+              };
+          fullContent = stringifyMarkdownWithMetadata(v2Frontmatter, newContent);
+        }
       } else {
         // Content doesn't have frontmatter - add V2 format from existing todo
         const v2Frontmatter = {
-          tags: Array.isArray(todoToUpdate.frontmatter?.tags) ? todoToUpdate.frontmatter.tags : []
-        };
+          tags: Array.isArray(todoToUpdate.frontmatter?.tags) ? todoToUpdate.frontmatter.tags : [],
+          };
         fullContent = stringifyMarkdownWithMetadata(v2Frontmatter, newContent);
       }
       logger.log('App: Full content prepared, generating commit message...');
 
       setSaveStep('🤖 Generating commit message...');
-      const commitResponse = await generateCommitMessage(`fix: Update todo "${todoToUpdate.title}"`);
+      const commitResponse = await generateCommitMessage(`fix: Update todo "${todoToUpdate.title}"`, fullContent);
       const commitMessage = commitResponse.message;
       logger.log('App: Commit message generated:', commitMessage);
       if (commitResponse.description) {
@@ -1112,7 +1123,7 @@ function App() {
       setSaveStep('📝 Preparing content...');
       // V2 format: Only tags in frontmatter, title is in filename
       const v2Frontmatter = {
-        tags: Array.isArray(todoToUpdate.frontmatter?.tags) ? todoToUpdate.frontmatter.tags : []
+        tags: Array.isArray(todoToUpdate.frontmatter?.tags) ? todoToUpdate.frontmatter.tags : [],
       };
       const fullContent = stringifyMarkdownWithMetadata(v2Frontmatter, todoToUpdate.content);
       
@@ -1220,12 +1231,11 @@ function App() {
       
       setSaveStep(`📦 ${action}ing task...`);
       
-      // Update frontmatter
-      const updatedFrontmatter = {
-        ...todoToUpdate.frontmatter,
-        isArchived: !isCurrentlyArchived
+      // Use V2 frontmatter format (no isArchived field - determined by file location)
+      const v2Frontmatter = {
+        tags: Array.isArray(todoToUpdate.frontmatter?.tags) ? todoToUpdate.frontmatter.tags : [],
       };
-      const fullContent = stringifyMarkdownWithFrontmatter(updatedFrontmatter, todoToUpdate.content);
+      const fullContent = stringifyMarkdownWithMetadata(v2Frontmatter, todoToUpdate.content);
       const commitMessage = `feat: ${action} "${todoToUpdate.title}"`;
 
       let newPath: string;
@@ -1416,7 +1426,22 @@ function App() {
           logger.log('✅ ON-DEMAND SUCCESS: Loaded content for selected todo:', selectedTodo.path);
           
           // Parse content to get frontmatter
-          const parsed = parseMarkdownWithFrontmatter(content);
+          const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+          let parsed = { markdownContent: content, frontmatter: { tags: [] } };
+          
+          if (frontmatterMatch) {
+            try {
+              const rawFrontmatter = yaml.load(frontmatterMatch[1]) as any;
+              parsed = {
+                markdownContent: frontmatterMatch[2],
+                frontmatter: {
+                  tags: Array.isArray(rawFrontmatter?.tags) ? rawFrontmatter.tags : [],
+                }
+              };
+            } catch (error) {
+              logger.error('Error parsing frontmatter during on-demand load:', error);
+            }
+          }
           
           // Update the todo in the todos array with the loaded content
           setTodos(prevTodos => 
@@ -1496,7 +1521,7 @@ function App() {
             </div>
             
             <div className="p-6">
-              <GitSettings onSettingsSaved={handleSettingsSaved} />
+              <GeneralSettingsComponent onSettingsSaved={handleSettingsSaved} />
             </div>
           </div>
 
@@ -1716,7 +1741,25 @@ function App() {
                     
                     const metadata = await getFileMetadata(searchResult.path);
                     const content = await getFileContent(searchResult.path);
-                    const parsedMarkdown = parseMarkdownWithFrontmatter(content);
+                    // Parse content to get frontmatter
+                    const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+                    let parsedMarkdown = { markdownContent: content, frontmatter: { tags: [] } };
+                    
+                    if (frontmatterMatch) {
+                      try {
+                        const rawFrontmatter = yaml.load(frontmatterMatch[1]) as any;
+                        parsedMarkdown = {
+                          markdownContent: frontmatterMatch[2],
+                          frontmatter: {
+                            tags: Array.isArray(rawFrontmatter?.tags) ? rawFrontmatter.tags : [],
+                            // Keep legacy fields for compatibility during transition
+                            ...(rawFrontmatter?.title && { title: rawFrontmatter.title })
+                          }
+                        };
+                      } catch (error) {
+                        logger.error('Error parsing frontmatter during cross-folder load:', error);
+                      }
+                    }
                     
                     // Create a full todo object with correct frontmatter access
                     const fullTodo = {
@@ -1808,7 +1851,7 @@ function App() {
                 ✕
               </button>
             </div>
-            <GitSettings onSettingsSaved={handleSettingsSaved} />
+            <GeneralSettingsComponent onSettingsSaved={handleSettingsSaved} />
           </div>
         </div>
       )}

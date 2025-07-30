@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { loadSettings, saveSettings } from '../utils/localStorage';
+import type { GeneralSettings } from '../utils/localStorage';
 import { listProjectFolders, createProjectFolder } from '../services/gitService';
 import logger from '../utils/logger';
 
 interface ProjectManagerProps {
-  onProjectChanged: (newSettings?: any) => void;
+  onProjectChanged: (newSettings?: GeneralSettings | null) => void;
 }
 
 const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => {
-  const [settings, setSettings] = useState(loadSettings());
+  const [settings, setSettings] = useState<GeneralSettings | null>(loadSettings());
   const [availableFolders, setAvailableFolders] = useState<string[]>(['todos']);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -69,7 +70,7 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
 
     // Listen for storage events instead of polling (for cross-tab changes)
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'am-todos-settings') {
+      if (e.key === 'generalSettings') {
         checkForSettingsChanges();
       }
     };
@@ -79,19 +80,13 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
   }, [settings?.folder]);
 
   const loadFolders = async () => {
-    // Check if we have the required settings for any provider (new dual-config format)
-    const hasGitHubSettings = !!(
-      (settings?.github?.pat && settings?.github?.owner && settings?.github?.repo) ||
-      (settings?.pat && settings?.owner && settings?.repo) // fallback to legacy format
-    );
-    const hasGitLabSettings = !!(
-      (settings?.gitlab?.instanceUrl && settings?.gitlab?.projectId && settings?.gitlab?.token) ||
-      (settings?.instanceUrl && settings?.projectId && settings?.token) // fallback to legacy format
-    );
+    // Check if we have the required settings for any provider (NEW format only)
+    const hasGitHubConfig = !!(settings?.github?.pat && settings?.github?.owner && settings?.github?.repo);
+    const hasGitLabConfig = !!(settings?.gitlab?.instanceUrl && settings?.gitlab?.projectId && settings?.gitlab?.token);
     
-    logger.log('ProjectManager: loadFolders called', { hasGitHubSettings, hasGitLabSettings });
+    logger.log('ProjectManager: loadFolders called', { hasGitHubConfig, hasGitLabConfig });
     
-    if (!hasGitHubSettings && !hasGitLabSettings) return;
+    if (!hasGitHubConfig && !hasGitLabConfig) return;
     
     setIsLoading(true);
     try {
@@ -140,32 +135,36 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
 
   useEffect(() => {
     const effectId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const hasGitHubSettings = !!(settings?.pat && settings?.owner && settings?.repo);
-    const hasGitLabSettings = !!(settings?.instanceUrl && settings?.projectId && settings?.token);
+    const hasGitHubConfig = !!(settings?.github?.pat && settings?.github?.owner && settings?.github?.repo);
+    const hasGitLabConfig = !!(settings?.gitlab?.instanceUrl && settings?.gitlab?.projectId && settings?.gitlab?.token);
     
     logger.log('📋 ProjectManager: settings useEffect triggered', {
       effectId,
-      hasGitHubSettings,
-      hasGitLabSettings,
+      hasGitHubConfig,
+      hasGitLabConfig,
       dependencies: {
-        pat: !!settings?.pat,
-        owner: !!settings?.owner,
-        repo: !!settings?.repo,
-        instanceUrl: !!settings?.instanceUrl,
-        projectId: !!settings?.projectId,
-        token: !!settings?.token
+        github: {
+          pat: !!settings?.github?.pat,
+          owner: !!settings?.github?.owner,
+          repo: !!settings?.github?.repo
+        },
+        gitlab: {
+          instanceUrl: !!settings?.gitlab?.instanceUrl,
+          projectId: !!settings?.gitlab?.projectId,
+          token: !!settings?.gitlab?.token
+        }
       },
       provider: settings?.gitProvider
     });
     
-    if (hasGitHubSettings || hasGitLabSettings) {
+    if (hasGitHubConfig || hasGitLabConfig) {
       logger.log('✅ ProjectManager: Valid settings found, calling debounced loadFolders', { effectId });
       debouncedLoadFolders();
     } else {
       logger.log('❌ ProjectManager: No valid settings, skipping loadFolders', { effectId });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings?.pat, settings?.owner, settings?.repo, settings?.instanceUrl, settings?.projectId, settings?.token]);
+  }, [settings?.github?.pat, settings?.github?.owner, settings?.github?.repo, settings?.gitlab?.instanceUrl, settings?.gitlab?.projectId, settings?.gitlab?.token]);
 
   const handleProjectSwitch = (newFolder: string) => {
     if (!settings) return;
@@ -179,11 +178,14 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return;
     
-    // Check if we have the required settings for any provider
-    const hasGitHubSettings = !!(settings?.pat && settings?.owner && settings?.repo);
-    const hasGitLabSettings = !!(settings?.instanceUrl && settings?.projectId && settings?.token);
+    // Check if we have the required settings for any provider (NEW format only)
+    const hasGitHubConfig = !!(settings?.github?.pat && settings?.github?.owner && settings?.github?.repo);
+    const hasGitLabConfig = !!(settings?.gitlab?.instanceUrl && settings?.gitlab?.projectId && settings?.gitlab?.token);
     
-    if (!hasGitHubSettings && !hasGitLabSettings) return;
+    if (!hasGitHubConfig && !hasGitLabConfig) {
+      alert('Please configure your Git provider settings before creating a project.');
+      return;
+    }
     
     setIsCreating(true);
     try {
@@ -209,18 +211,12 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
 
   const currentProject = settings?.folder || 'todos';
 
-  const hasGitHubSettings = !!(
-    (settings?.github?.pat && settings?.github?.owner && settings?.github?.repo) ||
-    (settings?.pat && settings?.owner && settings?.repo) // fallback to legacy format
-  );
-  const hasGitLabSettings = !!(
-    (settings?.gitlab?.instanceUrl && settings?.gitlab?.projectId && settings?.gitlab?.token) ||
-    (settings?.instanceUrl && settings?.projectId && settings?.token) // fallback to legacy format
-  );
+  const hasGitHubConfig = !!(settings?.github?.pat && settings?.github?.owner && settings?.github?.repo);
+  const hasGitLabConfig = !!(settings?.gitlab?.instanceUrl && settings?.gitlab?.projectId && settings?.gitlab?.token);
   
   logger.log('ProjectManager: Render check', { 
-    hasGitHubSettings, 
-    hasGitLabSettings, 
+    hasGitHubConfig, 
+    hasGitLabConfig, 
     availableFolders, 
     availableFoldersLength: availableFolders.length,
     availableFoldersContent: [...availableFolders],
@@ -229,19 +225,11 @@ const ProjectManager: React.FC<ProjectManagerProps> = ({ onProjectChanged }) => 
     settingsSnapshot: {
       gitProvider: settings?.gitProvider,
       github: settings?.github ? 'configured' : 'missing',
-      gitlab: settings?.gitlab ? 'configured' : 'missing',
-      legacyFields: {
-        pat: !!settings?.pat,
-        owner: !!settings?.owner,
-        repo: !!settings?.repo,
-        instanceUrl: !!settings?.instanceUrl,
-        projectId: !!settings?.projectId,
-        token: !!settings?.token
-      }
+      gitlab: settings?.gitlab ? 'configured' : 'missing'
     }
   });
   
-  if (!hasGitHubSettings && !hasGitLabSettings) {
+  if (!hasGitHubConfig && !hasGitLabConfig) {
     logger.log('ProjectManager: Not rendering - no settings');
     return null; // Don't show if not configured
   }

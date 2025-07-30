@@ -20,7 +20,7 @@ This document provides detailed evidence for all implemented features in the Age
 - **Backend API Routes:** `server/server.js` lines 145-222 - GitLab proxy endpoint at `/api/gitlab` with comprehensive action routing
 - **Frontend GitLab Client:** `src/services/gitlabService.ts` - Full GitLab API client with environment detection and error handling
 - **Git Service Router:** `src/services/gitService.ts` - Provider abstraction layer that routes to GitHub/GitLab based on settings
-- **Updated Settings UI:** `src/components/GitSettings.tsx` (renamed from GitHubSettings) with provider selection and conditional configuration
+- **Updated Settings UI:** `src/components/GeneralSettings.tsx` with provider selection and conditional configuration using GeneralSettings interface
 - **Extended localStorage:** `src/utils/localStorage.ts` supports GitLab settings with validation and URL sharing
 - **Comprehensive Testing:** Full test coverage documented in [TESTING.md](TESTING.md)
 
@@ -65,7 +65,7 @@ class GitLabService {
   }
 }
 
-// src/components/GitSettings.tsx - Provider Selection UI
+// src/components/GeneralSettings.tsx - Provider Selection UI
 {gitProvider === 'gitlab' && (
   <div className="border-t border-gray-600 pt-4">
     <h3>GitLab Configuration</h3>
@@ -148,7 +148,7 @@ app.post('/api/search', async (req, res) => {
 
 **Evidence:**
 - **Project Management UI:** `ProjectManager.tsx` component for creating and switching between project folders
-- **Settings Integration:** `GitHubSettings.tsx` includes folder field with project creation and validation
+- **Settings Integration:** `GeneralSettings.tsx` includes folder field with project creation and validation using GeneralSettings
 - **localStorage Support:** `localStorage.ts` stores/loads folder setting with backward compatibility  
 - **Dynamic API Calls:** All GitHub service functions accept dynamic folder parameter
 - **UI Integration:** Dropdown folder selector with project creation modal
@@ -168,11 +168,12 @@ app.post('/api/search', async (req, res) => {
 **Code References:**
 ```typescript
 // src/utils/localStorage.ts
-interface GitHubSettings {
-  pat: string;
-  owner: string;
-  repo: string;
+interface GeneralSettings {
+  gitProvider: 'github' | 'gitlab';
   folder: string; // Multi-folder support
+  github?: GitHubConfig;
+  gitlab?: GitLabConfig;
+  // ... other settings
 }
 
 // src/services/githubService.ts - Dynamic folder operations

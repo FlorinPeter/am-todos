@@ -36,7 +36,10 @@ pkill -9 -f "node server.js" 2>/dev/null || true
 
 echo -e "${GREEN}🚀 Starting backend server...${NC}"
 cd "$PROJECT_ROOT/server"
-nohup env NODE_ENV=development DEV_CORS_ORIGINS="http://localhost:3000,http://127.0.0.1:3000,http://159.65.120.9:3000" node server.js > server.log 2>&1 &
+nohup env NODE_ENV=development \
+  DEV_CORS_ORIGINS="http://localhost:3000,http://127.0.0.1:3000,http://159.65.120.9:3000" \
+  MAIN_SERVER_TOKEN="sk-ms-dev-12345678901234567890123456789012345678901234567890123456789012" \
+  node server.js > server.log 2>&1 &
 BACKEND_PID=$!
 echo "Backend server PID: $BACKEND_PID"
 
@@ -52,6 +55,11 @@ echo -e "${YELLOW}📋 Access your application:${NC}"
 echo "  Frontend: http://localhost:3000"
 echo "  Backend API: http://localhost:3001"
 echo "  Health check: http://localhost:3001/health"
+echo ""
+echo -e "${YELLOW}🔐 Local AI Proxy (for confidential todos):${NC}"
+echo "  Main server token: sk-ms-dev-12345678901234567890123456789012345678901234567890123456789012"
+echo "  Main server URL: ws://localhost:3001/proxy-ws"
+echo "  Setup instructions available in app settings"
 echo ""
 echo -e "${YELLOW}📁 Log files:${NC}"
 echo "  Backend: $PROJECT_ROOT/server/server.log"

@@ -49,8 +49,21 @@ interface GitLabConfig {
   branch?: string;
 }
 
+// Local proxy configuration
+interface LocalProxyConfig {
+  endpoint: string;             // Local OpenAI-compatible endpoint URL
+  isConnected: boolean;         // Current connection status
+  connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'error';
+  lastHeartbeat?: string;       // Last heartbeat timestamp
+  displayName?: string;         // User-friendly name for this proxy
+  // NEW: User-configured proxy credentials from their local proxy instance
+  proxyUuid?: string;          // UUID from user's proxy /config/settings.json
+  proxyLocalToken?: string;    // localToken from user's proxy /config/settings.json
+  userConfigured?: boolean;    // Flag to track if user has configured their proxy credentials
+}
+
 // Main settings interface supporting dual configurations
-interface GitHubSettings {
+interface GeneralSettings {
   // Active provider
   gitProvider: 'github' | 'gitlab';
   
@@ -58,7 +71,7 @@ interface GitHubSettings {
   folder: string;
   
   // AI Provider settings
-  aiProvider?: 'gemini' | 'openrouter';
+  aiProvider?: 'gemini' | 'openrouter' | 'local-proxy';
   geminiApiKey?: string;
   openRouterApiKey?: string;
   aiModel?: string;
@@ -66,6 +79,12 @@ interface GitHubSettings {
   // Provider-specific configurations (preserved when switching)
   github?: GitHubConfig;
   gitlab?: GitLabConfig;
+  
+  // Local proxy configuration
+  localProxy?: LocalProxyConfig;
+  
+  // NEW: Main server token for local proxy authentication (displayed in UI)
+  mainServerToken?: string;
   
   // Legacy fields for backward compatibility (will be migrated)
   pat?: string;
@@ -77,9 +96,12 @@ interface GitHubSettings {
   branch?: string;
 }
 
-const SETTINGS_KEY = 'githubSettings';
+// Export types for use in other files
+export type { GeneralSettings, GitHubConfig, GitLabConfig, LocalProxyConfig };
 
-export const saveSettings = (settings: GitHubSettings) => {
+const SETTINGS_KEY = 'generalSettings';
+
+export const saveSettings = (settings: GeneralSettings) => {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   } catch (error) {
@@ -87,7 +109,7 @@ export const saveSettings = (settings: GitHubSettings) => {
   }
 };
 
-export const loadSettings = (): GitHubSettings | null => {
+export const loadSettings = (): GeneralSettings | null => {
   try {
     const settingsString = localStorage.getItem(SETTINGS_KEY);
     if (!settingsString) return null;
@@ -97,7 +119,7 @@ export const loadSettings = (): GitHubSettings | null => {
     // Migration: Check if this is legacy format (has direct provider fields)
     const isLegacyFormat = rawSettings.pat || rawSettings.instanceUrl || (!rawSettings.github && !rawSettings.gitlab);
     
-    let settings: GitHubSettings;
+    let settings: GeneralSettings;
     
     if (isLegacyFormat) {
       // Migrate from legacy format to new dual-configuration format
@@ -169,7 +191,7 @@ export const loadSettings = (): GitHubSettings | null => {
   }
 };
 
-export const encodeSettingsToUrl = (settings: GitHubSettings): string => {
+export const encodeSettingsToUrl = (settings: GeneralSettings): string => {
   try {
     // Create compressed object with short keys and only non-default values
     const compressed: any = {};
@@ -234,6 +256,18 @@ export const encodeSettingsToUrl = (settings: GitHubSettings): string => {
     if (settings.openRouterApiKey) compressed.ok = validateUrlComponent(settings.openRouterApiKey, 'OpenRouter API key');
     if (settings.aiModel) compressed.m = validateUrlComponent(settings.aiModel, 'AI model');
     
+    // Local proxy configuration
+    if (settings.localProxy) {
+      const lp: any = {};
+      if (settings.localProxy.endpoint) lp.e = validateUrlComponent(settings.localProxy.endpoint, 'Local proxy endpoint');
+      if (settings.localProxy.proxyUuid) lp.u = validateUrlComponent(settings.localProxy.proxyUuid, 'Proxy UUID');
+      if (settings.localProxy.proxyLocalToken) lp.t = validateUrlComponent(settings.localProxy.proxyLocalToken, 'Proxy local token');
+      if (settings.localProxy.displayName) lp.n = validateUrlComponent(settings.localProxy.displayName, 'Proxy display name');
+      if (Object.keys(lp).length > 0) compressed.lp = lp;
+    }
+    
+    if (settings.mainServerToken) compressed.mst = validateUrlComponent(settings.mainServerToken, 'Main server token');
+    
     // Validate final JSON size before encoding
     const jsonString = JSON.stringify(compressed);
     if (jsonString.length > 10000) {
@@ -248,7 +282,7 @@ export const encodeSettingsToUrl = (settings: GitHubSettings): string => {
   }
 };
 
-export const decodeSettingsFromUrl = (configParam: string): GitHubSettings | null => {
+export const decodeSettingsFromUrl = (configParam: string): GeneralSettings | null => {
   try {
     // Validate base64 input size to prevent DoS attacks
     if (configParam.length > 20000) {
@@ -295,13 +329,14 @@ export const decodeSettingsFromUrl = (configParam: string): GitHubSettings | nul
       return settings;
     } else {
       // Handle new dual-configuration format
-      const settings: GitHubSettings = {
+      const settings: GeneralSettings = {
         gitProvider: compressed.g === 1 ? 'gitlab' : (compressed.g || 'github'),
         folder: compressed.f !== undefined ? compressed.f : 'todos',
         aiProvider: compressed.a === 1 ? 'openrouter' : (compressed.a || 'gemini'),
         geminiApiKey: compressed.gk || '',
         openRouterApiKey: compressed.ok || '',
-        aiModel: compressed.m || ''
+        aiModel: compressed.m || '',
+        mainServerToken: compressed.mst || ''
       };
       
       // Decode GitHub configuration
@@ -321,6 +356,19 @@ export const decodeSettingsFromUrl = (configParam: string): GitHubSettings | nul
           projectId: compressed.gl.i || '',
           token: compressed.gl.t || '',
           branch: compressed.gl.b || 'main'
+        };
+      }
+      
+      // Decode Local Proxy configuration
+      if (compressed.lp) {
+        settings.localProxy = {
+          endpoint: compressed.lp.e || '',
+          isConnected: false, // Default to false, will be updated by connection check
+          connectionStatus: 'disconnected',
+          proxyUuid: compressed.lp.u || '',
+          proxyLocalToken: compressed.lp.t || '',
+          displayName: compressed.lp.n || '',
+          userConfigured: !!(compressed.lp.u && compressed.lp.t) // Set based on presence of credentials
         };
       }
       
@@ -356,7 +404,7 @@ export const decodeSettingsFromUrl = (configParam: string): GitHubSettings | nul
   }
 };
 
-export const getUrlConfig = (): GitHubSettings | null => {
+export const getUrlConfig = (): GeneralSettings | null => {
   const urlParams = new URLSearchParams(window.location.search);
   const configParam = urlParams.get('config');
   

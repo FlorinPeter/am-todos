@@ -25,7 +25,7 @@ export interface Todo {
   title: string;        // Extracted from filename
   content: string;
   frontmatter: {
-    tags: string[];     // Only tags remain in frontmatter
+    tags: string[];       // Only tags remain in frontmatter
   };
   path: string;
   sha: string;
@@ -43,7 +43,7 @@ export interface Todo {
  * Used in: markdown utils
  */
 export interface TodoFrontmatter {
-  tags: string[];  // Only tags field remains - provides extensibility
+  tags: string[];         // Only tags field remains - provides extensibility
   // REMOVED: title, createdAt, priority, isArchived (now in filename)
   // REMOVED: chatHistory (unused code)
 }

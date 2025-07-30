@@ -1,7 +1,7 @@
 import logger from '../utils/logger';
 import { fetchWithTimeout, TIMEOUT_VALUES } from '../utils/fetchWithTimeout';
 import { parseRateLimitError, showRateLimitNotification } from '../utils/rateLimitHandler';
-import { parseFilenameMetadata, parseLegacyFilenameMetadata, generateFilename } from '../utils/filenameMetadata';
+import { parseFilenameMetadata, generateFilename } from '../utils/filenameMetadata';
 import { parseMarkdownWithMetadata, stringifyMarkdownWithMetadata } from '../utils/markdown';
 import { Todo } from '../types';
 
@@ -382,51 +382,35 @@ export const getTodos = async (token: string, owner: string, repo: string, folde
         
         todos.push(todo);
       } else {
-        // Try legacy format with performance optimization (YYYY-MM-DD-title.md)
-        const legacyMetadata = parseLegacyFilenameMetadata(file.name);
+        // File doesn't match new format - check if it should be ignored
+        logger.log('⚠️ UNKNOWN FORMAT: Checking if file matches new format:', file.name);
         
-        if (legacyMetadata) {
-          // ✅ Legacy format with performance optimization - NO content fetch needed!
-          logger.log('🚀 LEGACY OPTIMIZED: GitHub metadata from legacy filename without content fetch:', file.name);
+        try {
+          const content = await getFileContent(token, owner, repo, file.path);
+          const parsed = parseMarkdownWithMetadata(content, file.name, includeArchived);
+          
+          if (parsed === null) {
+            // File doesn't match new format, ignore it
+            logger.log('📋 IGNORING LEGACY FILE: File does not match new format P{priority}--{date}--{title}.md:', file.name);
+            continue; // Skip this file
+          }
           
           const todo: Todo = {
             id: file.sha,
-            title: legacyMetadata.displayTitle,
-            content: '', // Will be loaded on-demand only when editing
-            frontmatter: { tags: [] }, // Default tags, loaded on-demand when editing
+            title: parsed.title,
+            content, // Already fetched for unknown format files
+            frontmatter: parsed.frontmatter,
             path: file.path,
             sha: file.sha,
-            priority: legacyMetadata.priority, // Default P3 for legacy files
-            createdAt: legacyMetadata.date + 'T00:00:00.000Z',
+            priority: parsed.priority ?? 3,
+            createdAt: parsed.createdAt,
             isArchived: includeArchived
           };
           
           todos.push(todo);
-        } else {
-          // 🔄 Fallback: Unknown format - needs content fetch (rare case)
-          logger.log('⚠️ UNKNOWN FORMAT: Fetching GitHub content for metadata:', file.name);
-          
-          try {
-            const content = await getFileContent(token, owner, repo, file.path);
-            const parsed = parseMarkdownWithMetadata(content, file.name, includeArchived);
-            
-            const todo: Todo = {
-              id: file.sha,
-              title: parsed.title,
-              content, // Already fetched for unknown format files
-              frontmatter: parsed.frontmatter,
-              path: file.path,
-              sha: file.sha,
-              priority: parsed.priority ?? 3,
-              createdAt: parsed.createdAt,
-              isArchived: includeArchived
-            };
-            
-            todos.push(todo);
-          } catch (error) {
-            logger.error('Error processing unknown format GitHub file:', file.name, error);
-            // Continue processing other files
-          }
+        } catch (error) {
+          logger.error('Error processing file:', file.name, error);
+          // Continue processing other files
         }
       }
     }

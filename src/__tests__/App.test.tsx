@@ -117,9 +117,9 @@ vi.mock('../components/TodoEditor', () => ({
   )
 }));
 
-vi.mock('../components/GitSettings', () => ({
+vi.mock('../components/GeneralSettings', () => ({
   default: ({ onSettingsSaved }: any) => (
-    <div data-testid="git-settings">
+    <div data-testid="general-settings">
       <button data-testid="save-settings" onClick={onSettingsSaved}>Save Settings</button>
     </div>
   )
@@ -153,8 +153,8 @@ const mockDeleteFile = gitService.deleteFile as MockedFunction<typeof gitService
 const mockMoveTaskToArchive = gitService.moveTaskToArchive as MockedFunction<typeof gitService.moveTaskToArchive>;
 const mockGenerateCommitMessage = aiService.generateCommitMessage as MockedFunction<typeof aiService.generateCommitMessage>;
 
-const mockParseMarkdownWithFrontmatter = markdown.parseMarkdownWithFrontmatter as MockedFunction<typeof markdown.parseMarkdownWithFrontmatter>;
-const mockStringifyMarkdownWithFrontmatter = markdown.stringifyMarkdownWithFrontmatter as MockedFunction<typeof markdown.stringifyMarkdownWithFrontmatter>;
+const mockParseMarkdownWithMetadata = vi.mocked(markdown.parseMarkdownWithMetadata);
+const mockStringifyMarkdownWithMetadata = vi.mocked(markdown.stringifyMarkdownWithMetadata);
 
 describe('App Component', () => {
   const mockSettings = {
@@ -210,7 +210,7 @@ describe('App Component', () => {
       }
     });
     
-    mockParseMarkdownWithFrontmatter.mockImplementation((content) => {
+    mockParseMarkdownWithMetadata.mockImplementation((content, filename) => {
       if (content.includes('Test Todo 1')) {
         return {
           title: 'Test Todo 1',
@@ -405,7 +405,7 @@ describe('App Component', () => {
     });
 
     it('calls save handler when save button is clicked', async () => {
-      mockStringifyMarkdownWithFrontmatter.mockReturnValue('updated markdown');
+      mockStringifyMarkdownWithMetadata.mockReturnValue('updated markdown');
       mockGenerateCommitMessage.mockResolvedValue({
         message: 'feat: Update todo',
         description: 'Generated commit message for todo update'
@@ -516,13 +516,13 @@ describe('App Component', () => {
       expect(mockGetTodos).not.toHaveBeenCalled();
     });
 
-    it('renders GitSettings when no settings exist', async () => {
+    it('renders GeneralSettings when no settings exist', async () => {
       mockLoadSettings.mockReturnValue(null);
       
       render(<App />);
       
       await waitFor(() => {
-        expect(screen.getByTestId('git-settings')).toBeInTheDocument();
+        expect(screen.getByTestId('general-settings')).toBeInTheDocument();
       });
     });
   });
