@@ -30,7 +30,7 @@ jobs:
           docker compose config
 
       - name: Check for security issues in Dockerfile
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@v3.3.0
         with:
           dockerfile: Dockerfile
           format: tty
