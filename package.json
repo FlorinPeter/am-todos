@@ -41,7 +41,7 @@
     "@uiw/codemirror-themes": "^4.24.1",
     "@uiw/react-codemirror": "^4.24.1",
     "@uiw/react-markdown-preview": "^5.1.4",
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^4.1.1",
     "node-emoji": "^2.2.0",
     "postcss": "^8.4.49",
     "qrcode": "^1.5.4",
